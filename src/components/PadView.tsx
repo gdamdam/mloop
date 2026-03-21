@@ -15,6 +15,8 @@ import {
   PAD_LAYOUTS, loadPadLayout, savePadLayout, type PadLayoutId,
 } from "../utils/kitManager";
 import { SoundBrowser } from "./SoundBrowser";
+import { PadDetail } from "./PadDetail";
+import type { PlayMode } from "./PadDetail";
 
 interface PadViewProps {
   engine: AudioEngine | null;
@@ -119,6 +121,9 @@ export function PadView({ engine, padEngine }: PadViewProps) {
   const [savedKits, setSavedKits] = useState(loadSavedKits);
   const [padLayout, setPadLayout] = useState<PadLayoutId>(loadPadLayout);
   const [browsingPad, setBrowsingPad] = useState<number | null>(null);
+  const [selectedPad, setSelectedPad] = useState<number | null>(null);
+  // Force re-render when pad settings change (volume, pan, etc.)
+  const [, forceUpdate] = useState(0);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
   useEffect(() => {
@@ -144,15 +149,14 @@ export function PadView({ engine, padEngine }: PadViewProps) {
   }, [engine]);
 
   const handlePadClick = useCallback((slotId: number) => {
+    setSelectedPad(slotId); // always select for detail panel
     const pe = padEngine;
     if (!pe) return;
     const slot = pe.slots[slotId];
 
     if (slot.status === "recording") {
-      // Stop recording this pad
       pe.stopRecording();
     } else if (slot.status === "loaded") {
-      // Play the sample
       pe.play(slotId);
     } else {
       // Empty — stop any current recording first, then record into this pad
@@ -416,8 +420,26 @@ export function PadView({ engine, padEngine }: PadViewProps) {
         </div>
       </div>
 
-      {/* Right: Step Sequencer */}
+      {/* Right: Pad Detail + Step Sequencer */}
       <div className="pad-right">
+        <PadDetail
+          slot={selectedPad !== null ? slots[selectedPad] ?? null : null}
+          volume={selectedPad !== null ? (padEngine?.slots[selectedPad]?.volume ?? 1) : 1}
+          pan={selectedPad !== null ? (padEngine?.slots[selectedPad]?.pan ?? 0) : 0}
+          pitch={selectedPad !== null ? (padEngine?.slots[selectedPad]?.pitch ?? 0) : 0}
+          playMode={(selectedPad !== null ? padEngine?.slots[selectedPad]?.playMode : "one") as PlayMode ?? "one"}
+          trimStart={selectedPad !== null ? (padEngine?.slots[selectedPad]?.trimStart ?? 0) : 0}
+          trimEnd={selectedPad !== null ? (padEngine?.slots[selectedPad]?.trimEnd ?? 1) : 1}
+          loopBeats={selectedPad !== null ? (padEngine?.slots[selectedPad]?.loopBeats ?? 0) : 0}
+          bpm={bpm}
+          onVolumeChange={(v) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].volume = v; forceUpdate(n => n + 1); } }}
+          onPanChange={(v) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].pan = v; forceUpdate(n => n + 1); } }}
+          onPitchChange={(v) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].pitch = v; forceUpdate(n => n + 1); } }}
+          onPlayModeChange={(m) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].playMode = m; forceUpdate(n => n + 1); } }}
+          onTrimChange={(s, e) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].trimStart = s; padEngine.slots[selectedPad].trimEnd = e; forceUpdate(n => n + 1); } }}
+          onLoopBeatsChange={(b) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].loopBeats = b; forceUpdate(n => n + 1); } }}
+          onNameChange={(name) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].name = name; forceUpdate(n => n + 1); } }}
+        />
         <PadSequencer slots={slots} bpm={bpm} onTrigger={handleSequencerTrigger} padEngine={padEngine} />
       </div>
 
