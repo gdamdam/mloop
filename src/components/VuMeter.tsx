@@ -93,7 +93,7 @@ export function VuMeter({ getAnalyser }: VuMeterProps) {
         ctx.lineTo(0, h);
         ctx.closePath();
         ctx.fillStyle = accent;
-        ctx.globalAlpha = 0.1;
+        ctx.globalAlpha = 0.25;
         ctx.fill();
         ctx.globalAlpha = 1;
       } else {
@@ -115,7 +115,7 @@ export function VuMeter({ getAnalyser }: VuMeterProps) {
             ctx.fillStyle = `rgb(${r},${g},0)`;
           } else {
             ctx.fillStyle = accent;
-            ctx.globalAlpha = 0.3 + val * 0.7;
+            ctx.globalAlpha = 0.5 + val * 0.5;
           }
 
           ctx.fillRect(i * (barW + 1), h - barH, barW, barH);

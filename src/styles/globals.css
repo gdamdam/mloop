@@ -368,11 +368,15 @@ input[type="range"] {
 
 .waveform-area {
   height: 64px;
-  background: var(--bg-cell);
+  background: color-mix(in srgb, var(--bg-cell) 70%, var(--preview) 5%);
   border-radius: 4px;
   margin: 8px 0;
   position: relative;
   overflow: hidden;
+}
+
+.vu-meter {
+  background: color-mix(in srgb, var(--bg-cell) 70%, var(--preview) 5%) !important;
 }
 
 /* ── Volume slider ───────────────────────────────────────────────────── */
