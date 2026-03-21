@@ -75,6 +75,9 @@ export type LoopCommand =
   | { type: "save_session"; name: string }
   | { type: "load_session"; name: string }
   | { type: "export_wav" }
+  | { type: "export_session_file" }
+  | { type: "import_session_file" }
+  | { type: "pin_session" }
   | { type: "set_timing_mode"; mode: TimingMode }
   | { type: "toggle_metronome" }
   | { type: "stop_all" }
