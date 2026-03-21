@@ -162,6 +162,17 @@ export function useLoopEngine() {
   const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
   const engineRef = useRef<AudioEngine | null>(null);
 
+  /** Ensure mic is connected — retries initMic if it failed at startup. */
+  const ensureMic = useCallback(async () => {
+    const engine = engineRef.current;
+    if (!engine || engine.hasMic) return;
+    try {
+      await engine.initMic();
+    } catch (e) {
+      console.warn("Mic unavailable:", e);
+    }
+  }, []);
+
   /** Push real engine state into React (called after every engine operation). */
   const syncState = useCallback(() => {
     const engine = engineRef.current;
@@ -185,10 +196,7 @@ export function useLoopEngine() {
     const run = async () => {
       switch (cmd.type) {
         case "track_record":
-          // Retry mic init if it failed at startup (Firefox)
-          if (!engine.hasMic) {
-            try { await engine.initMic(); } catch { /* still no mic */ }
-          }
+          await ensureMic();
           await engine.recordTrack(cmd.trackId);
           break;
         case "track_stop":
@@ -198,6 +206,7 @@ export function useLoopEngine() {
           engine.playTrack(cmd.trackId);
           break;
         case "track_overdub":
+          await ensureMic();
           await engine.overdubTrack(cmd.trackId);
           break;
         case "track_mute": {
