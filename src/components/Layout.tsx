@@ -66,9 +66,9 @@ export function Layout({ state, command, engine }: LayoutProps) {
       <header className="header">
         <div className="title">
           <pre className="title-art" style={{ color: "var(--preview)" }}>{LOGO}</pre>
+          <span className="title-version">0.1.0</span>
         </div>
         <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
-        <span className="title-version">0.1.0</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button className="header-btn"
             onClick={() => command({ type: "set_timing_mode", mode: state.timingMode === "free" ? "quantized" : "free" })}
