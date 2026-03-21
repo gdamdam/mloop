@@ -33,8 +33,10 @@ export function StartGate({ onStart }: StartGateProps) {
   return (
     <div className="start-gate">
       <pre className="start-gate-title">{LOGO}</pre>
+      <span style={{ fontSize: 10, color: "var(--text-dim)" }}>v0.4.1</span>
       <p className="start-gate-sub">
-        Browser-based loop station. Record, layer, and perform — no install needed.
+        Browser-based loop station.<br />
+        Record, layer, and perform — no install needed.
       </p>
       <button
         className="start-btn"
