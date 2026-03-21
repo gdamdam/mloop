@@ -1,78 +1,120 @@
 /**
- * Recorder — main-thread interface to the AudioWorklet-based recorder.
+ * Recorder — captures mic input into a Float32Array.
  *
- * Uses an AudioWorkletProcessor (running on the audio thread) to capture
- * raw PCM samples with zero latency. The worklet accumulates samples in
- * a ring buffer and sends them back as a single Float32Array on stop.
- *
- * This approach avoids ScriptProcessorNode (deprecated, runs on main thread)
- * and MediaRecorder (compressed, not sample-accurate).
+ * Tries AudioWorklet first (sample-accurate, audio thread).
+ * Falls back to ScriptProcessorNode if worklet fails (Firefox compat).
  */
 
-// Worklet JS lives in public/ — Vite serves static files from there
-const WORKLET_URL = "./recorder-worklet.js";
+// Resolve worklet URL relative to page base (works on subpaths like /mloop/)
+function getWorkletUrl(): string {
+  const base = document.baseURI || window.location.href;
+  return new URL("recorder-worklet.js", base).href;
+}
 
 export class Recorder {
   private ctx: AudioContext;
   private workletNode: AudioWorkletNode | null = null;
+  private scriptNode: ScriptProcessorNode | null = null;
   private inputNode: AudioNode;
   private resolveBuffer: ((buf: Float32Array) => void) | null = null;
-  /** Module only needs to be registered once per AudioContext. */
   private static workletReady = false;
+  private static workletFailed = false;
+  private chunks: Float32Array[] = [];
+  private totalSamples = 0;
 
   constructor(ctx: AudioContext, inputNode: AudioNode) {
     this.ctx = ctx;
     this.inputNode = inputNode;
   }
 
-  /** Load the worklet module (idempotent — skips if already loaded). */
-  private async ensureWorklet(): Promise<void> {
-    if (Recorder.workletReady) return;
-    await this.ctx.audioWorklet.addModule(WORKLET_URL);
-    Recorder.workletReady = true;
+  /** Load the worklet module (once). Marks as failed if it errors. */
+  private async ensureWorklet(): Promise<boolean> {
+    if (Recorder.workletFailed) return false;
+    if (Recorder.workletReady) return true;
+    try {
+      await this.ctx.audioWorklet.addModule(getWorkletUrl());
+      Recorder.workletReady = true;
+      return true;
+    } catch {
+      Recorder.workletFailed = true;
+      return false;
+    }
   }
 
-  /** Start recording. Wires input → worklet node. Returns immediately. */
+  /** Start recording. Uses AudioWorklet or ScriptProcessorNode fallback. */
   async start(): Promise<void> {
-    await this.ensureWorklet();
+    const canUseWorklet = await this.ensureWorklet();
 
-    this.workletNode = new AudioWorkletNode(this.ctx, "recorder-worklet", {
-      numberOfInputs: 1,
-      numberOfOutputs: 0, // sink only — no passthrough needed
-      channelCount: 1,     // mono recording
-    });
-
-    this.inputNode.connect(this.workletNode);
-    this.workletNode.port.postMessage({ type: "start" });
+    if (canUseWorklet) {
+      this.workletNode = new AudioWorkletNode(this.ctx, "recorder-worklet", {
+        numberOfInputs: 1,
+        numberOfOutputs: 0,
+        channelCount: 1,
+      });
+      this.inputNode.connect(this.workletNode);
+      this.workletNode.port.postMessage({ type: "start" });
+    } else {
+      // Fallback: ScriptProcessorNode (deprecated but universally supported)
+      this.chunks = [];
+      this.totalSamples = 0;
+      this.scriptNode = this.ctx.createScriptProcessor(4096, 1, 1);
+      this.scriptNode.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        const copy = new Float32Array(input.length);
+        copy.set(input);
+        this.chunks.push(copy);
+        this.totalSamples += copy.length;
+      };
+      this.inputNode.connect(this.scriptNode);
+      // ScriptProcessorNode requires connection to destination to process
+      this.scriptNode.connect(this.ctx.destination);
+    }
   }
 
-  /**
-   * Stop recording and return the captured buffer.
-   * Communicates with the worklet via MessagePort — the worklet
-   * concatenates its internal chunks and sends the full buffer back.
-   */
+  /** Stop recording and return the captured buffer. */
   stop(): Promise<Float32Array> {
     return new Promise((resolve) => {
-      if (!this.workletNode) {
-        resolve(new Float32Array(0));
+      // AudioWorklet path
+      if (this.workletNode) {
+        this.resolveBuffer = resolve;
+        this.workletNode.port.onmessage = (e: MessageEvent) => {
+          if (e.data.type === "buffer") {
+            this.resolveBuffer?.(e.data.buffer as Float32Array);
+            this.resolveBuffer = null;
+            this.cleanup();
+          }
+        };
+        this.workletNode.port.postMessage({ type: "stop" });
         return;
       }
 
-      this.resolveBuffer = resolve;
+      // ScriptProcessorNode fallback path
+      if (this.scriptNode) {
+        this.scriptNode.onaudioprocess = null;
+        try {
+          this.inputNode.disconnect(this.scriptNode);
+          this.scriptNode.disconnect();
+        } catch { /* already disconnected */ }
+        this.scriptNode = null;
 
-      this.workletNode.port.onmessage = (e: MessageEvent) => {
-        if (e.data.type === "buffer") {
-          this.resolveBuffer?.(e.data.buffer as Float32Array);
-          this.resolveBuffer = null;
-          this.cleanup();
+        // Assemble chunks into final buffer
+        const result = new Float32Array(this.totalSamples);
+        let offset = 0;
+        for (const chunk of this.chunks) {
+          result.set(chunk, offset);
+          offset += chunk.length;
         }
-      };
+        this.chunks = [];
+        this.totalSamples = 0;
+        resolve(result);
+        return;
+      }
 
-      this.workletNode.port.postMessage({ type: "stop" });
+      // Nothing was recording
+      resolve(new Float32Array(0));
     });
   }
 
-  /** Disconnect the worklet node from the input to free resources. */
   private cleanup(): void {
     if (this.workletNode) {
       try {
