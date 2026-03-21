@@ -180,7 +180,7 @@ export function PadSequencer({ slots, bpm, onTrigger }: PadSequencerProps) {
                 return (
                   <button
                     key={step}
-                    onClick={() => toggleCell(step, slot.id)}
+                    onClick={(e) => { e.stopPropagation(); toggleCell(step, slot.id); }}
                     onDragOver={(e) => { e.preventDefault(); setDragOverCell({ step, slot: slot.id }); }}
                     onDragLeave={() => setDragOverCell(null)}
                     onDrop={(e) => handleDrop(e, step, slot.id)}
