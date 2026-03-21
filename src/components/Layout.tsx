@@ -152,27 +152,15 @@ export function Layout({ state, command, engine }: LayoutProps) {
               background: viewMode === m ? "var(--preview)" : "transparent",
               color: viewMode === m ? "#000" : "var(--text-dim)", letterSpacing: 0.5,
             }}>
-              {m === "tracks" ? "3-TRACK" : "PAD"}
+              {m === "tracks" ? "LOOPER" : "PAD"}
             </button>
           ))}
         </div>
 
-        {/* Main play/stop button (#15) */}
-        <button
-          onClick={handleMainPlayStop}
-          style={{
-            width: 32, height: 32, borderRadius: "50%", fontSize: 14,
-            background: anyRecording ? "var(--record)" : state.tracks.some(t => t.status === "playing") ? "var(--playing)" : "var(--bg-cell)",
-            color: anyRecording || state.tracks.some(t => t.status === "playing") ? "#000" : "var(--text)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: "none", cursor: "pointer", flexShrink: 0,
-          }}
-          title={anyRecording ? "Stop Recording" : "Play/Stop All"}
-        >
-          {anyRecording ? "■" : state.tracks.some(t => t.status === "playing") ? "■" : "▶"}
-        </button>
-
-        <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
+        {/* VU meter — wraps to new line on mobile via CSS */}
+        <div className="header-vu">
+          <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
+        </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button className="header-btn"

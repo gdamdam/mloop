@@ -73,6 +73,20 @@ input[type="range"] {
   top: 0;
   background: var(--bg);
   z-index: 10;
+  flex-wrap: wrap;
+}
+
+/* VU meter takes full width on mobile, stays inline on desktop */
+.header-vu {
+  flex: 1;
+  min-width: 80px;
+}
+
+@media (max-width: 600px) {
+  .header-vu {
+    flex-basis: 100%;
+    order: 99;
+  }
 }
 
 .title {

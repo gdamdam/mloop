@@ -5,7 +5,6 @@
  */
 
 import { useRef, useCallback, useEffect, useState } from "react";
-// PadEngine import not needed — received as prop
 import type { AudioEngine } from "../engine/AudioEngine";
 import type { PadEngine, PadSlot } from "../engine/PadEngine";
 import { PadSequencer } from "./PadSequencer";
@@ -47,6 +46,57 @@ function MiniWaveform({ buffer }: { buffer: Float32Array | null }) {
     }
     ctx.globalAlpha = 1;
   }, [buffer]);
+
+  return (
+    <canvas ref={canvasRef} style={{
+      position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none",
+    }} />
+  );
+}
+
+/** Live waveform from input analyser — draws real-time audio shape. */
+function InputWaveform({ analyser, isRecording }: { analyser: AnalyserNode | null; isRecording: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !analyser) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const draw = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.scale(dpr, dpr);
+      }
+      ctx.clearRect(0, 0, w, h);
+
+      const dataLen = analyser.fftSize;
+      const data = new Uint8Array(dataLen);
+      analyser.getByteTimeDomainData(data);
+
+      ctx.strokeStyle = isRecording ? "var(--record)" : "var(--preview)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const sliceW = w / dataLen;
+      for (let i = 0; i < dataLen; i++) {
+        const v = data[i] / 128.0;
+        const y = (v * h) / 2;
+        if (i === 0) ctx.moveTo(0, y);
+        else ctx.lineTo(i * sliceW, y);
+      }
+      ctx.stroke();
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [analyser, isRecording]);
 
   return (
     <canvas ref={canvasRef} style={{
@@ -148,12 +198,15 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               tap empty = rec · tap loaded = play
             </span>
           </div>
-          <div className="waveform-area" style={{ height: 28 }}>
+          {/* Live input waveform + level meter */}
+          <div className="waveform-area" style={{ height: 48, position: "relative" }}>
+            <InputWaveform analyser={engine?.getInputAnalyser() ?? null} isRecording={recordingSlot !== null} />
+            {/* Level bar overlay at bottom */}
             <div style={{
-              height: "100%", borderRadius: 4,
+              position: "absolute", bottom: 0, left: 0, height: 3, borderRadius: 2,
               width: `${Math.min(100, inputLevel * 100)}%`,
               background: recordingSlot !== null ? "var(--record)" : "var(--preview)",
-              transition: "width 0.05s", opacity: 0.5,
+              transition: "width 0.05s",
             }} />
           </div>
         </div>
