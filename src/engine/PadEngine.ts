@@ -126,10 +126,8 @@ export class PadEngine {
     const source = this.ctx.createBufferSource();
     source.buffer = slot.audioBuffer;
 
-    // Pitch: semitone offset via playbackRate
-    if (slot.pitch !== 0) {
-      source.playbackRate.value = Math.pow(2, slot.pitch / 12);
-    }
+    // Pitch: semitone offset via playbackRate (always set, even for 0)
+    source.playbackRate.value = Math.pow(2, slot.pitch / 12);
 
     // Loop mode
     if (slot.playMode === "loop") {
