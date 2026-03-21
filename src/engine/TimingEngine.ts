@@ -1,10 +1,17 @@
 /**
  * TimingEngine — master clock with look-ahead scheduling.
+ *
  * Provides metronome clicks and quantized record boundaries.
+ * Uses the standard Web Audio look-ahead pattern: a JS setInterval
+ * scheduler runs ahead of the audio thread, scheduling events into
+ * the future. This avoids timing jitter from JS event loop delays.
+ *
  * Ported from mpump Sequencer.ts timing pattern.
  */
 
+/** How far ahead (ms) to schedule audio events. Larger = more stable, more latency. */
 const LOOKAHEAD_MS = 100;
+/** How often (ms) the scheduler checks for upcoming beats. Must be < LOOKAHEAD_MS. */
 const SCHEDULE_INTERVAL_MS = 25;
 
 export class TimingEngine {
@@ -14,11 +21,11 @@ export class TimingEngine {
   private beatsPerBar = 4;
   private running = false;
   private schedulerId: number | null = null;
-  private nextBeatTime = 0; // in AudioContext seconds
+  private nextBeatTime = 0; // AudioContext time of the next beat
   private beatIndex = 0;
   private _metronomeOn = false;
 
-  // Callbacks
+  /** Callback fired on each beat — used by UI for beat indicators. */
   onBeat: ((beatIndex: number, isDownbeat: boolean) => void) | null = null;
 
   constructor(ctx: AudioContext, masterNode: AudioNode) {
@@ -30,6 +37,7 @@ export class TimingEngine {
     return this._bpm;
   }
 
+  /** Clamp BPM to sane range (30–300) to prevent broken timing. */
   set bpm(v: number) {
     this._bpm = Math.max(30, Math.min(300, v));
   }
@@ -52,12 +60,12 @@ export class TimingEngine {
     return this.beatDuration * this.beatsPerBar;
   }
 
-  /** Duration of one bar in samples. */
+  /** Duration of one bar in samples — used for quantized recording lengths. */
   get barLengthSamples(): number {
     return Math.round(this.barDuration * this.ctx.sampleRate);
   }
 
-  /** Start the scheduler. */
+  /** Start the look-ahead scheduler. */
   start(): void {
     if (this.running) return;
     this.running = true;
@@ -67,7 +75,7 @@ export class TimingEngine {
     this.schedulerId = window.setInterval(() => this.schedule(), SCHEDULE_INTERVAL_MS);
   }
 
-  /** Stop the scheduler. */
+  /** Stop the scheduler and metronome. */
   stop(): void {
     this.running = false;
     if (this.schedulerId !== null) {
@@ -76,11 +84,10 @@ export class TimingEngine {
     }
   }
 
-  /** Get the AudioContext time of the next bar boundary. */
+  /** Get the AudioContext time of the next bar boundary (for quantized start/stop). */
   getNextBarBoundary(): number {
     if (!this.running) return this.ctx.currentTime;
     const now = this.ctx.currentTime;
-    // How many beats until next bar start?
     const beatsIntoBar = this.beatIndex % this.beatsPerBar;
     const beatsUntilBar = beatsIntoBar === 0 ? 0 : this.beatsPerBar - beatsIntoBar;
     return now + beatsUntilBar * this.beatDuration;
@@ -92,7 +99,10 @@ export class TimingEngine {
     return this.nextBeatTime;
   }
 
-  /** Quantize a sample count to the nearest bar boundary. */
+  /**
+   * Quantize a sample count to the nearest bar boundary.
+   * Used to snap the first recording length to whole bars.
+   */
   quantizeToBar(samples: number): number {
     const barSamples = this.barLengthSamples;
     if (barSamples === 0) return samples;
@@ -110,18 +120,20 @@ export class TimingEngine {
 
   // ── Scheduler ──────────────────────────────────────────────────────────
 
+  /**
+   * Schedule all beats that fall within the look-ahead window.
+   * Runs on a JS timer but schedules Web Audio events with sample-accurate timing.
+   */
   private schedule(): void {
     const horizon = this.ctx.currentTime + LOOKAHEAD_MS / 1000;
 
     while (this.nextBeatTime < horizon) {
       const isDownbeat = this.beatIndex % this.beatsPerBar === 0;
 
-      // Metronome click
       if (this._metronomeOn) {
         this.playClick(this.nextBeatTime, isDownbeat);
       }
 
-      // Notify listener
       this.onBeat?.(this.beatIndex, isDownbeat);
 
       this.beatIndex++;
@@ -129,7 +141,10 @@ export class TimingEngine {
     }
   }
 
-  /** Play a metronome click — ported from mpump AudioPort.playClick. */
+  /**
+   * Play a metronome click as a short sine burst.
+   * Downbeats are higher-pitched (1500Hz) and louder than off-beats (1000Hz).
+   */
   private playClick(when: number, isDownbeat: boolean): void {
     const osc = this.ctx.createOscillator();
     osc.type = "sine";
@@ -143,32 +158,30 @@ export class TimingEngine {
     osc.connect(gain);
     gain.connect(this.masterNode);
     osc.start(when);
-    osc.stop(when + 0.04);
+    osc.stop(when + 0.04); // short burst, auto-disconnects after stop
   }
 
-  /** Tap tempo — call repeatedly and it averages the intervals. */
+  // ── Tap tempo ──────────────────────────────────────────────────────────
+
+  /** Timestamps of recent taps (up to 5). */
   private tapTimes: number[] = [];
 
+  /**
+   * Tap tempo — call repeatedly and it averages the intervals to derive BPM.
+   * Resets if more than 2 seconds elapse between taps (assumed new tempo).
+   */
   tapTempo(): void {
     const now = performance.now();
     this.tapTimes.push(now);
 
-    // Keep last 5 taps
+    // Keep only the last 5 taps for a stable average
     if (this.tapTimes.length > 5) {
       this.tapTimes.shift();
     }
 
-    // Need at least 2 taps
     if (this.tapTimes.length < 2) return;
 
-    // Average the intervals
-    let totalInterval = 0;
-    for (let i = 1; i < this.tapTimes.length; i++) {
-      totalInterval += this.tapTimes[i] - this.tapTimes[i - 1];
-    }
-    const avgInterval = totalInterval / (this.tapTimes.length - 1);
-
-    // Reset if tap was too long ago (>2 seconds gap = restart)
+    // Reset if the last gap was too long — user is starting a new tempo
     if (this.tapTimes.length >= 2) {
       const lastGap = this.tapTimes[this.tapTimes.length - 1] - this.tapTimes[this.tapTimes.length - 2];
       if (lastGap > 2000) {
@@ -176,6 +189,13 @@ export class TimingEngine {
         return;
       }
     }
+
+    // Average all intervals for a stable reading
+    let totalInterval = 0;
+    for (let i = 1; i < this.tapTimes.length; i++) {
+      totalInterval += this.tapTimes[i] - this.tapTimes[i - 1];
+    }
+    const avgInterval = totalInterval / (this.tapTimes.length - 1);
 
     this._bpm = Math.round(60000 / avgInterval);
   }

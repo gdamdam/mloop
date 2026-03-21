@@ -1,3 +1,15 @@
+/**
+ * useLoopEngine — React hook that bridges the AudioEngine (real-time audio)
+ * with React state (UI rendering).
+ *
+ * Uses an optimistic-update pattern: the reducer immediately updates UI state,
+ * then the async engine operation runs and syncs the real state back. This
+ * keeps the UI responsive even when audio operations have latency.
+ *
+ * Also handles session persistence (save/load/pin), file import/export,
+ * and share link generation.
+ */
+
 import { useReducer, useRef, useCallback } from "react";
 import type { EngineState, LoopCommand, TrackState } from "../types";
 import { createInitialState } from "../types";
@@ -11,6 +23,7 @@ import { encodeShareLink } from "../utils/shareLink";
 
 // ── Reducer ──────────────────────────────────────────────────────────────
 
+/** Helper to immutably update a single track within the state. */
 function updateTrack(state: EngineState, trackId: number, update: Partial<TrackState>): EngineState {
   return {
     ...state,
@@ -20,6 +33,11 @@ function updateTrack(state: EngineState, trackId: number, update: Partial<TrackS
   };
 }
 
+/**
+ * Pure reducer for optimistic UI updates.
+ * Each command type maps to the expected state change before the
+ * async engine operation confirms the real outcome.
+ */
 function reducer(state: EngineState, cmd: LoopCommand): EngineState {
   switch (cmd.type) {
     case "track_record":
@@ -102,6 +120,7 @@ function reducer(state: EngineState, cmd: LoopCommand): EngineState {
         })),
       };
 
+    // Engine-authoritative sync — overwrites optimistic state with real values
     case "state_sync":
       return { ...state, ...cmd.state };
 
@@ -112,6 +131,7 @@ function reducer(state: EngineState, cmd: LoopCommand): EngineState {
 
 // ── Sync engine state → React state ──────────────────────────────────────
 
+/** Read the real audio engine state and produce a React-compatible snapshot. */
 function syncFromEngine(engine: AudioEngine): Partial<EngineState> {
   return {
     masterLoopLength: engine.masterLoopLength,
@@ -134,25 +154,34 @@ function syncFromEngine(engine: AudioEngine): Partial<EngineState> {
 
 // ── Hook ─────────────────────────────────────────────────────────────────
 
+/**
+ * Main hook for the loop engine — provides state, command dispatch,
+ * engine initialization, and direct engine access.
+ */
 export function useLoopEngine() {
   const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
   const engineRef = useRef<AudioEngine | null>(null);
 
+  /** Push real engine state into React (called after every engine operation). */
   const syncState = useCallback(() => {
     const engine = engineRef.current;
     if (!engine) return;
     dispatch({ type: "state_sync", state: syncFromEngine(engine) });
   }, []);
 
+  /**
+   * Dispatch a command — applies optimistic UI update immediately,
+   * then runs the real audio engine operation asynchronously.
+   */
   const command = useCallback((cmd: LoopCommand) => {
     const engine = engineRef.current;
 
-    // Optimistic UI update
+    // Optimistic UI update — keeps buttons feeling instant
     dispatch(cmd);
 
     if (!engine) return;
 
-    // Dispatch to real engine, then sync back
+    // Run the real engine operation, then sync state back
     const run = async () => {
       switch (cmd.type) {
         case "track_record":
@@ -214,6 +243,7 @@ export function useLoopEngine() {
           engine.tracks[cmd.trackId]?.setEffect(cmd.name, cmd.params as never);
           break;
         case "import_file": {
+          // Import decoded audio into a track; first import sets the master loop
           const track = engine.tracks[cmd.trackId];
           const len = track.importBuffer(cmd.buffer, engine.masterLoopLength);
           if (engine.masterLoopLength === 0 && len > 0) {
@@ -222,6 +252,7 @@ export function useLoopEngine() {
           break;
         }
         case "save_session": {
+          // Serialize all track layers as raw ArrayBuffers for IndexedDB storage
           const session: SessionData = {
             name: cmd.name,
             savedAt: Date.now(),
@@ -263,13 +294,14 @@ export function useLoopEngine() {
           break;
         }
         case "export_wav": {
-          // Mix all non-empty tracks and save via system Save As dialog
+          // Mix all non-empty tracks into a single WAV file for download
           const bufs: Float32Array[] = [];
           for (const t of engine.tracks) {
             const data = t.getMixedData();
             if (data) bufs.push(data);
           }
           if (bufs.length > 0) {
+            // Pad shorter tracks to longest so the mix is complete
             const maxLen = Math.max(...bufs.map((b) => b.length));
             const padded = bufs.map((b) => {
               if (b.length === maxLen) return b;
@@ -284,7 +316,7 @@ export function useLoopEngine() {
           break;
         }
         case "export_session_file": {
-          // Serialize full session state to JSON + audio buffers, save via Save As
+          // Serialize full session to JSON — layers stored as number[] for portability
           const sessionExport = {
             version: 1,
             bpm: engine.timing.bpm,
@@ -292,7 +324,7 @@ export function useLoopEngine() {
             syncMode: engine.syncMode,
             masterLoopLength: engine.masterLoopLength,
             tracks: engine.tracks.map((t) => ({
-              layers: t.getLayers().map((l) => Array.from(l)), // Float32 → number[]
+              layers: t.getLayers().map((l) => Array.from(l)),
               volume: t.volume,
               isReversed: t.isReversed,
               playbackRate: t.playbackRate,
@@ -304,7 +336,7 @@ export function useLoopEngine() {
           break;
         }
         case "import_session_file": {
-          // Open file picker, load JSON session, restore all state
+          // Open file picker, parse JSON session, restore all engine state
           const file = await openFile(".json");
           if (!file) break;
           try {
@@ -331,7 +363,7 @@ export function useLoopEngine() {
           break;
         }
         case "pin_session": {
-          // Quick-save current state as pinned session (auto-loads on next visit)
+          // Quick-save as "__pinned__" — auto-loaded on next visit for session recovery
           const pinData: SessionData = {
             name: "__pinned__",
             savedAt: Date.now(),
@@ -354,7 +386,7 @@ export function useLoopEngine() {
           break;
         }
         case "share_link": {
-          // Generate a shareable URL with current settings (no audio — too large)
+          // Encode settings (no audio — too large for URL) into a shareable hash
           const fx = engine.tracks[0]?.getEffects() ?? {};
           const url = encodeShareLink({
             bpm: engine.timing.bpm,
@@ -366,7 +398,6 @@ export function useLoopEngine() {
             await navigator.clipboard.writeText(url);
             alert("Share link copied to clipboard!");
           } catch {
-            // Fallback: show in prompt
             prompt("Share this link:", url);
           }
           break;
@@ -380,20 +411,25 @@ export function useLoopEngine() {
         default:
           break;
       }
-      // Sync real engine state back to React
+      // Sync real engine state back to React after every operation
       syncState();
     };
 
     run();
   }, [syncState]);
 
+  /**
+   * Initialize the audio engine — requests mic permission, creates
+   * AudioContext, and restores any pinned session from IndexedDB.
+   */
   const startEngine = useCallback(async () => {
     if (engineRef.current) return;
 
     const engine = new AudioEngine();
     await engine.initMic();
 
-    // Wire track state change callbacks to sync React state
+    // Wire track state change callbacks so engine-initiated changes
+    // (e.g., auto-stop timers) propagate to React
     for (const track of engine.tracks) {
       track.onStateChange = () => {
         dispatch({ type: "state_sync", state: syncFromEngine(engine) });
@@ -403,7 +439,7 @@ export function useLoopEngine() {
     engineRef.current = engine;
     dispatch({ type: "state_sync", state: { started: true, ...syncFromEngine(engine) } });
 
-    // Auto-load pinned session if one exists
+    // Auto-load pinned session if one exists (session recovery)
     try {
       const pinned = await loadSession("__pinned__");
       if (pinned && pinned.tracks.some(t => t.layers.length > 0)) {
@@ -422,6 +458,7 @@ export function useLoopEngine() {
     } catch { /* no pinned session or corrupt — skip silently */ }
   }, []);
 
+  /** Direct access to the engine instance (for visualizers, pad engine, etc). */
   const getEngine = useCallback(() => engineRef.current, []);
 
   return { state, command, startEngine, getEngine };

@@ -126,7 +126,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art ${logoPulse ? "logo-pulse" : ""}`} style={{ color: "var(--preview)" }} onClick={handleLogoClick}>{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.4.0</span>
+          <span className="title-version">0.4.1</span>
         </div>
 
         {/* View toggle */}
