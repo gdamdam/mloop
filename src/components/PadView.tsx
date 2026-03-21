@@ -17,6 +17,7 @@ import {
 import { SoundBrowser } from "./SoundBrowser";
 import { PadDetail } from "./PadDetail";
 import type { PlayMode } from "./PadDetail";
+import { SampleSlicer } from "./SampleSlicer";
 
 interface PadViewProps {
   engine: AudioEngine | null;
@@ -122,7 +123,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
   const [padLayout, setPadLayout] = useState<PadLayoutId>(loadPadLayout);
   const [browsingPad, setBrowsingPad] = useState<number | null>(null);
   const [selectedPad, setSelectedPad] = useState<number | null>(null);
-  // Force re-render when pad settings change (volume, pan, etc.)
+  const [showSlicer, setShowSlicer] = useState(false);
   const [, forceUpdate] = useState(0);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
@@ -266,6 +267,11 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                 kitToPads(kit, (id, buf) => padEngine.importBuffer(id, buf), (id) => padEngine.clear(id));
               }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Import kit from file">
                 ⬆
+              </button>
+              {/* Slice a long sample across pads */}
+              <button onClick={() => setShowSlicer(true)}
+                style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Slice audio file across pads">
+                ✂
               </button>
               {/* Layout selector */}
               <select
@@ -462,6 +468,11 @@ export function PadView({ engine, padEngine }: PadViewProps) {
           }}
           onClose={() => setBrowsingPad(null)}
         />
+      )}
+
+      {/* Sample Slicer Modal */}
+      {showSlicer && (
+        <SampleSlicer padEngine={padEngine} onClose={() => setShowSlicer(false)} />
       )}
     </div>
   );
