@@ -2,7 +2,7 @@
 <p align="center">Browser-based loop station & sample pad.<br>Record, layer, perform with real-time effects — no install, no subscription, no account.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.7.0-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.7.1-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-green" alt="License"></a>
   <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet?logo=anthropic&logoColor=white" alt="Built with Claude Code"></a>
   <br>
@@ -11,13 +11,14 @@
 
 ---
 
-Open **[mloop](https://mloop.mpump.live/)** and start looping immediately — no MIDI device required. Built-in mic recording, 9 real-time effects, KAOS XY pad, and 16-pad sampler with step sequencer — all running in the browser via Web Audio API.
+Open **[mloop](https://mloop.mpump.live/)** and start looping immediately — no MIDI device required. Built-in mic recording, 9 real-time effects, KAOS XY pad, 16-pad sampler with step sequencer, and 7 synthesized drum kits — all running in the browser via Web Audio API.
 
 Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based drum machine & synth sequencer.
 
 ## Table of Contents
 
 - [Features](#features)
+- [Sample Presets](#sample-presets)
 - [KAOS XY Pad](#kaos-xy-pad)
 - [Effects](#effects-9-total)
 - [Sample Pads & Sequencer](#sample-pads--sequencer)
@@ -38,8 +39,8 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 
 | Mode | Description |
 |---|---|
-| **3-TRACK** | 3 independent loop tracks with record, overdub, undo, reverse, half-speed. Centered KAOS XY pad with master effects. |
-| **PAD** | 4×4 MPC-style sample pads with step sequencer (8/16/32/64 steps). Record samples from mic, play one-shot, trim & edit. |
+| **PAD** (default) | 4×4 MPC-style sample pads with step sequencer (8/16/32/64 steps). 7 built-in drum kits. Record samples from mic, play one-shot, trim & edit. |
+| **LOOPER** | 3 independent loop tracks with record, overdub, undo, reverse, half-speed. Centered KAOS XY pad with master effects. |
 
 ### Loop Station
 - **Record / Overdub / Play / Stop** per track
@@ -49,8 +50,27 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 - **Free-time** or **quantized** recording (snap to bar boundaries)
 - **Metronome** with tap tempo
 - **Latency compensation** (auto-trim based on measured input latency)
+- **Destruction Mode** — progressive tape degradation per loop cycle
 - **Sound DNA** — unique spectral fingerprint glyph per loop
 - **→PAD** button to copy a track recording into a pad slot
+
+---
+
+## Sample Presets
+
+7 drum kits × 8 sounds each (56 sounds total), all synthesized via `OfflineAudioContext` — zero sample files:
+
+| Kit | Sounds |
+|---|---|
+| **Default** | Kick, Snare, HH, Clap, Open HH, Rim, Tom, Cymbal |
+| **Hip-Hop** | 808 Sub, Snare, HH, Open HH, Snap, Perc, Zap, Crash |
+| **House** | Deep Kick, Rim, HH, Open HH, Clap, Shaker, Conga, Ride |
+| **Lo-Fi** | Dusty Kick, Snare, Soft HH, Snap, Brush, Thud, Shaker, Chime |
+| **Industrial** | Kick, Metal Snare, Anvil, Buzz, Glitch, Static, Boom, Zap |
+| **Reggaeton** | Kick, Side Stick, Tick HH, Open HH, Clap, Clave, Bongo, Cowbell |
+| **FX** | Uh, Ah, Breath, Whistle, Water Drop, Wood Knock, Wind, Cricket |
+
+Select kits from the dropdown in PAD view. Default kit loads automatically on first visit.
 
 ---
 
@@ -60,6 +80,7 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 - Neon touch trails with audio-reactive visualizer
 - Auto-enables effects when selected as XY target
 - Effect chain with numbered badges, click chain to drag-reorder
+- **Gesture Loops** — record XY movements as repeating automation
 
 ---
 
@@ -76,6 +97,7 @@ Low-Pass Filter · Compressor · High-Pass Filter · Distortion · Bitcrusher ·
 
 ## Sample Pads & Sequencer
 - **16 pads** — tap empty to record, tap loaded to play
+- **7 built-in kits** — select from dropdown, all synthesized
 - **Step sequencer** — 8/16/32/64 steps, multiple pads per step
 - **Drag & drop** pads onto sequencer steps
 - **Sample editor** — waveform trim with draggable handles
@@ -89,7 +111,6 @@ Record XY pad movements as automation that loops alongside your audio.
 - **● REC GESTURE** — records your finger/mouse movements on the XY pad
 - **▶ PLAY GESTURE** — loops the recorded movement in sync with audio, continuously automating effects
 - Syncs to master loop length or defaults to 4 bars
-- Clear and re-record anytime
 
 ---
 
@@ -97,7 +118,6 @@ Record XY pad movements as automation that loops alongside your audio.
 Progressive tape degradation — loops evolve over time instead of staying static.
 - **DECAY slider** per track (0% = pristine digital, 100% = cassette-from-hell)
 - Each loop cycle applies cumulative: bitcrush, noise floor rise, high-frequency roll-off
-- Resets on clear or new recording
 
 ---
 
@@ -113,11 +133,11 @@ Progressive tape degradation — loops evolve over time instead of staying stati
 ---
 
 ## Themes
-12 color themes ported from mpump:
+12 color themes (6 dark, 6 light):
 - **Dark**: Midnight, Neon, Forest, Ember, Cobalt, Violet
-- **Light**: Minimal, Cream, Artic, Sand, Rosé, Slate
+- **Light**: Cream (default daytime), Minimal, Artic, Sand, Rosé, Slate
 
-Logo click: 1× = random theme, 2× = toggle beat pulse animation.
+Logo click: 1× = random theme, 2× = toggle beat pulse, 3× = help.
 
 ---
 
@@ -144,17 +164,18 @@ Logo click: 1× = random theme, 2× = toggle beat pulse animation.
 - **Keyboard shortcuts** (press `?` to see all)
 - **MIDI controller mapping** with learn mode (Chrome/Edge)
 - **Fullscreen** mode
-- **PWA** — works offline, add to home screen
+- **Auto-update check** — notifies when new version is available
 
 ---
 
 ## Tech Stack
 
-- **React 19** + **TypeScript** + **Vite**
+- **React 19** + **TypeScript** + **Vite 8**
 - **Web Audio API** — all synthesis and effects in-browser
-- **AudioWorklet** — sample-accurate recording
+- **AudioWorklet** — sample-accurate recording (ScriptProcessorNode fallback)
 - **Zero runtime dependencies** beyond React
-- **~294KB** production bundle (gzipped ~87KB)
+- **~318KB** production bundle (gzipped ~92KB)
+- **84 unit tests** (vitest)
 
 ---
 
@@ -164,6 +185,7 @@ Logo click: 1× = random theme, 2× = toggle beat pulse animation.
 npm install
 npm run dev      # dev server at localhost:5173
 npm run build    # production build
+npm run test     # run 84 tests
 npm run deploy   # build + deploy to GitHub Pages
 ```
 
