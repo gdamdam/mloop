@@ -52,19 +52,36 @@ const DEFAULT_SHORTCUTS: ShortcutMap = {
   "?": { type: "show_shortcuts" },
 };
 
+/**
+ * PAD mode keyboard map — QWERTY 4×4 grid for finger drumming.
+ * Bottom-left of keyboard maps to bottom-left of pad grid:
+ *   7 8 9 0  → Pads 13-16
+ *   U I O P  → Pads  9-12
+ *   J K L ;  → Pads  5-8
+ *   M , . /  → Pads  1-4
+ */
+const PAD_KEY_MAP: Record<string, number> = {
+  "m": 0, ",": 1, ".": 2, "/": 3,
+  "j": 4, "k": 5, "l": 6, ";": 7,
+  "u": 8, "i": 9, "o": 10, "p": 11,
+  "7": 12, "8": 13, "9": 14, "0": 15,
+};
+
 /** Human-readable shortcut descriptions for the help overlay. */
 export const SHORTCUT_DESCRIPTIONS: { key: string; description: string }[] = [
-  { key: "1 / 2 / 3", description: "Record track 1/2/3" },
-  { key: "Q / W / E", description: "Play track 1/2/3" },
-  { key: "A / S / D", description: "Mute track 1/2/3" },
-  { key: "Z / X / C", description: "Clear track 1/2/3" },
-  { key: "Shift+1/2/3", description: "Overdub track 1/2/3" },
+  { key: "1 / 2 / 3", description: "Record track 1/2/3 (Looper)" },
+  { key: "Q / W / E", description: "Play track 1/2/3 (Looper)" },
+  { key: "A / S / D", description: "Mute track 1/2/3 (Looper)" },
+  { key: "Z / X / C", description: "Clear track 1/2/3 (Looper)" },
+  { key: "Shift+1/2/3", description: "Overdub track 1/2/3 (Looper)" },
+  { key: "M , . /", description: "Pads 1-4 (Pad mode)" },
+  { key: "J K L ;", description: "Pads 5-8 (Pad mode)" },
+  { key: "U I O P", description: "Pads 9-12 (Pad mode)" },
+  { key: "7 8 9 0", description: "Pads 13-16 (Pad mode)" },
   { key: "Space", description: "Stop all" },
-  { key: "P", description: "Play all" },
-  { key: "M", description: "Metronome toggle" },
+  { key: "P", description: "Play all (Looper)" },
+  { key: "M", description: "Metronome (Looper)" },
   { key: "T", description: "Tap tempo" },
-  { key: "R", description: "Reverse track 1" },
-  { key: "H", description: "Half-speed track 1" },
   { key: "?", description: "Show shortcuts" },
 ];
 
@@ -78,6 +95,8 @@ export function useKeyboardShortcuts(
   command: (cmd: LoopCommand) => void,
   enabled: boolean,
   onSpaceBar?: () => void,
+  viewMode: "tracks" | "pads" = "pads",
+  onPadTrigger?: (padId: number) => void,
 ) {
   const [showOverlay, setShowOverlay] = useState(false);
 
@@ -90,8 +109,17 @@ export function useKeyboardShortcuts(
 
       const key = e.key;
 
-      // Space bar gets special handling — smart stop (stop recording if active,
-      // otherwise stop all playback)
+      // In PAD mode, check pad trigger keys first
+      if (viewMode === "pads" && onPadTrigger) {
+        const padId = PAD_KEY_MAP[key.toLowerCase()];
+        if (padId !== undefined) {
+          e.preventDefault();
+          onPadTrigger(padId);
+          return;
+        }
+      }
+
+      // Space bar gets special handling
       if (key === " ") {
         e.preventDefault();
         if (onSpaceBar) onSpaceBar();
@@ -116,7 +144,7 @@ export function useKeyboardShortcuts(
 
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [command, enabled]);
+  }, [command, enabled, viewMode, onPadTrigger]);
 
   return { showOverlay, setShowOverlay };
 }
