@@ -739,7 +739,7 @@ export const SAMPLE_PRESETS: SamplePreset[] = [
     },
   },
   {
-    name: "Voices & Nature",
+    name: "FX",
     generate: async () => {
       const [a,b,c,d,e,f,g,h] = await Promise.all([synthVoiceUh(), synthVoiceAh(), synthBreath(), synthWhistle(), synthWaterDrop(), synthWoodKnock(), synthWind(), synthCricket()]);
       return [{name:"Uh",buffer:a},{name:"Ah",buffer:b},{name:"Breath",buffer:c},{name:"Whistle",buffer:d},{name:"Drop",buffer:e},{name:"Wood",buffer:f},{name:"Wind",buffer:g},{name:"Cricket",buffer:h}];
