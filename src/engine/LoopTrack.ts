@@ -34,6 +34,7 @@ export class LoopTrack {
   private _muted = false;
   private _volume = 0.8;
   private autoStopTimer: number | null = null;
+  latencyTrimSamples = 0; // set by engine after mic init
 
   // Callback to notify engine of state changes
   onStateChange: (() => void) | null = null;
@@ -132,10 +133,12 @@ export class LoopTrack {
       this.loopLengthSamples = raw.length;
     }
 
-    // Trim/pad the recorded buffer to loop length
+    // Trim start by latency compensation, then pad to loop length
+    const offset = Math.min(this.latencyTrimSamples, raw.length - 1);
+    const compensated = offset > 0 ? raw.subarray(offset) : raw;
     const trimmed = new Float32Array(this.loopLengthSamples);
-    const copyLen = Math.min(raw.length, this.loopLengthSamples);
-    trimmed.set(raw.subarray(0, copyLen));
+    const copyLen = Math.min(compensated.length, this.loopLengthSamples);
+    trimmed.set(compensated.subarray(0, copyLen));
 
     this.layers.push(trimmed);
     this.rebuildMixedBuffer();
