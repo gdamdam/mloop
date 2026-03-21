@@ -1,7 +1,7 @@
 {
   "name": "mloop",
   "private": true,
-  "version": "0.6.1",
+  "version": "0.6.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,7 +23,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.6.1",
+    "eslint-plugin-react-refresh": "^0.6.2",
     "gh-pages": "^6.3.0",
     "globals": "^17.4.0",
     "typescript": "~5.9.3",
