@@ -1,0 +1,443 @@
+/* ── Reset & variables ─────────────────────────────────────────────────── */
+
+:root {
+  --bg: #0d1117;
+  --bg-panel: #161b22;
+  --bg-cell: #21262d;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #7d8590;
+  --accent: #58a6ff;
+  --record: #ff4444;
+  --playing: #66ff99;
+  --overdub: #f0883e;
+  --accent-bright: #e6a817;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-family: "SF Mono", "Menlo", "Consolas", monospace;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+body {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+
+.layout {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+
+.title {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.title-art {
+  margin: 0;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.15;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0;
+}
+
+.title-version {
+  font-size: 10px;
+  color: var(--text-dim);
+  padding-bottom: 1px;
+}
+
+.tracks {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 16px;
+}
+
+/* ── Start gate ──────────────────────────────────────────────────────── */
+
+.start-gate {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 32px;
+}
+
+.start-gate-title {
+  font-size: 10px;
+  line-height: 1.15;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+  white-space: pre;
+}
+
+.start-gate-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+.start-btn {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.2s, transform 0.1s;
+  box-shadow: 0 0 30px rgba(88, 166, 255, 0.3);
+}
+
+.start-btn:hover {
+  box-shadow: 0 0 50px rgba(88, 166, 255, 0.5);
+}
+
+.start-btn:active {
+  transform: scale(0.94);
+}
+
+/* ── Track strip ─────────────────────────────────────────────────────── */
+
+.track-strip {
+  background: var(--bg-panel);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.track-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.track-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bg-cell);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.track-status.recording {
+  background: var(--record);
+  box-shadow: 0 0 8px var(--record);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+.track-status.playing {
+  background: var(--playing);
+  box-shadow: 0 0 6px var(--playing);
+}
+
+.track-status.overdubbing {
+  background: var(--overdub);
+  box-shadow: 0 0 6px var(--overdub);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+.track-status.stopped {
+  background: var(--text-dim);
+}
+
+/* ── Transport buttons ───────────────────────────────────────────────── */
+
+.transport-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transport-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: var(--bg-cell);
+  transition: background 0.15s, color 0.15s;
+}
+
+.transport-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.transport-btn.active-record {
+  background: var(--record);
+  color: var(--bg);
+}
+
+.transport-btn.active-play {
+  background: var(--playing);
+  color: var(--bg);
+}
+
+.transport-btn.active-overdub {
+  background: var(--overdub);
+  color: var(--bg);
+}
+
+.transport-btn.muted {
+  opacity: 0.4;
+}
+
+/* ── Waveform placeholder ────────────────────────────────────────────── */
+
+.waveform-area {
+  height: 64px;
+  background: var(--bg-cell);
+  border-radius: 4px;
+  margin: 8px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Volume slider ───────────────────────────────────────────────────── */
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.volume-slider {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-cell);
+  border-radius: 2px;
+  outline: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+}
+
+.volume-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ── Global transport bar ────────────────────────────────────────────── */
+
+.global-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+.bpm-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.bpm-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.bpm-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+/* ── Bottom sheet (reusable) ─────────────────────────────────────────── */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.sheet {
+  width: 100%;
+  max-height: 70dvh;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.2s ease-out;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sheet-close {
+  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  .tracks {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .track-strip {
+    flex: 1;
+    min-width: 280px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .sheet {
+    max-width: 480px;
+    margin: 0 auto;
+    border-radius: 16px;
+    margin-bottom: 10dvh;
+  }
+
+  .sheet-backdrop {
+    align-items: center;
+  }
+}
