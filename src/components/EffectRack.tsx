@@ -75,7 +75,7 @@ export function EffectRack({ effects, onToggle, onSetParams }: EffectRackProps) 
                 fontSize: 9,
                 fontWeight: 700,
                 letterSpacing: 0.5,
-                background: isOn ? "var(--accent)" : "var(--bg-cell)",
+                background: isOn ? "var(--preview)" : "var(--bg-cell)",
                 color: isOn ? "var(--bg)" : "var(--text-dim)",
                 boxShadow: isOn ? "0 0 8px rgba(88,166,255,0.4)" : "none",
                 transition: "background 0.15s, color 0.15s, box-shadow 0.15s",

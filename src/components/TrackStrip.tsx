@@ -45,7 +45,7 @@ export function TrackStrip({ track, command, engine }: TrackStripProps) {
             <button
               style={{
                 fontSize: 9, fontWeight: 700, padding: "3px 6px", borderRadius: 4,
-                background: isReversed ? "var(--accent)" : "var(--bg-cell)",
+                background: isReversed ? "var(--preview)" : "var(--bg-cell)",
                 color: isReversed ? "var(--bg)" : "var(--text-dim)",
               }}
               onClick={() => command({ type: "track_reverse", trackId: id })}
