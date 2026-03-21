@@ -93,8 +93,13 @@ input[type="range"] {
   transition: text-shadow 0.2s ease;
 }
 
-.title-art:hover {
-  text-shadow: 0 0 12px var(--preview), 0 0 24px var(--preview);
+.title-art.logo-pulse {
+  animation: logoPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); text-shadow: 0 0 0 transparent; }
+  50% { transform: scale(1.06); text-shadow: 0 0 12px var(--preview), 0 0 24px var(--preview); color: #fff; }
 }
 
 .title-version {
@@ -483,48 +488,32 @@ input[type="range"] {
   50%      { opacity: 0.5; }
 }
 
-/* ── KAOS layout (mpump-style centered pad) ──────────────────────────── */
+/* ── 3-TRACK layout: tracks row on top, centered square kaos pad ──────── */
 
-.kaos-layout {
+.tracks-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
+}
+
+.kaos-center {
   width: 100%;
   max-width: 600px;
   margin: 0 auto;
-  padding: 0 0 8px;
+  padding: 8px 16px;
 }
 
-.kaos-left {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.kaos-right {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Desktop two-column kaos layout */
-@media (min-width: 1100px) {
-  .kaos-layout {
-    display: grid;
-    grid-template-columns: minmax(280px, 380px) 1fr;
-    max-width: none;
-    gap: 12px 16px;
-    align-items: start;
+@media (min-width: 900px) {
+  .tracks-row {
+    flex-direction: row;
+    gap: 8px;
     padding: 8px 16px;
   }
-  .kaos-left {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .kaos-right {
-    grid-column: 2;
-    grid-row: 1 / -1;
-    min-height: 0;
+  .tracks-row .track-strip {
+    flex: 1;
+    min-width: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
   }
 }
 
@@ -575,20 +564,6 @@ input[type="range"] {
 /* ── Responsive ──────────────────────────────────────────────────────── */
 
 @media (min-width: 900px) {
-  .tracks {
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 8px;
-    gap: 8px;
-  }
-
-  .track-strip {
-    flex: 1;
-    min-width: 280px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-  }
-
   .sheet {
     max-width: 480px;
     margin: 0 auto;

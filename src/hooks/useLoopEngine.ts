@@ -234,7 +234,12 @@ export function useLoopEngine() {
               loopLengthSamples: t.loopLengthSamples,
             })),
           };
-          saveSession(session);
+          try {
+            await saveSession(session);
+          } catch (e) {
+            console.error("Session save failed:", e);
+            alert("Failed to save session. Storage may be full.");
+          }
           break;
         }
         case "load_session": {

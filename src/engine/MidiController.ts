@@ -26,6 +26,7 @@ export class MidiController {
   private access: MIDIAccess | null = null;
   private mappings: MidiMapping[] = [];
   private learnCallback: ((mapping: Omit<MidiMapping, "action">) => void) | null = null;
+  private learnTimer: number | null = null;
 
   onAction: ((action: MidiAction, value: number) => void) | null = null;
 
@@ -86,13 +87,22 @@ export class MidiController {
     }
   }
 
-  /** Enter learn mode — next MIDI input triggers the callback. */
+  /** Enter learn mode — next MIDI input triggers the callback. 30s timeout. */
   startLearn(callback: (mapping: Omit<MidiMapping, "action">) => void): void {
+    this.cancelLearn();
     this.learnCallback = callback;
+    this.learnTimer = window.setTimeout(() => {
+      this.learnCallback = null;
+      this.learnTimer = null;
+    }, 30000);
   }
 
   cancelLearn(): void {
     this.learnCallback = null;
+    if (this.learnTimer !== null) {
+      clearTimeout(this.learnTimer);
+      this.learnTimer = null;
+    }
   }
 
   /** Add or update a mapping. */

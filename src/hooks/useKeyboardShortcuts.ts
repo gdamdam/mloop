@@ -26,8 +26,8 @@ const DEFAULT_SHORTCUTS: ShortcutMap = {
   "!": { type: "track_overdub", trackId: 0 },
   "@": { type: "track_overdub", trackId: 1 },
   "#": { type: "track_overdub", trackId: 2 },
-  // Global
-  " ": { type: "stop_all" },
+  // Global — Space handled specially via onSpaceBar callback
+  // " ": handled below,
   "p": { type: "play_all" },
   "m": { type: "toggle_metronome" },
   "t": { type: "tap_tempo" },
@@ -56,6 +56,7 @@ export const SHORTCUT_DESCRIPTIONS: { key: string; description: string }[] = [
 export function useKeyboardShortcuts(
   command: (cmd: LoopCommand) => void,
   enabled: boolean,
+  onSpaceBar?: () => void,
 ) {
   const [showOverlay, setShowOverlay] = useState(false);
 
@@ -67,6 +68,15 @@ export function useKeyboardShortcuts(
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       const key = e.key;
+
+      // Space bar: smart stop (recording → stop rec, otherwise stop all)
+      if (key === " ") {
+        e.preventDefault();
+        if (onSpaceBar) onSpaceBar();
+        else command({ type: "stop_all" });
+        return;
+      }
+
       const mapping = DEFAULT_SHORTCUTS[key];
 
       if (!mapping) return;

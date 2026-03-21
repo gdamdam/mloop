@@ -5,14 +5,15 @@
  */
 
 import { useRef, useCallback, useEffect, useState } from "react";
+// PadEngine import not needed — received as prop
 import type { AudioEngine } from "../engine/AudioEngine";
-import { PadEngine } from "../engine/PadEngine";
-import type { PadSlot } from "../engine/PadEngine";
+import type { PadEngine, PadSlot } from "../engine/PadEngine";
 import { PadSequencer } from "./PadSequencer";
 import { SampleEditor } from "./SampleEditor";
 
 interface PadViewProps {
   engine: AudioEngine | null;
+  padEngine: PadEngine | null;
 }
 
 function MiniWaveform({ buffer }: { buffer: Float32Array | null }) {
@@ -54,26 +55,22 @@ function MiniWaveform({ buffer }: { buffer: Float32Array | null }) {
   );
 }
 
-export function PadView({ engine }: PadViewProps) {
-  const padEngineRef = useRef<PadEngine | null>(null);
+export function PadView({ engine, padEngine }: PadViewProps) {
   const [slots, setSlots] = useState<PadSlot[]>([]);
   const [recordingSlot, setRecordingSlot] = useState<number | null>(null);
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
 
-  // Initialize PadEngine
+  // Sync with PadEngine passed from Layout (persists across view switches)
   useEffect(() => {
-    if (!engine) return;
-    if (!padEngineRef.current) {
-      const pe = new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
-      pe.onStateChange = () => {
-        setSlots([...pe.slots]);
-        setRecordingSlot(pe.currentRecordingSlot);
-      };
-      padEngineRef.current = pe;
-      setSlots([...pe.slots]);
-    }
-  }, [engine]);
+    if (!padEngine) return;
+    const sync = () => {
+      setSlots([...padEngine.slots]);
+      setRecordingSlot(padEngine.currentRecordingSlot);
+    };
+    padEngine.onStateChange = sync;
+    sync(); // initial sync
+  }, [padEngine]);
 
   // Input level meter
   useEffect(() => {
@@ -88,7 +85,7 @@ export function PadView({ engine }: PadViewProps) {
   }, [engine]);
 
   const handlePadClick = useCallback((slotId: number) => {
-    const pe = padEngineRef.current;
+    const pe = padEngine;
     if (!pe) return;
     const slot = pe.slots[slotId];
 
@@ -112,7 +109,7 @@ export function PadView({ engine }: PadViewProps) {
 
   const handleDelete = useCallback((e: React.MouseEvent, slotId: number) => {
     e.stopPropagation();
-    padEngineRef.current?.clear(slotId);
+    padEngine?.clear(slotId);
   }, []);
 
   const handleEdit = useCallback((e: React.MouseEvent, slotId: number) => {
@@ -122,12 +119,12 @@ export function PadView({ engine }: PadViewProps) {
 
   const handleTrimSave = useCallback((trimmed: Float32Array) => {
     if (editingSlot === null) return;
-    padEngineRef.current?.importBuffer(editingSlot, trimmed);
+    padEngine?.importBuffer(editingSlot, trimmed);
     setEditingSlot(null);
   }, [editingSlot]);
 
   const handleSequencerTrigger = useCallback((slotIds: number[]) => {
-    const pe = padEngineRef.current;
+    const pe = padEngine;
     if (!pe) return;
     for (const id of slotIds) {
       pe.play(id);
