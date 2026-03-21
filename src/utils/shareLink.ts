@@ -1,21 +1,27 @@
 /**
- * Share link — encode/decode session state into a URL hash.
+ * Share link — encode/decode session settings into a URL hash.
  *
- * For sessions with audio, the buffers are too large for a URL.
- * We encode only the settings (BPM, effects, timing/sync mode)
- * so the recipient gets the same configuration but no audio.
+ * Audio buffers are far too large for URLs, so we only encode
+ * configuration (BPM, effects, timing/sync mode). The recipient
+ * gets the same setup but needs to record their own audio.
+ *
+ * Encoding: JSON → UTF-8 → base64 → URL hash fragment.
  * Full audio sharing would require a paste service or WebRTC.
  */
 
+/** Compact serialization format for the URL hash payload. */
 interface ShareData {
-  v: number;        // version
+  v: number;        // schema version (for forward compat)
   bpm: number;
-  tm: string;       // timing mode
+  tm: string;       // timing mode (abbreviated to save URL space)
   sm: string;       // sync mode
-  fx: Record<string, unknown>; // effect params from first track
+  fx: Record<string, unknown>; // effect params from track 0
 }
 
-/** Encode current settings into a URL hash string. */
+/**
+ * Encode current settings into a shareable URL.
+ * Returns a full URL with the payload in the hash fragment.
+ */
 export function encodeShareLink(data: {
   bpm: number;
   timingMode: string;
@@ -30,11 +36,15 @@ export function encodeShareLink(data: {
     fx: data.effects,
   };
   const json = JSON.stringify(payload);
+  // btoa requires Latin-1 input — escape Unicode via encodeURIComponent first
   const encoded = btoa(unescape(encodeURIComponent(json)));
   return `${window.location.origin}${window.location.pathname}#share=${encoded}`;
 }
 
-/** Decode a share link hash back into settings. Returns null if invalid. */
+/**
+ * Decode a share link hash back into settings.
+ * Returns null if the hash is missing, malformed, or wrong version.
+ */
 export function decodeShareLink(hash: string): ShareData | null {
   try {
     const match = hash.match(/#share=(.+)/);

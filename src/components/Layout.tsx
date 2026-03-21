@@ -19,7 +19,8 @@ import { useMidiMapping } from "../hooks/useMidiMapping";
 import { MidiController } from "../engine/MidiController";
 import { loadSession } from "../utils/storage";
 
-const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
+// Compact block-art logo matching the splash page style (same Unicode block chars)
+const LOGO = "███▄▄███ █   ▒█████  ▒█████  ██▓███\n█ ▀ █ █  █▄▄ █▄█ █▄ █▄█ █▄ █▀▀ ░";
 
 type ViewMode = "tracks" | "pads";
 
