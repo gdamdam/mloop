@@ -150,8 +150,10 @@ export function PadView({ engine, padEngine }: PadViewProps) {
     return () => cancelAnimationFrame(raf);
   }, [engine]);
 
-  // Roll state
+  // Roll state — hold >300ms triggers roll at 1/16 rate
   const rollSlotRef = useRef<number | null>(null);
+  const rollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [rollingPad, setRollingPad] = useState<number | null>(null);
 
   const handlePadPointerDown = useCallback((slotId: number, pressure: number) => {
     setSelectedPad(slotId);
@@ -166,6 +168,15 @@ export function PadView({ engine, padEngine }: PadViewProps) {
     } else if (slot.status === "loaded") {
       pe.playAt(slotId, 0, velocity);
       rollSlotRef.current = slotId;
+      // Start roll after 300ms hold
+      if (rollTimerRef.current) clearTimeout(rollTimerRef.current);
+      rollTimerRef.current = setTimeout(() => {
+        const bpmNow = engine?.timing.bpm ?? 120;
+        // 1/16 note rate in Hz = bpm * 4 / 60
+        const rateHz = (bpmNow * 4) / 60;
+        pe.startRoll(slotId, rateHz, velocity);
+        setRollingPad(slotId);
+      }, 300);
     } else {
       // Empty — stop any current recording first, then record into this pad
       if (pe.isRecording) {
@@ -176,7 +187,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
         pe.startRecording(slotId);
       }
     }
-  }, []);
+  }, [engine]);
 
   const handleDelete = useCallback((e: React.MouseEvent, slotId: number) => {
     e.stopPropagation();
@@ -330,8 +341,10 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               onPointerDown={(e) => handlePadPointerDown(slot.id, e.pressure)}
               onPointerUp={() => {
                 // Stop roll/gate on release
+                if (rollTimerRef.current) { clearTimeout(rollTimerRef.current); rollTimerRef.current = null; }
                 if (rollSlotRef.current !== null) {
                   padEngine?.stopRoll();
+                  setRollingPad(null);
                   const slot = padEngine?.slots[rollSlotRef.current];
                   if (slot?.playMode === "gate") padEngine?.stopSlot(rollSlotRef.current);
                   rollSlotRef.current = null;
@@ -380,6 +393,26 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               {slot.buffer && (
                 <span style={{ position: "relative", zIndex: 1, fontSize: 8, color: "var(--text-dim)", marginTop: 2 }}>
                   {(slot.buffer.length / 44100).toFixed(1)}s
+                </span>
+              )}
+
+              {/* Play mode indicator + rolling indicator */}
+              {slot.status === "loaded" && (slot.playMode === "gate" || slot.playMode === "loop") && (
+                <span style={{
+                  position: "absolute", bottom: 2, left: 3, zIndex: 2,
+                  fontSize: 7, fontWeight: 700, color: "var(--text-dim)",
+                  background: "rgba(0,0,0,0.5)", borderRadius: 2, padding: "0 2px",
+                }}>
+                  {slot.playMode === "gate" ? "G" : "L"}
+                </span>
+              )}
+              {rollingPad === slot.id && (
+                <span style={{
+                  position: "absolute", bottom: 2, right: 3, zIndex: 2,
+                  fontSize: 7, fontWeight: 700, color: "var(--record)",
+                  background: "rgba(0,0,0,0.5)", borderRadius: 2, padding: "0 2px",
+                }}>
+                  ROLL
                 </span>
               )}
 
