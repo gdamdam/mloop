@@ -1,10 +1,10 @@
-// mloop service worker — cache-first for offline use
-const CACHE_NAME = "mloop-v1";
+// mloop service worker — network-first with cache fallback
+const CACHE_NAME = "mloop-v2";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(["./", "./index.html", "./manifest.json", "./favicon.svg", "./recorder-worklet.js"])
+      cache.addAll(["./index.html", "./manifest.json", "./favicon.svg", "./recorder-worklet.js"])
     )
   );
   self.skipWaiting();
@@ -20,19 +20,36 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  // Cache-first for same-origin requests
-  if (e.request.url.startsWith(self.location.origin)) {
+  // Only handle same-origin GET requests
+  if (e.request.method !== "GET") return;
+  if (!e.request.url.startsWith(self.location.origin)) return;
+
+  // Navigation requests (page loads) — network first, fallback to cached index.html
+  if (e.request.mode === "navigate") {
     e.respondWith(
-      caches.match(e.request).then((cached) => {
-        const fetchPromise = fetch(e.request).then((response) => {
+      fetch(e.request)
+        .then((response) => {
           if (response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
           }
           return response;
-        }).catch(() => cached);
-        return cached || fetchPromise;
-      })
+        })
+        .catch(() => caches.match("./index.html").then((r) => r || new Response("Offline", { status: 503 })))
     );
+    return;
   }
+
+  // Asset requests — network first, cache fallback
+  e.respondWith(
+    fetch(e.request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(e.request).then((r) => r || new Response("Not found", { status: 404 })))
+  );
 });
