@@ -16,6 +16,7 @@ export interface TrackState {
 // ── Engine state ─────────────────────────────────────────────────────────
 
 export type TimingMode = "free" | "quantized";
+export type SyncMode = "free" | "sync" | "lock";
 
 export interface EngineState {
   started: boolean;
@@ -23,6 +24,7 @@ export interface EngineState {
   masterLoopLength: number | null; // samples, set by first recording
   bpm: number;
   timingMode: TimingMode;
+  syncMode: SyncMode;
   metronome: boolean;
   inputLevel: number; // 0–1, for mic input meter
 }
@@ -45,6 +47,7 @@ export function createInitialState(): EngineState {
     masterLoopLength: null,
     bpm: 120,
     timingMode: "free",
+    syncMode: "free",
     metronome: false,
     inputLevel: 0,
   };
@@ -65,6 +68,7 @@ export type LoopCommand =
   | { type: "set_volume"; trackId: number; volume: number }
   | { type: "track_set_effect"; trackId: number; name: EffectName; params: Record<string, unknown> }
   | { type: "track_toggle_effect"; trackId: number; name: EffectName }
+  | { type: "set_sync_mode"; mode: SyncMode }
   | { type: "set_bpm"; bpm: number }
   | { type: "tap_tempo" }
   | { type: "import_file"; trackId: number; buffer: Float32Array }

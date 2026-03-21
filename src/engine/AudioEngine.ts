@@ -6,7 +6,7 @@
 import { LoopTrack } from "./LoopTrack";
 import { TimingEngine } from "./TimingEngine";
 import { NUM_TRACKS } from "../types";
-import type { TimingMode } from "../types";
+import type { TimingMode, SyncMode } from "../types";
 
 const RESUME_INTERVAL_MS = 5000;
 
@@ -16,6 +16,8 @@ export class AudioEngine {
   timing: TimingEngine;
   masterLoopLength = 0; // samples, set by first recording
   timingMode: TimingMode = "free";
+  syncMode: SyncMode = "free";
+  private masterStartTime = 0; // AudioContext time when master playback started
   private inputStream: MediaStream | null = null;
   private inputSource: MediaStreamAudioSourceNode | null = null;
   private inputGain: GainNode;
@@ -77,18 +79,36 @@ export class AudioEngine {
 
   // ── Track commands ─────────────────────────────────────────────────────
 
+  /** Get the current offset within the master loop (seconds). Used for SYNC mode. */
+  private getMasterOffset(): number {
+    if (this.masterLoopLength === 0 || this.masterStartTime === 0) return 0;
+    const elapsed = this.ctx.currentTime - this.masterStartTime;
+    const loopDur = this.masterLoopLength / this.ctx.sampleRate;
+    return elapsed % loopDur;
+  }
+
+  /** In LOCK mode, all recordings use this fixed time window. */
+  private getLockLength(): number {
+    if (this.masterLoopLength > 0) return this.masterLoopLength;
+    // Default to 4 bars at current BPM
+    return this.timing.barLengthSamples * 4;
+  }
+
   async recordTrack(trackId: number): Promise<void> {
     const track = this.tracks[trackId];
     if (!track) return;
 
-    // In quantized mode with timing running, quantize the loop length
     if (this.timingMode === "quantized" && !this.timing.metronomeOn) {
-      // Auto-start metronome on first quantized record
       this.timing.metronomeOn = true;
       this.timing.start();
     }
 
-    await track.startRecording(this.masterLoopLength);
+    // In LOCK mode, always use the fixed time window
+    const recLength = this.syncMode === "lock"
+      ? this.getLockLength()
+      : this.masterLoopLength;
+
+    await track.startRecording(recLength);
   }
 
   async stopTrack(trackId: number): Promise<void> {
@@ -96,18 +116,29 @@ export class AudioEngine {
     if (!track) return;
 
     if (track.status === "recording") {
-      let len = await track.stopRecording(this.masterLoopLength);
+      const recLength = this.syncMode === "lock"
+        ? this.getLockLength()
+        : this.masterLoopLength;
+
+      let len = await track.stopRecording(recLength);
 
       // In quantized mode, quantize the first loop to bar boundaries
       if (this.masterLoopLength === 0 && len > 0 && this.timingMode === "quantized") {
         len = this.timing.quantizeToBar(len);
-        // Re-trim the track to the quantized length
         track.loopLengthSamples = len;
+      }
+
+      // In LOCK mode, force to lock length
+      if (this.syncMode === "lock" && len > 0) {
+        const lockLen = this.getLockLength();
+        track.loopLengthSamples = lockLen;
+        len = lockLen;
       }
 
       // First recording sets the master loop length
       if (this.masterLoopLength === 0 && len > 0) {
         this.masterLoopLength = len;
+        this.masterStartTime = this.ctx.currentTime;
       }
     } else if (track.status === "overdubbing") {
       await track.stopOverdub();
@@ -117,7 +148,15 @@ export class AudioEngine {
   }
 
   playTrack(trackId: number): void {
-    this.tracks[trackId]?.play();
+    const track = this.tracks[trackId];
+    if (!track) return;
+
+    if (this.syncMode === "sync" || this.syncMode === "lock") {
+      // Start at the current master loop position
+      track.play(this.getMasterOffset());
+    } else {
+      track.play();
+    }
   }
 
   async overdubTrack(trackId: number): Promise<void> {
@@ -126,9 +165,9 @@ export class AudioEngine {
 
   clearTrack(trackId: number): void {
     this.tracks[trackId]?.clear();
-    // Reset master loop length if all tracks are empty
     if (this.tracks.every((t) => t.layerCount === 0)) {
       this.masterLoopLength = 0;
+      this.masterStartTime = 0;
     }
   }
 
@@ -141,9 +180,17 @@ export class AudioEngine {
   }
 
   playAll(): void {
+    const offset = (this.syncMode === "sync" || this.syncMode === "lock")
+      ? this.getMasterOffset() : 0;
+
+    // In sync/lock, reset master start so all tracks align
+    if (this.syncMode !== "free" && this.masterLoopLength > 0) {
+      this.masterStartTime = this.ctx.currentTime;
+    }
+
     for (const track of this.tracks) {
       if (track.layerCount > 0) {
-        track.play();
+        track.play(this.syncMode === "free" ? 0 : offset);
       }
     }
   }

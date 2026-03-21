@@ -188,7 +188,7 @@ export class LoopTrack {
 
   // ── Playback ───────────────────────────────────────────────────────────
 
-  private startPlayback(): void {
+  private startPlayback(offsetSeconds = 0): void {
     if (!this.mixedBuffer) return;
 
     this.stopSource();
@@ -198,16 +198,17 @@ export class LoopTrack {
     source.loop = true;
     source.playbackRate.value = this.playbackRate;
     source.connect(this.outputGain);
-    source.start();
+    // Start at offset within the loop for sync alignment
+    source.start(0, offsetSeconds % (this.mixedBuffer.duration || 1));
 
     this.sourceNode = source;
     this.status = "playing";
     this.notifyChange();
   }
 
-  play(): void {
+  play(offsetSeconds = 0): void {
     if (this.layers.length === 0) return;
-    this.startPlayback();
+    this.startPlayback(offsetSeconds);
   }
 
   stop(): void {

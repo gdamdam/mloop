@@ -70,7 +70,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
       <header className="header">
         <div className="title">
           <pre className="title-art" style={{ color: "var(--preview)" }}>{LOGO}</pre>
-          <span className="title-version">0.2.5</span>
+          <span className="title-version">0.3.0</span>
         </div>
         {/* View mode toggle */}
         <div style={{ display: "flex", gap: 2, background: "var(--bg-cell)", borderRadius: 6, padding: 2 }}>
@@ -105,6 +105,18 @@ export function Layout({ state, command, engine }: LayoutProps) {
           >
             {state.timingMode === "free" ? "FREE" : "QUANT"}
           </button>
+          {/* Sync mode: FREE → SYNC → LOCK cycle */}
+          <button className="header-btn"
+            onClick={() => {
+              const modes: Array<"free" | "sync" | "lock"> = ["free", "sync", "lock"];
+              const next = modes[(modes.indexOf(state.syncMode) + 1) % modes.length];
+              command({ type: "set_sync_mode", mode: next });
+            }}
+            style={state.syncMode !== "free" ? { background: "var(--preview)", color: "#000" } : undefined}
+            title={`Sync: ${state.syncMode.toUpperCase()} — click to cycle`}
+          >
+            {state.syncMode === "free" ? "⊘" : state.syncMode === "sync" ? "⟳" : "🔒"}
+          </button>
           <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
           <span style={{ fontSize: 16, fontWeight: 700, color: "var(--preview)", minWidth: 32, textAlign: "center" }}>{state.bpm}</span>
           <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
@@ -120,14 +132,18 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
       {/* ── View content ─────────────────────────────────────────────── */}
       {viewMode === "tracks" ? (
-        <>
-          <div className="tracks">
-            {state.tracks.map((track) => (
-              <TrackStrip key={track.id} track={track} command={command} engine={engine} />
-            ))}
+        <div className="kaos-layout">
+          <div className="kaos-left">
+            <div className="tracks">
+              {state.tracks.map((track) => (
+                <TrackStrip key={track.id} track={track} command={command} engine={engine} />
+              ))}
+            </div>
           </div>
-          <KaosPad engine={engine} />
-        </>
+          <div className="kaos-right">
+            <KaosPad engine={engine} />
+          </div>
+        </div>
       ) : (
         <PadView engine={engine} />
       )}
