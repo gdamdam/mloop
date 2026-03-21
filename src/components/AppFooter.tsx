@@ -4,7 +4,7 @@ interface AppFooterProps {
 
 export function AppFooter({ onShowHelp }: AppFooterProps) {
   return (
-    <footer style={{
+    <footer className="app-footer" style={{
       textAlign: "center",
       padding: "16px 12px 24px",
       fontSize: 10,
@@ -12,7 +12,7 @@ export function AppFooter({ onShowHelp }: AppFooterProps) {
       opacity: 0.5,
       lineHeight: 1.8,
     }}>
-      <span>v0.12.0</span>
+      <span>v0.12.1</span>
       {" · "}
       <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener"
         style={{ color: "var(--text-dim)", textDecoration: "none" }}>

@@ -517,6 +517,11 @@ input[type="range"] {
 
 /* ── 3-TRACK layout: tracks row on top, centered square kaos pad ──────── */
 
+.looper-layout {
+  display: flex;
+  flex-direction: column;
+}
+
 .tracks-row {
   display: flex;
   flex-direction: column;
@@ -541,6 +546,50 @@ input[type="range"] {
     min-width: 0;
     border-radius: 8px;
     border: 1px solid var(--border);
+  }
+}
+
+/* Landscape fullscreen: tracks column left, kaospad right */
+@media (max-height: 500px) and (orientation: landscape) {
+  .looper-layout {
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px;
+    height: calc(100dvh - 60px);
+    overflow: hidden;
+  }
+  .looper-layout .tracks-row {
+    flex-direction: column;
+    width: 280px;
+    flex-shrink: 0;
+    gap: 4px;
+    overflow-y: auto;
+  }
+  .looper-layout .tracks-row .track-strip {
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .looper-layout .kaos-center {
+    flex: 1;
+    max-width: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Footer single line in landscape */
+  .app-footer {
+    padding: 4px 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .app-footer > div {
+    display: inline;
+    margin-top: 0;
+  }
+  .app-footer > div::before {
+    content: " · ";
   }
 }
 
