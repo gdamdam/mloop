@@ -6,16 +6,16 @@ import type { AudioEngine } from "../engine/AudioEngine";
 
 // ── XY target definitions ────────────────────────────────────────────────
 
-type XYTarget = "delay_mix" | "reverb_mix" | "distortion" | "highpass" | "chorus_rate" | "phaser_rate" | "bitcrusher";
+type XYTarget = "cutoff" | "resonance" | "distortion" | "highpass" | "delay_mix" | "reverb_mix" | "volume";
 
 const XY_TARGETS: { id: XYTarget; label: string }[] = [
+  { id: "cutoff", label: "Cutoff" },
+  { id: "resonance", label: "Resonance" },
+  { id: "distortion", label: "Distortion" },
+  { id: "highpass", label: "Highpass" },
   { id: "delay_mix", label: "Delay" },
   { id: "reverb_mix", label: "Reverb" },
-  { id: "distortion", label: "Distort" },
-  { id: "highpass", label: "HPF" },
-  { id: "chorus_rate", label: "Chorus" },
-  { id: "phaser_rate", label: "Phaser" },
-  { id: "bitcrusher", label: "Crush" },
+  { id: "volume", label: "Volume" },
 ];
 
 function applyXYValue(target: XYTarget, value: number, engine: AudioEngine): void {
@@ -26,13 +26,17 @@ function applyXYValue(target: XYTarget, value: number, engine: AudioEngine): voi
     }
   };
   switch (target) {
-    case "delay_mix": apply("delay", { mix: value }); break;
-    case "reverb_mix": apply("reverb", { mix: value }); break;
+    case "cutoff": apply("highpass", { cutoff: 100 + value * 7900 }); break;
+    case "resonance": apply("highpass", { q: 0.5 + value * 19.5 }); break;
     case "distortion": apply("distortion", { drive: 1 + value * 99 }); break;
     case "highpass": apply("highpass", { cutoff: 20 + value * 1980 }); break;
-    case "chorus_rate": apply("chorus", { rate: 0.1 + value * 4.9 }); break;
-    case "phaser_rate": apply("phaser", { rate: 0.1 + value * 4.9 }); break;
-    case "bitcrusher": apply("bitcrusher", { bits: Math.round(16 - value * 14) }); break;
+    case "delay_mix": apply("delay", { mix: value }); break;
+    case "reverb_mix": apply("reverb", { mix: value }); break;
+    case "volume":
+      for (const track of engine.tracks) {
+        track.volume = value;
+      }
+      break;
   }
 }
 
@@ -69,8 +73,8 @@ export function KaosPad({ engine }: KaosPadProps) {
   const trailsRef = useRef<Trail[]>([]);
   const posRef = useRef<{ x: number; y: number } | null>(null);
   const animRef = useRef<number>(0);
-  const [xTarget, setXTarget] = useState<XYTarget>("delay_mix");
-  const [yTarget, setYTarget] = useState<XYTarget>("reverb_mix");
+  const [xTarget, setXTarget] = useState<XYTarget>("cutoff");
+  const [yTarget, setYTarget] = useState<XYTarget>("resonance");
   const [editingEffect, setEditingEffect] = useState<EffectName | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const didLongPress = useRef(false);
