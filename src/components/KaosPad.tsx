@@ -4,6 +4,7 @@ import { DEFAULT_EFFECTS } from "../types";
 import { EffectEditor } from "./EffectEditor";
 import { ChainEditor } from "./ChainEditor";
 import type { AudioEngine } from "../engine/AudioEngine";
+import { GestureRecorder } from "../engine/GestureRecorder";
 
 const DEFAULT_EFFECT_ORDER: EffectName[] = ["lowpass", "compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
 
@@ -89,6 +90,10 @@ export function KaosPad({ engine }: KaosPadProps) {
   const longPressTimer = useRef<number | null>(null);
   const didLongPress = useRef(false);
 
+  // Gesture loop recorder — records XY movements as repeating automation
+  const gestureRef = useRef(new GestureRecorder());
+  const [gestureState, setGestureState] = useState<"idle" | "recording" | "playing">("idle");
+
   // Get current effects from first track (they're synced)
   const effects: EffectParams = engine?.tracks[0]?.getEffects() ?? DEFAULT_EFFECTS;
 
@@ -105,6 +110,11 @@ export function KaosPad({ engine }: KaosPadProps) {
 
     applyXYValue(xTarget, x, engine);
     applyXYValue(yTarget, y, engine);
+
+    // Record gesture point if recording
+    if (gestureRef.current.isRecording) {
+      gestureRef.current.addPoint(x, y);
+    }
   }, [engine, xTarget, yTarget]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -404,6 +414,83 @@ export function KaosPad({ engine }: KaosPadProps) {
             EFFECT_LABELS.find(e => e.name === n)?.label
           ).join(" → ") || "none"}
         </div>
+      </div>
+
+      {/* Gesture loop controls */}
+      <div style={{ display: "flex", gap: 4, marginTop: 6, justifyContent: "center" }}>
+        {gestureState === "idle" && (
+          <>
+            <button
+              onClick={() => {
+                // Use master loop length or default 4 bars at current BPM
+                const bpm = engine?.timing.bpm ?? 120;
+                const masterLen = engine?.masterLoopLength ?? 0;
+                const durationMs = masterLen > 0
+                  ? (masterLen / 44100) * 1000
+                  : (60 / bpm) * 4 * 4 * 1000; // 4 bars
+                gestureRef.current.startRecording(durationMs);
+                setGestureState("recording");
+              }}
+              style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }}
+            >
+              ● REC GESTURE
+            </button>
+            {gestureRef.current.hasGesture && (
+              <button
+                onClick={() => {
+                  const bpm = engine?.timing.bpm ?? 120;
+                  const masterLen = engine?.masterLoopLength ?? 0;
+                  const durationMs = masterLen > 0
+                    ? (masterLen / 44100) * 1000
+                    : (60 / bpm) * 4 * 4 * 1000;
+                  gestureRef.current.onPlayback = (x, y) => {
+                    if (!engine) return;
+                    applyXYValue(xTarget, x, engine);
+                    applyXYValue(yTarget, y, engine);
+                  };
+                  gestureRef.current.startPlayback(durationMs);
+                  setGestureState("playing");
+                }}
+                style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--preview)", color: "#000" }}
+              >
+                ▶ PLAY GESTURE
+              </button>
+            )}
+          </>
+        )}
+        {gestureState === "recording" && (
+          <button
+            onClick={() => {
+              gestureRef.current.stopRecording();
+              setGestureState("idle");
+            }}
+            style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--record)", color: "#fff", animation: "pulse 0.8s infinite" }}
+          >
+            ■ STOP REC ({gestureRef.current.points.length} pts)
+          </button>
+        )}
+        {gestureState === "playing" && (
+          <button
+            onClick={() => {
+              gestureRef.current.stopPlayback();
+              setGestureState("idle");
+            }}
+            style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--playing)", color: "#000" }}
+          >
+            ■ STOP GESTURE
+          </button>
+        )}
+        {gestureRef.current.hasGesture && gestureState === "idle" && (
+          <button
+            onClick={() => {
+              gestureRef.current.clear();
+              setGestureState("idle");
+            }}
+            style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--bg-cell)", color: "#f85149" }}
+          >
+            ✕ CLEAR
+          </button>
+        )}
       </div>
 
       {editingEffect && (

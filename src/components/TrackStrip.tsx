@@ -5,14 +5,17 @@ import { EffectRack } from "./EffectRack";
 import { WaveformDisplay } from "./WaveformDisplay";
 import { FileImport } from "./FileImport";
 import type { AudioEngine } from "../engine/AudioEngine";
+import type { PadEngine } from "../engine/PadEngine";
+import { SoundDNA } from "./SoundDNA";
 
 interface TrackStripProps {
   track: TrackState;
   command: (cmd: LoopCommand) => void;
   engine: AudioEngine | null;
+  padEngine?: PadEngine | null;
 }
 
-export function TrackStrip({ track, command, engine }: TrackStripProps) {
+export function TrackStrip({ track, command, engine, padEngine }: TrackStripProps) {
   const { id, status, volume, muted, layers, isReversed, playbackRate, loopLengthSamples } = track;
 
   const effects = engine?.tracks[id]?.getEffects() ?? DEFAULT_EFFECTS;
@@ -32,6 +35,7 @@ export function TrackStrip({ track, command, engine }: TrackStripProps) {
       <div className="track-header">
         <div className="track-label">
           <div className={`track-status ${status}`} />
+          <SoundDNA buffer={bufferData} size={24} />
           <span>TRACK {id + 1}</span>
           {layers > 0 && (
             <span style={{ fontSize: 10, color: "var(--text-dim)" }}>
@@ -64,6 +68,28 @@ export function TrackStrip({ track, command, engine }: TrackStripProps) {
             >
               ½×
             </button>
+            {/* Copy track buffer to next empty pad slot */}
+            {padEngine && (
+              <button
+                style={{
+                  fontSize: 9, fontWeight: 700, padding: "3px 6px", borderRadius: 4,
+                  background: "var(--bg-cell)", color: "var(--text-dim)",
+                }}
+                onClick={() => {
+                  const data = engine?.tracks[id]?.getMixedData();
+                  if (!data || !padEngine) return;
+                  const emptySlot = padEngine.slots.find(s => s.status === "empty");
+                  if (emptySlot) {
+                    padEngine.importBuffer(emptySlot.id, new Float32Array(data));
+                  } else {
+                    alert("No empty pad slots available");
+                  }
+                }}
+                title="Copy to next empty pad"
+              >
+                →PAD
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -151,6 +177,28 @@ export function TrackStrip({ track, command, engine }: TrackStripProps) {
         />
         <span className="volume-label">{Math.round(volume * 100)}%</span>
       </div>
+
+      {/* Destruction mode — progressive loop degradation */}
+      {layers > 0 && (
+        <div className="volume-control" style={{ marginTop: 4 }}>
+          <span style={{ fontSize: 9, color: "var(--text-dim)", minWidth: 36 }}>DECAY</span>
+          <input
+            type="range"
+            className="volume-slider"
+            min={0}
+            max={1}
+            step={0.05}
+            value={engine?.tracks[id]?.destruction.amount ?? 0}
+            onChange={(e) => {
+              const track = engine?.tracks[id];
+              if (track) track.destruction.amount = parseFloat(e.target.value);
+            }}
+          />
+          <span className="volume-label">
+            {Math.round((engine?.tracks[id]?.destruction.amount ?? 0) * 100)}%
+          </span>
+        </div>
+      )}
 
       <EffectRack
         trackId={id}

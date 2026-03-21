@@ -119,7 +119,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art ${logoPulse ? "logo-pulse" : ""}`} style={{ color: "var(--preview)" }} onClick={handleLogoClick}>{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.3.4</span>
+          <span className="title-version">0.4.0</span>
         </div>
 
         {/* View toggle */}
@@ -182,6 +182,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
             {isDark ? "☀" : "☾"}
           </button>
           <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">⛶</button>
+          <button className="header-btn" onClick={() => command({ type: "share_link" })} title="Share settings link">⤴</button>
           <button className="header-btn" onClick={() => command({ type: "pin_session" })} title="Pin session (auto-loads on next visit)">📌</button>
           <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">💾</button>
           {MidiController.isSupported() && (
@@ -198,7 +199,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
           {/* 3 tracks in a row on top */}
           <div className="tracks-row">
             {state.tracks.map((track) => (
-              <TrackStrip key={track.id} track={track} command={command} engine={engine} />
+              <TrackStrip key={track.id} track={track} command={command} engine={engine} padEngine={padEngineRef.current} />
             ))}
           </div>
           {/* Centered square KaosPad below */}

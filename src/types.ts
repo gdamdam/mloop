@@ -78,6 +78,7 @@ export type LoopCommand =
   | { type: "export_session_file" }
   | { type: "import_session_file" }
   | { type: "pin_session" }
+  | { type: "share_link" }
   | { type: "set_timing_mode"; mode: TimingMode }
   | { type: "toggle_metronome" }
   | { type: "stop_all" }
