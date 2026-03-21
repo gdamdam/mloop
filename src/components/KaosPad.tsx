@@ -2,7 +2,10 @@ import { useRef, useCallback, useEffect, useState } from "react";
 import type { EffectName, EffectParams } from "../types";
 import { DEFAULT_EFFECTS } from "../types";
 import { EffectEditor } from "./EffectEditor";
+import { ChainEditor } from "./ChainEditor";
 import type { AudioEngine } from "../engine/AudioEngine";
+
+const DEFAULT_EFFECT_ORDER: EffectName[] = ["lowpass", "compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
 
 // ── XY target definitions ────────────────────────────────────────────────
 
@@ -77,6 +80,8 @@ export function KaosPad({ engine }: KaosPadProps) {
   const [xTarget, setXTarget] = useState<XYTarget>("cutoff");
   const [yTarget, setYTarget] = useState<XYTarget>("resonance");
   const [editingEffect, setEditingEffect] = useState<EffectName | null>(null);
+  const [showChainEditor, setShowChainEditor] = useState(false);
+  const [effectOrder, setEffectOrder] = useState<EffectName[]>(DEFAULT_EFFECT_ORDER);
   const longPressTimer = useRef<number | null>(null);
   const didLongPress = useRef(false);
 
@@ -207,29 +212,39 @@ export function KaosPad({ engine }: KaosPadProps) {
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
   }, [engine]);
 
-  // Effect toggle/edit handlers
-  const handleFxPointerDown = useCallback((name: EffectName) => {
+  // ── Effect toggle (tap) — matches mpump behavior ─────────────────────
+  const toggleFx = useCallback((name: EffectName) => {
+    if (!engine) return;
+    const fx = engine.tracks[0]?.getEffects();
+    if (!fx) return;
+    const turningOn = !fx[name].on;
+
+    for (const track of engine.tracks) {
+      track.setEffect(name, { on: turningOn } as never);
+    }
+
+    // Update chain order: activated effects move to end
+    let newOrder = [...effectOrder];
+    if (turningOn) {
+      newOrder = newOrder.filter(e => e !== name);
+      newOrder.push(name);
+    }
+    setEffectOrder(newOrder);
+    for (const track of engine.tracks) {
+      track.effects.setEffectOrder(newOrder);
+    }
+  }, [engine, effectOrder]);
+
+  // Long-press to edit, short tap to toggle
+  const fxPointerDown = useCallback((name: EffectName) => {
     didLongPress.current = false;
     longPressTimer.current = window.setTimeout(() => {
       didLongPress.current = true;
       setEditingEffect(name);
-    }, 400);
+    }, 500);
   }, []);
 
-  const handleFxPointerUp = useCallback((name: EffectName) => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-    if (!didLongPress.current && engine) {
-      const fx = engine.tracks[0]?.getEffects();
-      if (fx) {
-        const isOn = !fx[name].on;
-        for (const track of engine.tracks) {
-          track.setEffect(name, { on: isOn } as never);
-        }
-      }
-    }
-  }, [engine]);
-
-  const handleFxPointerLeave = useCallback(() => {
+  const fxPointerUp = useCallback(() => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
   }, []);
 
@@ -240,6 +255,33 @@ export function KaosPad({ engine }: KaosPadProps) {
     }
   }, [engine, editingEffect]);
 
+  // Auto-enable effect when selected as XY target
+  const autoEnableForTarget = useCallback((target: XYTarget) => {
+    if (!engine) return;
+    const fx = engine.tracks[0]?.getEffects();
+    if (!fx) return;
+    const map: Partial<Record<XYTarget, EffectName>> = {
+      cutoff: "lowpass", resonance: "lowpass", distortion: "distortion",
+      highpass: "highpass", delay_mix: "delay", reverb_mix: "reverb",
+    };
+    const effectName = map[target];
+    if (effectName && !fx[effectName].on) {
+      for (const track of engine.tracks) {
+        track.setEffect(effectName, { on: true } as never);
+      }
+    }
+  }, [engine]);
+
+  // Save chain order to engine
+  const handleChainSave = useCallback((order: EffectName[]) => {
+    setEffectOrder(order);
+    if (engine) {
+      for (const track of engine.tracks) {
+        track.effects.setEffectOrder(order);
+      }
+    }
+  }, [engine]);
+
   return (
     <div style={{ padding: "0 16px 8px" }}>
       {/* XY Target selectors */}
@@ -248,7 +290,7 @@ export function KaosPad({ engine }: KaosPadProps) {
           <span style={{ color: "var(--text-dim)" }}>X:</span>
           <select
             value={xTarget}
-            onChange={(e) => setXTarget(e.target.value as XYTarget)}
+            onChange={(e) => { const t = e.target.value as XYTarget; setXTarget(t); autoEnableForTarget(t); }}
             style={{ font: "inherit", fontSize: 10, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
           >
             {XY_TARGETS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -258,7 +300,7 @@ export function KaosPad({ engine }: KaosPadProps) {
           <span style={{ color: "var(--text-dim)" }}>Y:</span>
           <select
             value={yTarget}
-            onChange={(e) => setYTarget(e.target.value as XYTarget)}
+            onChange={(e) => { const t = e.target.value as XYTarget; setYTarget(t); autoEnableForTarget(t); }}
             style={{ font: "inherit", fontSize: 10, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
           >
             {XY_TARGETS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -300,36 +342,63 @@ export function KaosPad({ engine }: KaosPadProps) {
         </span>
       </div>
 
-      {/* Master Effects (global — applies to all tracks) */}
+      {/* Effects rack — mpump KAOS style */}
       <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 4, letterSpacing: 1 }}>MASTER FX</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+        <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 4, letterSpacing: 1 }}>
+          EFFECTS <span style={{ opacity: 0.5, fontStyle: "italic" }}>tap on/off · hold to edit</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
           {EFFECT_LABELS.map(({ name, label }) => {
             const isOn = effects[name].on;
+            const activeInOrder = effectOrder.filter(e => effects[e].on);
+            const chainIdx = isOn ? activeInOrder.indexOf(name) : -1;
             return (
               <button
                 key={name}
-                onPointerDown={() => handleFxPointerDown(name)}
-                onPointerUp={() => handleFxPointerUp(name)}
-                onPointerLeave={handleFxPointerLeave}
                 style={{
+                  position: "relative",
                   fontSize: 10, fontWeight: 700, padding: "8px 4px", borderRadius: 5,
-                  border: `1px solid var(--preview)`,
+                  border: "1px solid var(--preview)",
                   background: isOn ? "var(--preview)" : "transparent",
                   color: isOn ? "#000" : "var(--preview)",
                   opacity: isOn ? 1 : 0.5,
                   boxShadow: isOn ? "0 0 10px color-mix(in srgb, var(--preview) 45%, transparent)" : "none",
                   cursor: "pointer",
                 }}
+                onClick={() => { if (!didLongPress.current) toggleFx(name); }}
+                onPointerDown={() => fxPointerDown(name)}
+                onPointerUp={fxPointerUp}
+                onPointerLeave={fxPointerUp}
               >
                 {label}
+                {chainIdx >= 0 && (
+                  <span style={{
+                    position: "absolute", top: -4, right: -4,
+                    width: 14, height: 14, borderRadius: "50%",
+                    background: "#000", color: "var(--preview)",
+                    fontSize: 8, fontWeight: 800,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: "1px solid var(--preview)",
+                  }}>
+                    {chainIdx + 1}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
-        {/* Chain display */}
-        <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 6, textAlign: "center" }}>
-          Chain: {EFFECT_LABELS.filter(e => effects[e.name].on).map(e => e.label).join(" → ") || "none"}
+        {/* Chain display — click to reorder */}
+        <div
+          onClick={() => setShowChainEditor(true)}
+          style={{
+            fontSize: 9, color: "var(--text-dim)", marginTop: 6,
+            textAlign: "center", cursor: "pointer",
+          }}
+          title="Click to reorder effect chain"
+        >
+          Chain: {effectOrder.filter(n => effects[n].on).map(n =>
+            EFFECT_LABELS.find(e => e.name === n)?.label
+          ).join(" → ") || "none"}
         </div>
       </div>
 
@@ -339,6 +408,15 @@ export function KaosPad({ engine }: KaosPadProps) {
           params={effects[editingEffect]}
           onClose={() => setEditingEffect(null)}
           onChange={handleFxParamChange}
+        />
+      )}
+
+      {showChainEditor && (
+        <ChainEditor
+          order={effectOrder}
+          activeEffects={new Set(effectOrder.filter(n => effects[n].on))}
+          onSave={handleChainSave}
+          onClose={() => setShowChainEditor(false)}
         />
       )}
     </div>
