@@ -2,16 +2,16 @@
 <p align="center">Browser-based loop station & sample pad.<br>Record, layer, perform with real-time effects — no install, no subscription, no account.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.5.9-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.6.0-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-green" alt="License"></a>
   <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet?logo=anthropic&logoColor=white" alt="Built with Claude Code"></a>
   <br>
-  <a href="https://gdamdam.github.io/mloop/">https://gdamdam.github.io/mloop/</a>
+  <a href="https://mloop.mpump.live/">https://mloop.mpump.live/</a>
 </p>
 
 ---
 
-Open **[mloop](https://gdamdam.github.io/mloop/)** and start looping immediately — no MIDI device required. Built-in mic recording, 9 real-time effects, KAOS XY pad, and 16-pad sampler with step sequencer — all running in the browser via Web Audio API.
+Open **[mloop](https://mloop.mpump.live/)** and start looping immediately — no MIDI device required. Built-in mic recording, 9 real-time effects, KAOS XY pad, and 16-pad sampler with step sequencer — all running in the browser via Web Audio API.
 
 Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based drum machine & synth sequencer.
 
