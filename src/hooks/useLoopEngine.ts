@@ -76,6 +76,9 @@ function reducer(state: EngineState, cmd: LoopCommand): EngineState {
     case "set_timing_mode":
       return { ...state, timingMode: cmd.mode };
 
+    case "set_sync_mode":
+      return { ...state, syncMode: cmd.mode };
+
     case "toggle_metronome":
       return { ...state, metronome: !state.metronome };
 
@@ -112,6 +115,7 @@ function syncFromEngine(engine: AudioEngine): Partial<EngineState> {
     masterLoopLength: engine.masterLoopLength,
     bpm: engine.timing.bpm,
     timingMode: engine.timingMode,
+    syncMode: engine.syncMode,
     metronome: engine.timing.metronomeOn,
     tracks: engine.tracks.map((t) => ({
       id: t.id,
@@ -186,6 +190,9 @@ export function useLoopEngine() {
           break;
         case "set_timing_mode":
           engine.setTimingMode(cmd.mode);
+          break;
+        case "set_sync_mode":
+          engine.syncMode = cmd.mode;
           break;
         case "toggle_metronome":
           engine.toggleMetronome();

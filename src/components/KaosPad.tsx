@@ -283,7 +283,7 @@ export function KaosPad({ engine }: KaosPadProps) {
   }, [engine]);
 
   return (
-    <div style={{ padding: "0 16px 8px" }}>
+    <div style={{ padding: "0 8px 8px" }}>
       {/* XY Target selectors */}
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>

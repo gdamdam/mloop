@@ -136,35 +136,26 @@ export function PadView({ engine }: PadViewProps) {
   }, []);
 
   return (
-    <div style={{ padding: "8px 16px" }}>
-      {/* Recorder track — input level + status */}
-      <div style={{
-        background: "var(--bg-panel)", borderRadius: 8, padding: "10px 12px",
-        marginBottom: 10, border: "1px solid var(--border)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: "50%",
-            background: recordingSlot !== null ? "var(--record)" : "var(--text-dim)",
-            boxShadow: recordingSlot !== null ? "0 0 8px var(--record)" : "none",
-            animation: recordingSlot !== null ? "pulse 0.8s ease-in-out infinite" : "none",
-          }} />
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>
-            {recordingSlot !== null ? `REC → PAD ${recordingSlot + 1}` : "INPUT"}
-          </span>
-          <span style={{ fontSize: 10, color: "var(--text-dim)", marginLeft: "auto" }}>
-            Tap empty pad to record · Tap loaded pad to play · Hold to clear
+    <div style={{ padding: "8px 16px", maxWidth: 600, margin: "0 auto", width: "100%" }}>
+      {/* Recorder track — styled like track strip */}
+      <div className="track-strip" style={{ borderRadius: 8, border: "1px solid var(--border)", marginBottom: 10 }}>
+        <div className="track-header">
+          <div className="track-label">
+            <div className={`track-status ${recordingSlot !== null ? "recording" : ""}`} />
+            <span>{recordingSlot !== null ? `REC → PAD ${recordingSlot + 1}` : "INPUT"}</span>
+          </div>
+          <span style={{ fontSize: 9, color: "var(--text-dim)" }}>
+            tap empty = record · tap loaded = play · hold = clear
           </span>
         </div>
-        {/* Input level bar */}
-        <div style={{
-          height: 4, background: "var(--bg-cell)", borderRadius: 2, overflow: "hidden",
-        }}>
+        {/* Input level bar as waveform area */}
+        <div className="waveform-area" style={{ height: 32 }}>
           <div style={{
-            height: "100%", borderRadius: 2,
+            height: "100%", borderRadius: 4,
             width: `${Math.min(100, inputLevel * 100)}%`,
             background: recordingSlot !== null ? "var(--record)" : "var(--preview)",
             transition: "width 0.05s",
+            opacity: 0.5,
           }} />
         </div>
       </div>

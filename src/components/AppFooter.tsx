@@ -12,7 +12,7 @@ export function AppFooter({ onShowHelp }: AppFooterProps) {
       opacity: 0.5,
       lineHeight: 1.8,
     }}>
-      <span>v0.2.5</span>
+      <span>v0.3.0</span>
       {" · "}
       <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener"
         style={{ color: "var(--text-dim)", textDecoration: "none" }}>
@@ -20,6 +20,9 @@ export function AppFooter({ onShowHelp }: AppFooterProps) {
       </a>
       <div style={{ marginTop: 4 }}>
         <span style={{ cursor: "pointer" }} onClick={onShowHelp}>Help</span>
+        {" · "}
+        <a href="https://ko-fi.com/gdamdam" target="_blank" rel="noopener"
+          style={{ color: "var(--text-dim)", textDecoration: "none" }}>Support ♥</a>
         {" · "}
         <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE" target="_blank" rel="noopener"
           style={{ color: "var(--text-dim)", textDecoration: "none" }}>GPL-3.0</a>
