@@ -66,7 +66,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
       <header className="header">
         <div className="title">
           <pre className="title-art" style={{ color: "var(--preview)" }}>{LOGO}</pre>
-          <span className="title-version">0.1.0</span>
+          <span className="title-version">0.2.0</span>
         </div>
         <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
