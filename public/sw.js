@@ -1,5 +1,5 @@
 // mloop service worker — network-first with cache fallback
-const CACHE_NAME = "mloop-v2";
+const CACHE_NAME = "mloop-v3";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
