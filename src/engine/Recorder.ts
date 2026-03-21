@@ -3,7 +3,8 @@
  * Connects to the input node, captures audio into a Float32Array.
  */
 
-import workletUrl from "./recorder-worklet.ts?url";
+// Worklet JS lives in public/ — Vite serves it as-is
+const WORKLET_URL = "./recorder-worklet.js";
 
 export class Recorder {
   private ctx: AudioContext;
@@ -20,7 +21,7 @@ export class Recorder {
   /** Load the worklet module (once per AudioContext). */
   private async ensureWorklet(): Promise<void> {
     if (Recorder.workletReady) return;
-    await this.ctx.audioWorklet.addModule(workletUrl);
+    await this.ctx.audioWorklet.addModule(WORKLET_URL);
     Recorder.workletReady = true;
   }
 
