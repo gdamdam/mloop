@@ -289,13 +289,41 @@ export class AudioEngine {
       await this.ctx.resume();
     }
 
-    this.inputStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      },
-    });
+    // Check for getUserMedia support (Firefox may not expose mediaDevices
+    // on some pages or may need the legacy API)
+    if (!navigator.mediaDevices?.getUserMedia) {
+      // Try legacy API as fallback
+      const legacyGetUserMedia = (navigator as unknown as {
+        webkitGetUserMedia?: (c: MediaStreamConstraints, s: (s: MediaStream) => void, e: (e: Error) => void) => void;
+        mozGetUserMedia?: (c: MediaStreamConstraints, s: (s: MediaStream) => void, e: (e: Error) => void) => void;
+      }).webkitGetUserMedia || (navigator as unknown as {
+        mozGetUserMedia?: (c: MediaStreamConstraints, s: (s: MediaStream) => void, e: (e: Error) => void) => void;
+      }).mozGetUserMedia;
+
+      if (legacyGetUserMedia) {
+        this.inputStream = await new Promise<MediaStream>((resolve, reject) => {
+          legacyGetUserMedia.call(navigator, { audio: true }, resolve, reject);
+        });
+      } else {
+        throw new Error("getUserMedia not supported in this browser");
+      }
+    } else {
+      // Try with constraints first, fall back to simple {audio: true}
+      try {
+        this.inputStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+          },
+        });
+      } catch {
+        // Firefox may reject advanced constraints — try simple audio
+        this.inputStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+      }
+    }
 
     this.inputSource = this.ctx.createMediaStreamSource(this.inputStream);
     this.inputSource.connect(this.inputGain);
