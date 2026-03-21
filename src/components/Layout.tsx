@@ -19,6 +19,7 @@ import { useMidiMapping } from "../hooks/useMidiMapping";
 import { MidiController } from "../engine/MidiController";
 import { loadSession } from "../utils/storage";
 import { generateDefaultSamples } from "../engine/BuiltInSamples";
+import { useLinkBridge } from "../hooks/useLinkBridge";
 
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
 
@@ -42,7 +43,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.8.0";
+    const APP_VERSION = "0.9.0";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -122,6 +123,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   const { showOverlay, setShowOverlay } = useKeyboardShortcuts(command, true, handleMainPlayStop);
   const midiRef = useMidiMapping(command, true);
+  const [linkEnabled, setLinkEnabled] = useState(false);
+  const { linkState } = useLinkBridge(command, linkEnabled);
 
   // Logo click — matches mpump: 1x=random theme, 2x=cycle pulse mode, 3+=about
   // Every click triggers a flash animation via key remount
@@ -159,7 +162,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.8.0</span>
+          <span className="title-version">0.9.0</span>
         </div>
 
         {/* View toggle */}
@@ -216,6 +219,12 @@ export function Layout({ state, command, engine }: LayoutProps) {
           {MidiController.isSupported() && (
             <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
           )}
+          <button className="header-btn" onClick={() => setLinkEnabled(!linkEnabled)}
+            style={linkState.connected ? { background: "var(--playing)", color: "#000" } : linkEnabled ? { background: "var(--preview)", color: "#000" } : undefined}
+            title={linkState.connected ? `Link: ${linkState.peers} peers · ${Math.round(linkState.tempo)} BPM` : linkEnabled ? "Link: connecting..." : "Link Bridge (sync with mpump)"}
+          >
+            {linkState.connected ? `L${linkState.peers}` : "L"}
+          </button>
           <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">?</button>
           <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">⚙</button>
         </div>

@@ -14,6 +14,7 @@ import {
   loadSavedKits, saveKit, exportKit, importKit, padsToKit, kitToPads,
   PAD_LAYOUTS, loadPadLayout, savePadLayout, type PadLayoutId,
 } from "../utils/kitManager";
+import { SoundBrowser } from "./SoundBrowser";
 
 interface PadViewProps {
   engine: AudioEngine | null;
@@ -117,6 +118,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
   const [inputLevel, setInputLevel] = useState(0);
   const [savedKits, setSavedKits] = useState(loadSavedKits);
   const [padLayout, setPadLayout] = useState<PadLayoutId>(loadPadLayout);
+  const [browsingPad, setBrowsingPad] = useState<number | null>(null);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
   useEffect(() => {
@@ -264,7 +266,25 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               {/* Layout selector */}
               <select
                 value={padLayout}
-                onChange={(e) => { const id = e.target.value as PadLayoutId; setPadLayout(id); savePadLayout(id); }}
+                onChange={(e) => {
+                  const newId = e.target.value as PadLayoutId;
+                  if (!padEngine || newId === padLayout) { setPadLayout(newId); savePadLayout(newId); return; }
+                  const oldMap = PAD_LAYOUTS.find(l => l.id === padLayout)!.mapping;
+                  const newMap = PAD_LAYOUTS.find(l => l.id === newId)!.mapping;
+                  // Collect samples at old positions, then place at new positions
+                  const saved: (Float32Array | null)[] = oldMap.map(pos => {
+                    const slot = padEngine.slots[pos];
+                    return slot?.buffer ? new Float32Array(slot.buffer) : null;
+                  });
+                  // Clear mapped positions
+                  for (const pos of [...new Set([...oldMap, ...newMap])]) padEngine.clear(pos);
+                  // Place at new positions
+                  for (let i = 0; i < saved.length; i++) {
+                    if (saved[i]) padEngine.importBuffer(newMap[i], saved[i]!);
+                  }
+                  setPadLayout(newId);
+                  savePadLayout(newId);
+                }}
                 style={{ font: "inherit", fontSize: 9, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
                 title="Pad layout"
               >
@@ -330,12 +350,41 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                 </span>
               )}
 
-              {/* Delete + Edit buttons for loaded pads */}
+              {/* Browse button on empty pads */}
+              {slot.status === "empty" && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setBrowsingPad(slot.id); }}
+                  title="Browse sounds"
+                  style={{
+                    position: "absolute", top: 2, right: 2, zIndex: 2,
+                    width: 18, height: 18, borderRadius: 3, fontSize: 9,
+                    background: "rgba(0,0,0,0.4)", color: "var(--text-dim)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    border: "none", cursor: "pointer", padding: 0,
+                  }}
+                >
+                  ♫
+                </button>
+              )}
+
+              {/* Browse + Edit + Delete buttons for loaded pads */}
               {slot.status === "loaded" && (
                 <div style={{
                   position: "absolute", top: 2, right: 2, zIndex: 2,
                   display: "flex", gap: 2,
                 }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setBrowsingPad(slot.id); }}
+                    title="Browse sounds"
+                    style={{
+                      width: 18, height: 18, borderRadius: 3, fontSize: 9,
+                      background: "rgba(0,0,0,0.6)", color: "var(--preview)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      border: "none", cursor: "pointer", padding: 0,
+                    }}
+                  >
+                    ♫
+                  </button>
                   <button
                     onClick={(e) => handleEdit(e, slot.id)}
                     title="Edit / Trim"
@@ -379,6 +428,17 @@ export function PadView({ engine, padEngine }: PadViewProps) {
           sampleRate={44100}
           onSave={handleTrimSave}
           onClose={() => setEditingSlot(null)}
+        />
+      )}
+
+      {/* Sound Browser Modal — pick individual sounds from any kit */}
+      {browsingPad !== null && (
+        <SoundBrowser
+          padId={browsingPad}
+          onSelect={(buffer) => {
+            padEngine?.importBuffer(browsingPad, buffer);
+          }}
+          onClose={() => setBrowsingPad(null)}
         />
       )}
     </div>
