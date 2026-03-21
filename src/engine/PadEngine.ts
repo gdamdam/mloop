@@ -10,15 +10,22 @@
 import { Recorder } from "./Recorder";
 
 /** Represents a single pad slot's state and audio data. */
+export type PadPlayMode = "one" | "gate" | "loop";
+
 export interface PadSlot {
   id: number;
-  /** Display name (e.g. "Kick", "Snare"). */
   name: string;
-  /** Raw PCM data for serialization/export. */
   buffer: Float32Array | null;
-  /** Decoded AudioBuffer for Web Audio playback. */
   audioBuffer: AudioBuffer | null;
   status: "empty" | "recording" | "loaded";
+  // Per-pad settings
+  volume: number;     // 0–1
+  pan: number;        // -1 (L) to 1 (R)
+  pitch: number;      // semitones (-12 to +12)
+  playMode: PadPlayMode;
+  trimStart: number;  // 0–1 fraction of buffer
+  trimEnd: number;    // 0–1 fraction of buffer
+  loopBeats: number;  // 0 = free, >0 = musical length in beats
 }
 
 export class PadEngine {
@@ -42,7 +49,10 @@ export class PadEngine {
 
     // Initialize 16 empty slots (4x4 grid)
     for (let i = 0; i < 16; i++) {
-      this.slots.push({ id: i, name: "", buffer: null, audioBuffer: null, status: "empty" });
+      this.slots.push({
+        id: i, name: "", buffer: null, audioBuffer: null, status: "empty",
+        volume: 1, pan: 0, pitch: 0, playMode: "one", trimStart: 0, trimEnd: 1, loopBeats: 0,
+      });
     }
   }
 
@@ -90,8 +100,7 @@ export class PadEngine {
 
   /**
    * Schedule a pad to play at a specific AudioContext time.
-   * When `when` is 0, plays immediately. Used by the sequencer
-   * for sample-accurate timing via look-ahead scheduling.
+   * Applies per-pad volume, pan, pitch, trim, and play mode.
    */
   playAt(slotId: number, when: number): void {
     const slot = this.slots[slotId];
@@ -101,11 +110,39 @@ export class PadEngine {
 
     const source = this.ctx.createBufferSource();
     source.buffer = slot.audioBuffer;
-    source.connect(this.masterNode);
-    source.onended = () => {
-      this.activeSources.delete(slotId);
-    };
-    source.start(when);
+
+    // Pitch: semitone offset via playbackRate
+    if (slot.pitch !== 0) {
+      source.playbackRate.value = Math.pow(2, slot.pitch / 12);
+    }
+
+    // Loop mode
+    if (slot.playMode === "loop") {
+      source.loop = true;
+      source.loopStart = slot.trimStart * slot.audioBuffer.duration;
+      source.loopEnd = slot.trimEnd * slot.audioBuffer.duration;
+    }
+
+    // Per-pad gain
+    const gain = this.ctx.createGain();
+    gain.gain.value = slot.volume;
+
+    // Per-pad pan
+    const panner = this.ctx.createStereoPanner();
+    panner.pan.value = slot.pan;
+
+    source.connect(gain).connect(panner).connect(this.masterNode);
+    source.onended = () => { this.activeSources.delete(slotId); };
+
+    // Apply trim: start at trimStart offset, play for trimmed duration
+    const offset = slot.trimStart * slot.audioBuffer.duration;
+    const duration = (slot.trimEnd - slot.trimStart) * slot.audioBuffer.duration;
+    if (slot.playMode === "loop") {
+      source.start(when, offset);
+    } else {
+      source.start(when, offset, duration);
+    }
+
     this.activeSources.set(slotId, source);
   }
 
@@ -199,6 +236,13 @@ export class PadEngine {
       slot.buffer = null;
       slot.audioBuffer = null;
       slot.status = "empty";
+      slot.volume = 1;
+      slot.pan = 0;
+      slot.pitch = 0;
+      slot.playMode = "one";
+      slot.trimStart = 0;
+      slot.trimEnd = 1;
+      slot.loopBeats = 0;
       this.onStateChange?.();
     }
   }
