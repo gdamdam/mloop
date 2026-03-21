@@ -74,7 +74,7 @@ export class EffectsChain {
     this.inputNode = inputNode;
     this.outputNode = outputNode;
     this.fx = structuredClone(DEFAULT_EFFECTS);
-    this.effectOrder = ["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
+    this.effectOrder = ["lowpass", "compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
 
     // Initial chain: input → output (no effects)
     this.inputNode.connect(this.outputNode);
@@ -144,6 +144,15 @@ export class EffectsChain {
 
   private buildEffect(name: EffectName, prev: AudioNode): AudioNode {
     switch (name) {
+      case "lowpass": {
+        const lp = this.ctx.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.value = Math.min(this.fx.lowpass.cutoff, 12000);
+        lp.Q.value = Math.min(this.fx.lowpass.q, 15);
+        prev.connect(lp);
+        this.fxNodes.push(lp);
+        return lp;
+      }
       case "compressor": {
         const comp = this.ctx.createDynamicsCompressor();
         comp.threshold.value = this.fx.compressor.threshold;

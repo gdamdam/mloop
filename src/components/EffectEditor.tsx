@@ -2,6 +2,10 @@ import type { EffectName } from "../types";
 
 // Slider definitions per effect
 const EFFECT_SLIDERS: Record<string, { key: string; label: string; min: number; max: number; step: number }[]> = {
+  lowpass: [
+    { key: "cutoff", label: "Cutoff", min: 100, max: 12000, step: 50 },
+    { key: "q", label: "Resonance", min: 0.5, max: 15, step: 0.1 },
+  ],
   delay: [
     { key: "time", label: "Time", min: 0.05, max: 1, step: 0.01 },
     { key: "feedback", label: "Feedback", min: 0, max: 0.9, step: 0.01 },
@@ -37,6 +41,7 @@ const EFFECT_SLIDERS: Record<string, { key: string; label: string; min: number; 
 };
 
 const EFFECT_NAMES: Record<string, string> = {
+  lowpass: "Low-Pass Filter",
   delay: "Delay",
   distortion: "Distortion",
   reverb: "Reverb",

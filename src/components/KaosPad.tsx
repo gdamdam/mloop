@@ -26,8 +26,8 @@ function applyXYValue(target: XYTarget, value: number, engine: AudioEngine): voi
     }
   };
   switch (target) {
-    case "cutoff": apply("highpass", { cutoff: 100 + value * 7900 }); break;
-    case "resonance": apply("highpass", { q: 0.5 + value * 19.5 }); break;
+    case "cutoff": apply("lowpass", { cutoff: 100 + value * 7900 }); break;
+    case "resonance": apply("lowpass", { q: 0.5 + value * 14.5 }); break;
     case "distortion": apply("distortion", { drive: 1 + value * 99 }); break;
     case "highpass": apply("highpass", { cutoff: 20 + value * 1980 }); break;
     case "delay_mix": apply("delay", { mix: value }); break;
@@ -43,6 +43,7 @@ function applyXYValue(target: XYTarget, value: number, engine: AudioEngine): voi
 // ── Effect labels ────────────────────────────────────────────────────────
 
 const EFFECT_LABELS: { name: EffectName; label: string }[] = [
+  { name: "lowpass", label: "LPF" },
   { name: "compressor", label: "COMP" },
   { name: "highpass", label: "HPF" },
   { name: "distortion", label: "DIST" },
