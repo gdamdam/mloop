@@ -44,6 +44,7 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ palette, onPaletteChange, onClose, command, latencyMs, sessionSizeMB, engine }: SettingsPanelProps) {
   const [limits, setLimits] = useState<RecordingLimits>(loadLimits);
+  const [, forceUpdate] = useState(0);
   const [layout, setLayout] = useState<PadLayoutId>(loadPadLayout);
   const [velocity, setVelocity] = useState(loadVelocity);
   const [lockBars, setLockBars] = useState<LockBars>(loadLockBars);
@@ -243,6 +244,40 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Roll/repeat on hold */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Roll on hold (hold pad to repeat)</span>
+              <button onClick={() => {
+                const on = localStorage.getItem("mloop-roll") !== "on";
+                localStorage.setItem("mloop-roll", on ? "on" : "off");
+                forceUpdate(n => n + 1);
+              }} style={{
+                padding: "4px 12px", borderRadius: 6, fontSize: 10, fontWeight: 700,
+                background: localStorage.getItem("mloop-roll") === "on" ? "var(--preview)" : "var(--bg-cell)",
+                color: localStorage.getItem("mloop-roll") === "on" ? "#000" : "var(--text-dim)",
+                cursor: "pointer",
+              }}>
+                {localStorage.getItem("mloop-roll") === "on" ? "ON" : "OFF"}
+              </button>
+            </div>
+            {localStorage.getItem("mloop-roll") === "on" && (
+              <div style={{ display: "flex", gap: 4 }}>
+                {[{v: "8", l: "1/8"}, {v: "16", l: "1/16"}, {v: "32", l: "1/32"}, {v: "64", l: "1/64"}].map(r => (
+                  <button key={r.v} onClick={() => localStorage.setItem("mloop-roll-rate", r.v)}
+                    style={{
+                      flex: 1, padding: "4px", borderRadius: 4, fontSize: 9, fontWeight: 700,
+                      background: (localStorage.getItem("mloop-roll-rate") || "16") === r.v ? "var(--preview)" : "var(--bg-cell)",
+                      color: (localStorage.getItem("mloop-roll-rate") || "16") === r.v ? "#000" : "var(--text-dim)",
+                      cursor: "pointer",
+                    }}>
+                    {r.l}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Count-in before recording */}
