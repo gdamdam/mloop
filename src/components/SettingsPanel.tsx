@@ -245,6 +245,26 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
             </div>
           </div>
 
+          {/* Count-in before recording */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4 }}>Count-in before recording</div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {([0, 4, 8] as const).map(beats => (
+                <button key={beats} onClick={() => {
+                  localStorage.setItem("mloop-count-in", String(beats));
+                }}
+                  style={{
+                    flex: 1, padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 700,
+                    background: parseInt(localStorage.getItem("mloop-count-in") || "4") === beats ? "var(--preview)" : "var(--bg-cell)",
+                    color: parseInt(localStorage.getItem("mloop-count-in") || "4") === beats ? "#000" : "var(--text-dim)",
+                    cursor: "pointer",
+                  }}>
+                  {beats === 0 ? "Off" : beats === 4 ? "1 bar" : "2 bars"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* ── Info ────────────────────────────────────────────────── */}
           <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
             Info

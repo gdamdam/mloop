@@ -47,6 +47,11 @@ export class PadEngine {
 
   /** Callback to notify UI of state changes. */
   onStateChange: (() => void) | null = null;
+  /** Callback for count-in UI (beats remaining, 0 = recording started). */
+  onCountIn: ((beatsLeft: number) => void) | null = null;
+  /** Count-in beats before recording (0 = immediate, 4 = 1 bar, 8 = 2 bars). */
+  countInBeats = 4;
+  private countInTimer: number | null = null;
 
   constructor(ctx: AudioContext, inputNode: AudioNode, masterNode: AudioNode) {
     this.ctx = ctx;
@@ -62,16 +67,81 @@ export class PadEngine {
     }
   }
 
-  /** Start recording into a pad slot. Only one slot can record at a time. */
-  async startRecording(slotId: number): Promise<void> {
+  /** Play a metronome click (for count-in). */
+  private playClick(when: number, isDownbeat: boolean): void {
+    const osc = this.ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = isDownbeat ? 1500 : 1000;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(isDownbeat ? 0.4 : 0.3, when);
+    gain.gain.exponentialRampToValueAtTime(0.001, when + 0.03);
+    osc.connect(gain).connect(this.masterNode);
+    osc.start(when);
+    osc.stop(when + 0.04);
+  }
+
+  /** Cancel any active count-in. */
+  cancelCountIn(): void {
+    if (this.countInTimer !== null) {
+      clearInterval(this.countInTimer);
+      this.countInTimer = null;
+    }
+    this.onCountIn?.(0);
+  }
+
+  /**
+   * Start recording with count-in. Plays metronome clicks for countInBeats,
+   * then starts actual recording. Metronome stops when recording begins.
+   * If countInBeats is 0, starts immediately.
+   */
+  async startRecording(slotId: number, bpm = 120): Promise<void> {
     if (this.recordingSlot !== null) return;
     const slot = this.slots[slotId];
     if (!slot) return;
 
+    // No count-in — start immediately
+    if (this.countInBeats <= 0) {
+      return this.startRecordingNow(slotId);
+    }
+
+    // Count-in: schedule clicks and start recording after
+    const beatDur = 60 / bpm;
+    let beatsLeft = this.countInBeats;
+
+    // Notify UI of count-in start
+    slot.status = "recording"; // show visual early so user knows it's armed
+    this.onCountIn?.(beatsLeft);
+    this.onStateChange?.();
+
+    // Play first click immediately
+    this.playClick(this.ctx.currentTime, true);
+    beatsLeft--;
+    this.onCountIn?.(beatsLeft);
+
+    // Schedule remaining clicks
+    this.countInTimer = window.setInterval(() => {
+      if (beatsLeft <= 0) {
+        // Count-in done — start recording
+        this.cancelCountIn();
+        this.startRecordingNow(slotId);
+        return;
+      }
+      const isDownbeat = beatsLeft % 4 === 0;
+      this.playClick(this.ctx.currentTime, isDownbeat);
+      beatsLeft--;
+      this.onCountIn?.(beatsLeft);
+    }, beatDur * 1000);
+  }
+
+  /** Actually start recording (after count-in). */
+  private async startRecordingNow(slotId: number): Promise<void> {
+    const slot = this.slots[slotId];
+    if (!slot) return;
     this.recorder = new Recorder(this.ctx, this.inputNode);
     await this.recorder.start();
     this.recordingSlot = slotId;
     slot.status = "recording";
+    this.onCountIn?.(0); // signal UI that recording is active
     this.onStateChange?.();
   }
 

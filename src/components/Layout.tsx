@@ -43,7 +43,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.12.1";
+    const APP_VERSION = "0.12.2";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -64,7 +64,9 @@ export function Layout({ state, command, engine }: LayoutProps) {
   // useMemo ensures it's created exactly once per engine instance, not async.
   const padEngine = useMemo(() => {
     if (!engine) return null;
-    return new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
+    const pe = new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
+    pe.countInBeats = parseInt(localStorage.getItem("mloop-count-in") || "4");
+    return pe;
   }, [engine]);
 
   // Load 8 default drum samples into pads on first init
@@ -187,7 +189,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.12.1</span>
+          <span className="title-version">0.12.2</span>
         </div>
 
         {/* View toggle */}

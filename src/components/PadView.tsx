@@ -125,6 +125,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
   const [selectedPad, setSelectedPad] = useState<number | null>(null);
   const [showSlicer, setShowSlicer] = useState(false);
   const [dragOverPad, setDragOverPad] = useState<number | null>(null);
+  const [countIn, setCountIn] = useState(0);
   const [, forceUpdate] = useState(0);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
@@ -135,7 +136,8 @@ export function PadView({ engine, padEngine }: PadViewProps) {
       setRecordingSlot(padEngine.currentRecordingSlot);
     };
     padEngine.onStateChange = sync;
-    sync(); // initial sync
+    padEngine.onCountIn = (beatsLeft) => setCountIn(beatsLeft);
+    sync();
   }, [padEngine]);
 
   // Input level meter
@@ -181,10 +183,10 @@ export function PadView({ engine, padEngine }: PadViewProps) {
       // Empty — stop any current recording first, then record into this pad
       if (pe.isRecording) {
         pe.stopRecording().then(() => {
-          pe.startRecording(slotId);
+          pe.startRecording(slotId, engine?.timing.bpm ?? 120);
         });
       } else {
-        pe.startRecording(slotId);
+        pe.startRecording(slotId, engine?.timing.bpm ?? 120);
       }
     }
   }, [engine]);
@@ -387,7 +389,9 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                   : slot.status === "loaded" ? "var(--preview)" : "var(--text-dim)",
                 opacity: slot.status === "loaded" ? 0.7 : 1,
               }}>
-                {slot.status === "recording" ? "REC" : slot.name || (slot.id + 1)}
+                {slot.status === "recording"
+                  ? (countIn > 0 ? countIn : "REC")
+                  : slot.name || (slot.id + 1)}
               </span>
 
               {slot.buffer && (
