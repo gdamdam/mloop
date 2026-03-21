@@ -158,6 +158,18 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: P
         </button>
       </div>
 
+      {/* Swing slider */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        <span style={{ fontSize: 8, color: "var(--text-dim)", width: 28 }}>Swing</span>
+        <input type="range" className="volume-slider" min={0} max={1} step={0.05}
+          value={padEngine?.getSeqSwing() ?? 0}
+          onChange={(e) => padEngine?.setSeqSwing(parseFloat(e.target.value))}
+          style={{ flex: 1 }} />
+        <span style={{ fontSize: 8, color: "var(--text-dim)", width: 20 }}>
+          {Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%
+        </span>
+      </div>
+
       {/* Step grid */}
       <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
         {loadedSlots.map((slot) => (

@@ -5,7 +5,9 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { PadEngine } from "../engine/PadEngine";
+import { detectTransients, chopAtPoints } from "../utils/autoChop";
 
+type SliceMode = "equal" | "auto";
 const SLICE_COUNTS = [4, 8, 16] as const;
 
 interface SampleSlicerProps {
@@ -17,6 +19,9 @@ export function SampleSlicer({ padEngine, onClose }: SampleSlicerProps) {
   const [buffer, setBuffer] = useState<Float32Array | null>(null);
   const [fileName, setFileName] = useState("");
   const [sliceCount, setSliceCount] = useState<number>(8);
+  const [sliceMode, setSliceMode] = useState<SliceMode>("equal");
+  const [sensitivity, setSensitivity] = useState(0.5);
+  const [autoPoints, setAutoPoints] = useState<number[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   /** Load audio file and decode to mono Float32Array. */
@@ -71,36 +76,53 @@ export function SampleSlicer({ padEngine, onClose }: SampleSlicerProps) {
     ctx.globalAlpha = 1;
 
     // Slice markers
-    for (let i = 1; i < sliceCount; i++) {
-      const x = (i / sliceCount) * w;
-      ctx.strokeStyle = "var(--record)";
+    const markers = sliceMode === "auto" ? autoPoints :
+      Array.from({ length: sliceCount }, (_, i) => Math.floor((i / sliceCount) * buffer.length));
+
+    for (let i = 0; i < markers.length; i++) {
+      const x = (markers[i] / buffer.length) * w;
+      ctx.strokeStyle = sliceMode === "auto" ? "var(--playing)" : "var(--record)";
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 2]);
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
       ctx.setLineDash([]);
-      // Slice number
       ctx.fillStyle = "var(--text-dim)";
       ctx.font = "8px monospace";
       ctx.fillText(`${i + 1}`, x + 2, 10);
     }
-    ctx.fillStyle = "var(--text-dim)";
-    ctx.font = "8px monospace";
-    ctx.fillText("1", 2, 10);
-  }, [buffer, sliceCount]);
+  }, [buffer, sliceCount, sliceMode, autoPoints]);
 
-  /** Apply slicing — chop buffer into N equal parts and load into pads. */
+  /** Run auto-detection when mode/sensitivity changes. */
+  useEffect(() => {
+    if (!buffer || sliceMode !== "auto") return;
+    const points = detectTransients(buffer, sliceCount, sensitivity);
+    setAutoPoints(points);
+  }, [buffer, sliceMode, sensitivity, sliceCount]);
+
+  /** Apply slicing — equal or auto-chop — and load into pads. */
   const handleSlice = useCallback(() => {
     if (!buffer || !padEngine) return;
-    const sliceLen = Math.floor(buffer.length / sliceCount);
-    for (let i = 0; i < sliceCount && i < 16; i++) {
-      const start = i * sliceLen;
-      const end = Math.min(start + sliceLen, buffer.length);
-      const slice = buffer.slice(start, end);
-      const name = `${fileName || "Slice"} ${i + 1}`;
-      padEngine.importBuffer(i, slice, name);
+
+    let slices: Float32Array[];
+    if (sliceMode === "auto") {
+      slices = chopAtPoints(buffer, autoPoints);
+    } else {
+      const sliceLen = Math.floor(buffer.length / sliceCount);
+      slices = [];
+      for (let i = 0; i < sliceCount; i++) {
+        const start = i * sliceLen;
+        const end = Math.min(start + sliceLen, buffer.length);
+        slices.push(buffer.slice(start, end));
+      }
+    }
+
+    // Clear existing pads and load slices
+    for (let i = 0; i < 16; i++) padEngine.clear(i);
+    for (let i = 0; i < slices.length && i < 16; i++) {
+      padEngine.importBuffer(i, slices[i], `${fileName || "Slice"} ${i + 1}`);
     }
     onClose();
-  }, [buffer, padEngine, sliceCount, fileName, onClose]);
+  }, [buffer, padEngine, sliceCount, sliceMode, autoPoints, fileName, onClose]);
 
   return (
     <div className="sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -139,19 +161,57 @@ export function SampleSlicer({ padEngine, onClose }: SampleSlicerProps) {
                 marginBottom: 8,
               }} />
 
-              {/* Slice count selector */}
-              <div style={{ display: "flex", gap: 4, marginBottom: 12, justifyContent: "center" }}>
-                {SLICE_COUNTS.map(n => (
-                  <button key={n} onClick={() => setSliceCount(n)} style={{
-                    padding: "6px 16px", borderRadius: 6, fontSize: 12, fontWeight: 700,
-                    background: sliceCount === n ? "var(--preview)" : "var(--bg-cell)",
-                    color: sliceCount === n ? "#000" : "var(--text-dim)",
-                    cursor: "pointer", border: "none",
+              {/* Mode toggle: equal vs auto-chop */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 8, justifyContent: "center" }}>
+                {(["equal", "auto"] as const).map(m => (
+                  <button key={m} onClick={() => setSliceMode(m)} style={{
+                    padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                    background: sliceMode === m ? "var(--preview)" : "var(--bg-cell)",
+                    color: sliceMode === m ? "#000" : "var(--text-dim)",
+                    cursor: "pointer", border: "none", textTransform: "uppercase",
                   }}>
-                    {n} slices
+                    {m === "equal" ? "Equal" : "Auto-Chop"}
                   </button>
                 ))}
               </div>
+
+              {/* Slice count (equal mode) or sensitivity (auto mode) */}
+              {sliceMode === "equal" ? (
+                <div style={{ display: "flex", gap: 4, marginBottom: 12, justifyContent: "center" }}>
+                  {SLICE_COUNTS.map(n => (
+                    <button key={n} onClick={() => setSliceCount(n)} style={{
+                      padding: "6px 16px", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                      background: sliceCount === n ? "var(--preview)" : "var(--bg-cell)",
+                      color: sliceCount === n ? "#000" : "var(--text-dim)",
+                      cursor: "pointer", border: "none",
+                    }}>
+                      {n} slices
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, color: "var(--text-dim)", width: 60 }}>Sensitivity</span>
+                    <input type="range" className="volume-slider" min={0.1} max={0.9} step={0.05}
+                      value={sensitivity} onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+                      style={{ flex: 1 }} />
+                    <span style={{ fontSize: 10, color: "var(--text-dim)", width: 20 }}>{autoPoints.length}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                    {SLICE_COUNTS.map(n => (
+                      <button key={n} onClick={() => setSliceCount(n)} style={{
+                        padding: "4px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700,
+                        background: sliceCount === n ? "var(--preview)" : "var(--bg-cell)",
+                        color: sliceCount === n ? "#000" : "var(--text-dim)",
+                        cursor: "pointer", border: "none",
+                      }}>
+                        max {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setBuffer(null)} style={{

@@ -38,6 +38,8 @@ interface PadDetailProps {
   onPlayModeChange: (mode: PlayMode) => void;
   onTrimChange: (start: number, end: number) => void;
   onLoopBeatsChange: (beats: number) => void;
+  muteGroup: number;
+  onMuteGroupChange: (group: number) => void;
 }
 
 export function PadDetail({
@@ -45,7 +47,7 @@ export function PadDetail({
   trimStart, trimEnd, loopBeats, bpm,
   onVolumeChange, onPanChange, onPitchChange,
   onPlayModeChange, onTrimChange, onLoopBeatsChange,
-  onNameChange,
+  muteGroup, onMuteGroupChange, onNameChange,
 }: PadDetailProps & { onNameChange?: (name: string) => void }) {
   if (!slot || slot.status !== "loaded" || !slot.buffer) {
     return (
@@ -142,6 +144,21 @@ export function PadDetail({
         <SliderRow label="Pitch" value={pitch} min={-12} max={12} step={1}
           display={pitch === 0 ? "0" : pitch > 0 ? `+${pitch}` : `${pitch}`}
           onChange={onPitchChange} />
+      </div>
+
+      {/* Mute group (hat choke) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6 }}>
+        <span style={{ fontSize: 8, color: "var(--text-dim)", width: 28, textAlign: "right" }}>Choke</span>
+        {[0, 1, 2, 3, 4].map(g => (
+          <button key={g} onClick={() => onMuteGroupChange(g)} style={{
+            flex: 1, padding: "3px 0", borderRadius: 3, fontSize: 8, fontWeight: 700,
+            background: muteGroup === g ? "var(--preview)" : "var(--bg-cell)",
+            color: muteGroup === g ? "#000" : "var(--text-dim)",
+            border: "none", cursor: "pointer",
+          }}>
+            {g === 0 ? "Off" : `G${g}`}
+          </button>
+        ))}
       </div>
     </div>
   );

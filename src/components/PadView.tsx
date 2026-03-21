@@ -149,16 +149,22 @@ export function PadView({ engine, padEngine }: PadViewProps) {
     return () => cancelAnimationFrame(raf);
   }, [engine]);
 
-  const handlePadClick = useCallback((slotId: number) => {
-    setSelectedPad(slotId); // always select for detail panel
+  // Roll state
+  const rollSlotRef = useRef<number | null>(null);
+
+  const handlePadPointerDown = useCallback((slotId: number, pressure: number) => {
+    setSelectedPad(slotId);
     const pe = padEngine;
     if (!pe) return;
     const slot = pe.slots[slotId];
+    // Velocity from pointer pressure (0.5 default on most devices)
+    const velocity = pressure > 0 && pressure < 1 ? 0.3 + pressure * 0.7 : 1;
 
     if (slot.status === "recording") {
       pe.stopRecording();
     } else if (slot.status === "loaded") {
-      pe.play(slotId);
+      pe.playAt(slotId, 0, velocity);
+      rollSlotRef.current = slotId;
     } else {
       // Empty — stop any current recording first, then record into this pad
       if (pe.isRecording) {
@@ -268,10 +274,37 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Import kit from file">
                 ⬆
               </button>
-              {/* Slice a long sample across pads */}
+              {/* Slice */}
               <button onClick={() => setShowSlicer(true)}
                 style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Slice audio file across pads">
                 ✂
+              </button>
+              {/* Chromatic mode — load selected pad sample across all pads at different pitches */}
+              <button onClick={() => {
+                if (!padEngine || selectedPad === null) return;
+                const slot = padEngine.slots[selectedPad];
+                if (!slot?.buffer) { alert("Select a loaded pad first"); return; }
+                padEngine.loadChromatic(slot.buffer, slot.name || "Sample");
+              }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Chromatic: spread selected pad across all pads at different pitches">
+                ♪
+              </button>
+              {/* Resample — record master output to a pad */}
+              <button onClick={() => {
+                if (!padEngine) return;
+                if (padEngine.isResampling) {
+                  padEngine.stopResample();
+                } else {
+                  const emptySlot = padEngine.slots.find(s => s.status === "empty");
+                  if (!emptySlot) { alert("No empty pad for resample"); return; }
+                  padEngine.startResample(emptySlot.id);
+                }
+                forceUpdate(n => n + 1);
+              }} style={{
+                fontSize: 9, padding: "2px 5px", borderRadius: 4,
+                background: padEngine?.isResampling ? "var(--record)" : "var(--bg-cell)",
+                color: padEngine?.isResampling ? "#fff" : "var(--text-dim)",
+              }} title={padEngine?.isResampling ? "Stop resampling" : "Resample: record output to pad"}>
+                {padEngine?.isResampling ? "■R" : "⏺R"}
               </button>
               {/* Layout selector */}
               <select
@@ -323,7 +356,16 @@ export function PadView({ engine, padEngine }: PadViewProps) {
           {slots.map((slot) => (
             <button
               key={slot.id}
-              onClick={() => handlePadClick(slot.id)}
+              onPointerDown={(e) => handlePadPointerDown(slot.id, e.pressure)}
+              onPointerUp={() => {
+                // Stop roll/gate on release
+                if (rollSlotRef.current !== null) {
+                  padEngine?.stopRoll();
+                  const slot = padEngine?.slots[rollSlotRef.current];
+                  if (slot?.playMode === "gate") padEngine?.stopSlot(rollSlotRef.current);
+                  rollSlotRef.current = null;
+                }
+              }}
               draggable={slot.status === "loaded"}
               onDragStart={(e) => {
                 e.dataTransfer.setData("text/pad-id", String(slot.id));
@@ -444,6 +486,8 @@ export function PadView({ engine, padEngine }: PadViewProps) {
           onPlayModeChange={(m) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].playMode = m; forceUpdate(n => n + 1); } }}
           onTrimChange={(s, e) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].trimStart = s; padEngine.slots[selectedPad].trimEnd = e; forceUpdate(n => n + 1); } }}
           onLoopBeatsChange={(b) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].loopBeats = b; forceUpdate(n => n + 1); } }}
+          muteGroup={selectedPad !== null ? (padEngine?.slots[selectedPad]?.muteGroup ?? 0) : 0}
+          onMuteGroupChange={(g) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].muteGroup = g; forceUpdate(n => n + 1); } }}
           onNameChange={(name) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].name = name; forceUpdate(n => n + 1); } }}
         />
         <PadSequencer slots={slots} bpm={bpm} onTrigger={handleSequencerTrigger} padEngine={padEngine} />
