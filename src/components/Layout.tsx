@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { EngineState, LoopCommand } from "../types";
 import type { AudioEngine } from "../engine/AudioEngine";
 import { PadEngine } from "../engine/PadEngine";
@@ -41,7 +41,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.6.0";
+    const APP_VERSION = "0.6.1";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -58,13 +58,12 @@ export function Layout({ state, command, engine }: LayoutProps) {
     loadSession("__pinned__").then(s => setIsPinned(!!s && s.tracks.some(t => t.layers.length > 0))).catch(() => {});
   }, []);
 
-  // PadEngine as state (not ref) so updates trigger re-render for PadView (#14)
-  const [padEngine, setPadEngine] = useState<PadEngine | null>(null);
-  useEffect(() => {
-    if (engine && !padEngine) {
-      setPadEngine(new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode()));
-    }
-  }, [engine, padEngine]);
+  // PadEngine — create synchronously on first render when engine exists.
+  // useMemo ensures it's created exactly once per engine instance, not async.
+  const padEngine = useMemo(() => {
+    if (!engine) return null;
+    return new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
+  }, [engine]);
 
   // Check if any track is recording (for header play/stop logic)
   const anyRecording = state.tracks.some(t => t.status === "recording" || t.status === "overdubbing");
@@ -147,7 +146,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.6.0</span>
+          <span className="title-version">0.6.1</span>
         </div>
 
         {/* View toggle */}
@@ -216,8 +215,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
           background: "var(--bg-panel)", color: "var(--text-dim)",
           borderBottom: "1px solid var(--border)",
         }}>
-          Mic unavailable — recording disabled. Use file import or try Chrome/Safari.
-          {window.location.hostname.endsWith(".github.io") && " Firefox may block mic on github.io."}
+          Mic unavailable — recording disabled. Check browser mic permissions or try Chrome/Safari.
         </div>
       )}
 
