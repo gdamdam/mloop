@@ -15,14 +15,17 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Force-unregister any old/broken service workers, then register fresh
+      // Unregister all service workers and clear caches to fix Firefox issues.
+      // SW will be re-enabled in a future version once Firefox compat is confirmed.
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs) {
-          var p = regs.map(function(r) { return r.unregister(); });
-          Promise.all(p).then(function() {
-            navigator.serviceWorker.register("./sw.js");
-          });
+          regs.forEach(function(r) { r.unregister(); });
         });
+        if ("caches" in window) {
+          caches.keys().then(function(names) {
+            names.forEach(function(n) { caches.delete(n); });
+          });
+        }
       }
     </script>
   </body>
