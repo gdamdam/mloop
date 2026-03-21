@@ -273,7 +273,22 @@ export class AudioEngine {
    * Disables all browser audio processing (echo cancellation, AGC, noise
    * suppression) to get a clean signal for looping.
    */
+  /** Whether mic has been successfully initialized. */
+  get hasMic(): boolean { return this.inputSource !== null; }
+
+  /**
+   * Request mic access and wire up input. Must be called inside a user
+   * gesture (click/tap) for Firefox compatibility.
+   *
+   * Firefox requires AudioContext.resume() BEFORE getUserMedia — otherwise
+   * the media stream connection silently fails or throws.
+   */
   async initMic(): Promise<void> {
+    // Resume AudioContext first — Firefox needs this inside user gesture
+    if (this.ctx.state === "suspended") {
+      await this.ctx.resume();
+    }
+
     this.inputStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,
@@ -286,16 +301,10 @@ export class AudioEngine {
     this.inputSource.connect(this.inputGain);
     this.inputGain.connect(this.monitorGain);
 
-    if (this.ctx.state === "suspended") {
-      await this.ctx.resume();
-    }
-
-    // Measure input latency for recording compensation — trims the silence
-    // at the start of each recording caused by OS/driver audio buffering
+    // Measure input latency for recording compensation
     const base = (this.ctx as unknown as { baseLatency?: number }).baseLatency ?? 0;
     const output = (this.ctx as unknown as { outputLatency?: number }).outputLatency ?? 0;
     this.inputLatencySamples = Math.round((base + output) * this.ctx.sampleRate);
-    // Propagate latency to all tracks so they can trim on stop
     for (const track of this.tracks) {
       track.latencyTrimSamples = this.inputLatencySamples;
     }
