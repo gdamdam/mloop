@@ -12,7 +12,7 @@ import { SampleEditor } from "./SampleEditor";
 import { SAMPLE_PRESETS } from "../engine/BuiltInSamples";
 import {
   loadSavedKits, saveKit, exportKit, importKit, padsToKit, kitToPads,
-  PAD_LAYOUTS, loadPadLayout, savePadLayout, type PadLayoutId,
+  // PAD_LAYOUTS removed — drag to rearrange instead
 } from "../utils/kitManager";
 import { SoundBrowser } from "./SoundBrowser";
 import { PadDetail } from "./PadDetail";
@@ -120,10 +120,11 @@ export function PadView({ engine, padEngine }: PadViewProps) {
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
   const [savedKits, setSavedKits] = useState(loadSavedKits);
-  const [padLayout, setPadLayout] = useState<PadLayoutId>(loadPadLayout);
+  // Pad layout removed — drag pads to rearrange
   const [browsingPad, setBrowsingPad] = useState<number | null>(null);
   const [selectedPad, setSelectedPad] = useState<number | null>(null);
   const [showSlicer, setShowSlicer] = useState(false);
+  const [dragOverPad, setDragOverPad] = useState<number | null>(null);
   const [, forceUpdate] = useState(0);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
@@ -220,20 +221,16 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                 onChange={async (e) => {
                   if (!padEngine) return;
                   const val = e.target.value;
-                  const layout = PAD_LAYOUTS.find(l => l.id === padLayout)!;
-                  // Clear all pads
                   for (let i = 0; i < 16; i++) padEngine.clear(i);
                   if (val.startsWith("s")) {
-                    // Saved kit
                     const kit = savedKits[parseInt(val.slice(1))];
                     if (kit) kitToPads(kit, (id, buf) => padEngine.importBuffer(id, buf), (id) => padEngine.clear(id));
                   } else {
-                    // Built-in preset — apply layout mapping
                     const idx = parseInt(val);
                     if (isNaN(idx)) return;
                     const samples = await SAMPLE_PRESETS[idx].generate();
-                    for (let i = 0; i < samples.length && i < layout.mapping.length; i++) {
-                      padEngine.importBuffer(layout.mapping[i], samples[i].buffer, samples[i].name);
+                    for (let i = 0; i < samples.length && i < 16; i++) {
+                      padEngine.importBuffer(i, samples[i].buffer, samples[i].name);
                     }
                   }
                 }}
@@ -306,33 +303,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               }} title={padEngine?.isResampling ? "Stop resampling" : "Resample: record output to pad"}>
                 {padEngine?.isResampling ? "■R" : "⏺R"}
               </button>
-              {/* Layout selector */}
-              <select
-                value={padLayout}
-                onChange={(e) => {
-                  const newId = e.target.value as PadLayoutId;
-                  if (!padEngine || newId === padLayout) { setPadLayout(newId); savePadLayout(newId); return; }
-                  const oldMap = PAD_LAYOUTS.find(l => l.id === padLayout)!.mapping;
-                  const newMap = PAD_LAYOUTS.find(l => l.id === newId)!.mapping;
-                  // Save buffer + name from old mapped positions
-                  const saved = oldMap.map(pos => {
-                    const slot = padEngine.slots[pos];
-                    return slot?.buffer ? { buffer: new Float32Array(slot.buffer), name: slot.name } : null;
-                  });
-                  // Only clear the old mapped positions (don't touch unmapped pads)
-                  for (const pos of oldMap) padEngine.clear(pos);
-                  // Place at new positions
-                  for (let i = 0; i < saved.length; i++) {
-                    if (saved[i]) padEngine.importBuffer(newMap[i], saved[i]!.buffer, saved[i]!.name);
-                  }
-                  setPadLayout(newId);
-                  savePadLayout(newId);
-                }}
-                style={{ font: "inherit", fontSize: 11, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 8px" }}
-                title="Pad layout"
-              >
-                {PAD_LAYOUTS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              {/* Layout selector removed — drag pads to rearrange */}
             </div>
           </div>
           {/* Live input waveform + level meter */}
@@ -369,11 +340,21 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               draggable={slot.status === "loaded"}
               onDragStart={(e) => {
                 e.dataTransfer.setData("text/pad-id", String(slot.id));
-                e.dataTransfer.effectAllowed = "copy";
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => { e.preventDefault(); setDragOverPad(slot.id); }}
+              onDragLeave={() => setDragOverPad(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverPad(null);
+                const fromId = parseInt(e.dataTransfer.getData("text/pad-id"));
+                if (!isNaN(fromId) && fromId !== slot.id && padEngine) {
+                  padEngine.swapPads(fromId, slot.id);
+                }
               }}
               style={{
                 position: "relative", borderRadius: 8,
-                border: `2px solid ${slot.status === "recording" ? "var(--record)" : slot.status === "loaded" ? "var(--preview)" : "var(--border)"}`,
+                border: `2px solid ${dragOverPad === slot.id ? "#fff" : slot.status === "recording" ? "var(--record)" : slot.status === "loaded" ? "var(--preview)" : "var(--border)"}`,
                 background: slot.status === "recording" ? "rgba(255,68,68,0.15)"
                   : slot.status === "loaded" ? "var(--bg-cell)" : "var(--bg-panel)",
                 cursor: "pointer", overflow: "hidden",
