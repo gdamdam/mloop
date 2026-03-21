@@ -314,16 +314,16 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                   if (!padEngine || newId === padLayout) { setPadLayout(newId); savePadLayout(newId); return; }
                   const oldMap = PAD_LAYOUTS.find(l => l.id === padLayout)!.mapping;
                   const newMap = PAD_LAYOUTS.find(l => l.id === newId)!.mapping;
-                  // Collect samples at old positions, then place at new positions
-                  const saved: (Float32Array | null)[] = oldMap.map(pos => {
+                  // Save buffer + name from old mapped positions
+                  const saved = oldMap.map(pos => {
                     const slot = padEngine.slots[pos];
-                    return slot?.buffer ? new Float32Array(slot.buffer) : null;
+                    return slot?.buffer ? { buffer: new Float32Array(slot.buffer), name: slot.name } : null;
                   });
-                  // Clear mapped positions
-                  for (const pos of [...new Set([...oldMap, ...newMap])]) padEngine.clear(pos);
+                  // Only clear the old mapped positions (don't touch unmapped pads)
+                  for (const pos of oldMap) padEngine.clear(pos);
                   // Place at new positions
                   for (let i = 0; i < saved.length; i++) {
-                    if (saved[i]) padEngine.importBuffer(newMap[i], saved[i]!);
+                    if (saved[i]) padEngine.importBuffer(newMap[i], saved[i]!.buffer, saved[i]!.name);
                   }
                   setPadLayout(newId);
                   savePadLayout(newId);

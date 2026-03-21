@@ -134,8 +134,8 @@ export function PadDetail({
         </div>
       )}
 
-      {/* Volume / Pan / Pitch sliders */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {/* Volume / Pan / Pitch — compact row layout */}
+      <div style={{ display: "flex", gap: 8 }}>
         <SliderRow label="Vol" value={volume} min={0} max={1} step={0.01}
           display={`${Math.round(volume * 100)}%`} onChange={onVolumeChange} />
         <SliderRow label="Pan" value={pan} min={-1} max={1} step={0.01}
@@ -164,21 +164,21 @@ export function PadDetail({
   );
 }
 
-/** Compact slider row with label and value display. */
+/** Compact vertical slider with label on top, value below. */
 function SliderRow({ label, value, min, max, step, display, onChange }: {
   label: string; value: number; min: number; max: number; step: number;
   display: string; onChange: (v: number) => void;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <span style={{ fontSize: 8, color: "var(--text-dim)", width: 28, textAlign: "right" }}>{label}</span>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+      <span style={{ fontSize: 7, color: "var(--text-dim)", textTransform: "uppercase" }}>{label}</span>
       <input
         type="range" className="volume-slider"
         min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        style={{ flex: 1 }}
+        style={{ width: "100%" }}
       />
-      <span style={{ fontSize: 8, color: "var(--text-dim)", width: 28 }}>{display}</span>
+      <span style={{ fontSize: 8, color: "var(--preview)", fontWeight: 700 }}>{display}</span>
     </div>
   );
 }
