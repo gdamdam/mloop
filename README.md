@@ -15,6 +15,23 @@ Open **[mloop](https://gdamdam.github.io/mloop/)** and start looping immediately
 
 Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based drum machine & synth sequencer.
 
+## Table of Contents
+
+- [Features](#features)
+- [KAOS XY Pad](#kaos-xy-pad)
+- [Effects](#effects-9-total)
+- [Sample Pads & Sequencer](#sample-pads--sequencer)
+- [Gesture Loops](#gesture-loops)
+- [Destruction Mode](#destruction-mode)
+- [Sessions & Export](#sessions--export)
+- [Themes](#themes)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Tech Stack](#tech-stack)
+- [Development](#development)
+- [License](#license)
+
+---
+
 ## Features
 
 ### Two Modes
@@ -32,14 +49,21 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 - **Free-time** or **quantized** recording (snap to bar boundaries)
 - **Metronome** with tap tempo
 - **Latency compensation** (auto-trim based on measured input latency)
+- **Sound DNA** — unique spectral fingerprint glyph per loop
+- **→PAD** button to copy a track recording into a pad slot
 
-### KAOS XY Pad
+---
+
+## KAOS XY Pad
 - Drag to control 2 effect parameters simultaneously
 - 7 assignable targets: Cutoff, Resonance, Distortion, Highpass, Delay, Reverb, Volume
 - Neon touch trails with audio-reactive visualizer
 - Auto-enables effects when selected as XY target
+- Effect chain with numbered badges, click chain to drag-reorder
 
-### Effects (9 total)
+---
+
+## Effects (9 total)
 Low-Pass Filter · Compressor · High-Pass Filter · Distortion · Bitcrusher · Chorus · Phaser · Delay · Reverb
 
 - **Per-track** independent effect chains
@@ -48,7 +72,9 @@ Low-Pass Filter · Compressor · High-Pass Filter · Distortion · Bitcrusher ·
 - Drag-to-reorder effect chain
 - Smooth parameter updates (no audio clicks)
 
-### Sample Pads
+---
+
+## Sample Pads & Sequencer
 - **16 pads** — tap empty to record, tap loaded to play
 - **Step sequencer** — 8/16/32/64 steps, multiple pads per step
 - **Drag & drop** pads onto sequencer steps
@@ -56,21 +82,44 @@ Low-Pass Filter · Compressor · High-Pass Filter · Distortion · Bitcrusher ·
 - **Delete / edit** icons on loaded pads
 - Auto-stop recording when tapping another pad
 
-### Sessions & Export
+---
+
+## Gesture Loops
+Record XY pad movements as automation that loops alongside your audio.
+- **● REC GESTURE** — records your finger/mouse movements on the XY pad
+- **▶ PLAY GESTURE** — loops the recorded movement in sync with audio, continuously automating effects
+- Syncs to master loop length or defaults to 4 bars
+- Clear and re-record anytime
+
+---
+
+## Destruction Mode
+Progressive tape degradation — loops evolve over time instead of staying static.
+- **DECAY slider** per track (0% = pristine digital, 100% = cassette-from-hell)
+- Each loop cycle applies cumulative: bitcrush, noise floor rise, high-frequency roll-off
+- Resets on clear or new recording
+
+---
+
+## Sessions & Export
 - **Save / Load** sessions (IndexedDB — persists in browser)
+- **Export / Import** full session as JSON file (system Save As dialog)
 - **Export WAV** mixdown of all tracks
 - **Import audio** files (drag & drop WAV/MP3/OGG onto tracks)
+- **PIN** session (★) — auto-loads on next visit
+- **Share** settings link (⤴) — copies URL with encoded BPM, effects, sync mode
+- **Recording limits** — configurable max time per track and max session size
 
-### Themes
+---
+
+## Themes
 12 color themes ported from mpump:
 - **Dark**: Midnight, Neon, Forest, Ember, Cobalt, Violet
 - **Light**: Minimal, Cream, Artic, Sand, Rosé, Slate
 
-### Controls
-- **Keyboard shortcuts** (press `?` to see all)
-- **MIDI controller mapping** with learn mode (Chrome/Edge)
-- **Fullscreen** mode
-- **PWA** — works offline, add to home screen
+Logo click: 1× = random theme, 2× = toggle beat pulse animation.
+
+---
 
 ## Keyboard Shortcuts
 
@@ -89,13 +138,25 @@ Low-Pass Filter · Compressor · High-Pass Filter · Distortion · Bitcrusher ·
 | `H` | Half-speed track 1 |
 | `?` | Show shortcuts |
 
+---
+
+## Controls
+- **Keyboard shortcuts** (press `?` to see all)
+- **MIDI controller mapping** with learn mode (Chrome/Edge)
+- **Fullscreen** mode
+- **PWA** — works offline, add to home screen
+
+---
+
 ## Tech Stack
 
 - **React 19** + **TypeScript** + **Vite**
 - **Web Audio API** — all synthesis and effects in-browser
 - **AudioWorklet** — sample-accurate recording
 - **Zero runtime dependencies** beyond React
-- **~280KB** production bundle (gzipped ~84KB)
+- **~294KB** production bundle (gzipped ~87KB)
+
+---
 
 ## Development
 
