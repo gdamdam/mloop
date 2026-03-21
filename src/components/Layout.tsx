@@ -18,6 +18,7 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useMidiMapping } from "../hooks/useMidiMapping";
 import { MidiController } from "../engine/MidiController";
 import { loadSession } from "../utils/storage";
+import { generateDefaultSamples } from "../engine/BuiltInSamples";
 
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
 
@@ -41,7 +42,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.6.3";
+    const APP_VERSION = "0.6.4";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -64,6 +65,18 @@ export function Layout({ state, command, engine }: LayoutProps) {
     if (!engine) return null;
     return new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
   }, [engine]);
+
+  // Load 8 default drum samples into pads on first init
+  useEffect(() => {
+    if (!padEngine) return;
+    // Only load defaults if all pads are empty (don't overwrite user samples)
+    if (padEngine.slots.some(s => s.status === "loaded")) return;
+    generateDefaultSamples().then(samples => {
+      for (let i = 0; i < samples.length && i < 16; i++) {
+        padEngine.importBuffer(i, samples[i].buffer);
+      }
+    });
+  }, [padEngine]);
 
   // Check if any track is recording (for header play/stop logic)
   const anyRecording = state.tracks.some(t => t.status === "recording" || t.status === "overdubbing");
@@ -146,7 +159,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.6.3</span>
+          <span className="title-version">0.6.4</span>
         </div>
 
         {/* View toggle */}
