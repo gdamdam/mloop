@@ -176,19 +176,17 @@ export function Layout({ state, command, engine }: LayoutProps) {
           <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
           <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
             style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
-          <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>TAP</button>
+          <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
           <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
-          <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>
-            {isDark ? "☀" : "☾"}
-          </button>
+          <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>◑</button>
           <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">⛶</button>
           <button className="header-btn" onClick={() => command({ type: "share_link" })} title="Share settings link">⤴</button>
-          <button className="header-btn" onClick={() => command({ type: "pin_session" })} title="Pin session (auto-loads on next visit)">📌</button>
-          <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">💾</button>
+          <button className="header-btn" onClick={() => command({ type: "pin_session" })} title="Pin session (auto-loads on next visit)">★</button>
+          <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">↓</button>
           {MidiController.isSupported() && (
-            <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>MIDI</button>
+            <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
           )}
-          <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">⌨</button>
+          <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">?</button>
           <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">⚙</button>
         </div>
       </header>
