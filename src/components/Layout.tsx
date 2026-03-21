@@ -43,7 +43,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.11.5";
+    const APP_VERSION = "0.11.6";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -76,6 +76,26 @@ export function Layout({ state, command, engine }: LayoutProps) {
       for (let i = 0; i < samples.length && i < 16; i++) {
         padEngine.importBuffer(i, samples[i].buffer, samples[i].name);
       }
+      // Default pattern showcasing all 8 sounds
+      // Pads: 0=Kick, 1=Snare, 2=HH, 3=Clap, 4=Open HH, 5=Rim, 6=Tom, 7=Cymbal
+      const grid = Array.from({ length: 64 }, () => Array(16).fill(false));
+      // Kick: 1, 5, 9, 11, 13
+      [0, 4, 8, 10, 12].forEach(s => grid[s][0] = true);
+      // Snare: 4, 12
+      [4, 12].forEach(s => grid[s][1] = true);
+      // Closed HH: every other step
+      [0,2,4,6,8,10,12,14].forEach(s => grid[s][2] = true);
+      // Clap: 4, 12 (layered with snare)
+      [4, 12].forEach(s => grid[s][3] = true);
+      // Open HH: off-beats
+      [3, 7, 11, 15].forEach(s => grid[s][4] = true);
+      // Rim: ghost notes
+      [2, 6, 14].forEach(s => grid[s][5] = true);
+      // Tom: fill at end
+      [13, 14].forEach(s => grid[s][6] = true);
+      // Cymbal: bar start
+      grid[0][7] = true;
+      padEngine.setSeqGrid(grid);
     });
   }, [padEngine]);
 
@@ -162,7 +182,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.11.5</span>
+          <span className="title-version">0.11.6</span>
         </div>
 
         {/* View toggle */}
