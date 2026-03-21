@@ -8,6 +8,7 @@
 import type { TrackStatus, EffectParams, EffectName } from "../types";
 import { Recorder } from "./Recorder";
 import { EffectsChain } from "./EffectsChain";
+import { DestructionEngine } from "./DestructionEngine";
 
 export class LoopTrack {
   readonly id: number;
@@ -25,6 +26,8 @@ export class LoopTrack {
   private fxInput: GainNode;
   private muteGain: GainNode;
   readonly effects: EffectsChain;
+  /** Destruction mode — progressive degradation per loop cycle. */
+  readonly destruction = new DestructionEngine();
 
   // Track state
   status: TrackStatus = "empty";
@@ -196,6 +199,8 @@ export class LoopTrack {
 
   // ── Playback ───────────────────────────────────────────────────────────
 
+  private destructionTimer: number | null = null;
+
   private startPlayback(offsetSeconds = 0): void {
     if (!this.mixedBuffer) return;
 
@@ -206,12 +211,31 @@ export class LoopTrack {
     source.loop = true;
     source.playbackRate.value = this.playbackRate;
     source.connect(this.outputGain);
-    // Start at offset within the loop for sync alignment
     source.start(0, offsetSeconds % (this.mixedBuffer.duration || 1));
 
     this.sourceNode = source;
     this.status = "playing";
     this.notifyChange();
+
+    // Destruction mode: apply degradation at the end of each loop cycle
+    this.stopDestructionTimer();
+    if (this.destruction.amount > 0 && this.loopLengthSamples > 0) {
+      const cycleDurationMs = (this.loopLengthSamples / this.ctx.sampleRate) * 1000 / this.playbackRate;
+      this.destructionTimer = window.setInterval(() => {
+        if (this.status !== "playing" || this.destruction.amount <= 0) return;
+        this.rebuildMixedBuffer(); // rebuild with destruction applied
+        if (this.sourceNode && this.mixedBuffer) {
+          this.sourceNode.buffer = this.mixedBuffer;
+        }
+      }, cycleDurationMs);
+    }
+  }
+
+  private stopDestructionTimer(): void {
+    if (this.destructionTimer !== null) {
+      clearInterval(this.destructionTimer);
+      this.destructionTimer = null;
+    }
   }
 
   play(offsetSeconds = 0): void {
@@ -228,6 +252,7 @@ export class LoopTrack {
 
   stop(): void {
     this.clearAutoStopTimer();
+    this.stopDestructionTimer();
     this.stopSource();
     if (this.recorder) {
       this.recorder.stop(); // discard
@@ -270,6 +295,9 @@ export class LoopTrack {
       if (mixed[i] > 1) mixed[i] = 1;
       else if (mixed[i] < -1) mixed[i] = -1;
     }
+
+    // Apply destruction degradation (cumulative per cycle)
+    this.destruction.degrade(mixed);
 
     // Apply reverse if active
     let finalData = mixed;
@@ -320,6 +348,8 @@ export class LoopTrack {
   /** Clear all layers and reset. */
   clear(): void {
     this.clearAutoStopTimer();
+    this.stopDestructionTimer();
+    this.destruction.reset();
     this.stopSource();
     if (this.recorder) {
       this.recorder.stop();

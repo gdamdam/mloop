@@ -7,6 +7,7 @@ import type { SessionData } from "../utils/storage";
 import { encodeWav } from "../utils/wav";
 import { mixBuffers } from "../utils/bufferOps";
 import { saveFileAs, openFile } from "../utils/fileExport";
+import { encodeShareLink } from "../utils/shareLink";
 
 // ── Reducer ──────────────────────────────────────────────────────────────
 
@@ -352,6 +353,24 @@ export function useLoopEngine() {
           }
           break;
         }
+        case "share_link": {
+          // Generate a shareable URL with current settings (no audio — too large)
+          const fx = engine.tracks[0]?.getEffects() ?? {};
+          const url = encodeShareLink({
+            bpm: engine.timing.bpm,
+            timingMode: engine.timingMode,
+            syncMode: engine.syncMode,
+            effects: fx as unknown as Record<string, unknown>,
+          });
+          try {
+            await navigator.clipboard.writeText(url);
+            alert("Share link copied to clipboard!");
+          } catch {
+            // Fallback: show in prompt
+            prompt("Share this link:", url);
+          }
+          break;
+        }
         case "stop_all":
           engine.stopAll();
           break;
@@ -383,6 +402,24 @@ export function useLoopEngine() {
 
     engineRef.current = engine;
     dispatch({ type: "state_sync", state: { started: true, ...syncFromEngine(engine) } });
+
+    // Auto-load pinned session if one exists
+    try {
+      const pinned = await loadSession("__pinned__");
+      if (pinned && pinned.tracks.some(t => t.layers.length > 0)) {
+        engine.masterLoopLength = pinned.masterLoopLength;
+        engine.timing.bpm = pinned.bpm;
+        engine.timingMode = pinned.timingMode;
+        for (let i = 0; i < engine.tracks.length; i++) {
+          const td = pinned.tracks[i];
+          if (!td || td.layers.length === 0) continue;
+          const layers = td.layers.map((ab) => new Float32Array(ab));
+          engine.tracks[i].restoreLayers(layers, td.loopLengthSamples);
+          engine.tracks[i].volume = td.volume;
+        }
+        dispatch({ type: "state_sync", state: syncFromEngine(engine) });
+      }
+    } catch { /* no pinned session or corrupt — skip silently */ }
   }, []);
 
   const getEngine = useCallback(() => engineRef.current, []);
