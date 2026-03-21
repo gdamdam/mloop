@@ -41,7 +41,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.6.2";
+    const APP_VERSION = "0.6.3";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -113,7 +113,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
   // Logo click — matches mpump: 1x=random theme, 2x=cycle pulse mode, 3+=about
   // Every click triggers a flash animation via key remount
   const [logoFlash, setLogoFlash] = useState(0);
-  const [logoPulse, setLogoPulse] = useState(false);
+  const [logoPulse, setLogoPulse] = useState(true);
   const logoClickCount = useRef(0);
   const logoClickTimer = useRef<number>(0);
   const handleLogoClick = useCallback(() => {
@@ -144,9 +144,9 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="header">
         <div className="title">
-          <pre className={`title-art logo-flash ${logoPulse ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
+          <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.6.2</span>
+          <span className="title-version">0.6.3</span>
         </div>
 
         {/* View toggle */}
