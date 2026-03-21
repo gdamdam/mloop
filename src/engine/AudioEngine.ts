@@ -26,6 +26,7 @@ export class AudioEngine {
   masterLoopLength = 0; // samples, set by first recording
   timingMode: TimingMode = "free";
   syncMode: SyncMode = "free";
+  lockBars: number = 4; // how many bars in LOCK mode (1, 2, 4, 8)
   inputLatencySamples = 0; // measured input latency for trim compensation
   private masterStartTime = 0;
   private inputStream: MediaStream | null = null;
@@ -110,7 +111,7 @@ export class AudioEngine {
    */
   private getLockLength(): number {
     if (this.masterLoopLength > 0) return this.masterLoopLength;
-    return this.timing.barLengthSamples * 4;
+    return this.timing.barLengthSamples * this.lockBars;
   }
 
   /** Begin recording on a track. In quantized mode, auto-starts metronome. */

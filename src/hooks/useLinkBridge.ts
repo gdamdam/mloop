@@ -23,9 +23,12 @@ export function useLinkBridge(
   useEffect(() => {
     const unsub = onLinkState((state) => {
       setLinkState(state);
-      // Sync BPM from Link session to mloop engine
       if (state.connected && state.tempo > 0) {
+        // Sync BPM from Link session
         command({ type: "set_bpm", bpm: Math.round(state.tempo) });
+        // In LOCK mode, auto-set sync so loops align to Link bar boundaries
+        // The engine's getLockLength() already uses timing.barLengthSamples
+        // which derives from BPM — so syncing BPM is sufficient
       }
     });
     return unsub;

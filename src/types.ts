@@ -34,6 +34,7 @@ export type TimingMode = "free" | "quantized";
  * - lock: all recordings forced to master loop length
  */
 export type SyncMode = "free" | "sync" | "lock";
+export type LockBars = 1 | 2 | 4 | 8;
 
 /** Top-level React state — mirrors engine state for rendering. */
 export interface EngineState {
