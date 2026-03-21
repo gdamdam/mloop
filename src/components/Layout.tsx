@@ -30,7 +30,7 @@ interface LayoutProps {
 }
 
 export function Layout({ state, command, engine }: LayoutProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("tracks");
+  const [viewMode, setViewMode] = useState<ViewMode>("pads");
   const [showSessions, setShowSessions] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -131,7 +131,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
         {/* View toggle */}
         <div style={{ display: "flex", gap: 2, background: "var(--bg-cell)", borderRadius: 6, padding: 2 }}>
-          {(["tracks", "pads"] as const).map(m => (
+          {(["pads", "tracks"] as const).map(m => (
             <button key={m} onClick={() => setViewMode(m)} style={{
               fontSize: 9, fontWeight: 700, padding: "4px 8px", borderRadius: 4,
               background: viewMode === m ? "var(--preview)" : "transparent",

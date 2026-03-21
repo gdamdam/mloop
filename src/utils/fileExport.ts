@@ -1,11 +1,17 @@
 /**
- * File export/import using system Save As dialog when available.
- * Falls back to download link for browsers without File System Access API.
+ * File export/import using the File System Access API when available.
+ *
+ * Prefers showSaveFilePicker (Chrome/Edge) for a native Save As dialog,
+ * falling back to the classic "create a hidden link and click it" approach
+ * for browsers that don't support the API (Firefox, Safari).
  */
 
-/** Save data using system Save As dialog. */
+/**
+ * Save data using the system Save As dialog.
+ * Falls back to a download link if the File System Access API isn't available.
+ */
 export async function saveFileAs(data: Blob, suggestedName: string): Promise<void> {
-  // Try File System Access API (Chrome/Edge)
+  // Try File System Access API (Chrome/Edge) for native Save As
   if ("showSaveFilePicker" in window) {
     try {
       const ext = suggestedName.split(".").pop() || "json";
@@ -22,12 +28,12 @@ export async function saveFileAs(data: Blob, suggestedName: string): Promise<voi
       await writable.close();
       return;
     } catch (e) {
-      // User cancelled or API failed — fall through to download
+      // User cancelled the dialog — don't fall through to download
       if ((e as DOMException).name === "AbortError") return;
     }
   }
 
-  // Fallback: create download link
+  // Fallback: create a temporary download link and click it
   const url = URL.createObjectURL(data);
   const a = document.createElement("a");
   a.href = url;
@@ -36,7 +42,12 @@ export async function saveFileAs(data: Blob, suggestedName: string): Promise<voi
   URL.revokeObjectURL(url);
 }
 
-/** Open file using system file picker. */
+/**
+ * Open a file using the system file picker.
+ * Creates a hidden <input type="file"> element and triggers the picker.
+ * @param accept MIME type or extension filter (e.g., ".json", "audio/*").
+ * @returns The selected File, or null if the user cancelled.
+ */
 export async function openFile(accept: string): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
@@ -45,7 +56,6 @@ export async function openFile(accept: string): Promise<File | null> {
     input.onchange = () => {
       resolve(input.files?.[0] ?? null);
     };
-    // Handle cancel
     input.oncancel = () => resolve(null);
     input.click();
   });

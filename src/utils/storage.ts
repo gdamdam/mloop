@@ -1,20 +1,24 @@
 /**
  * IndexedDB session storage for mloop.
- * Stores track buffers + settings per session.
+ *
+ * Uses IndexedDB (not localStorage) because sessions contain large
+ * Float32Array audio buffers that would exceed localStorage's ~5MB limit.
+ * Each session stores all track layers as raw ArrayBuffers plus settings.
  */
 
 const DB_NAME = "mloop-sessions";
 const DB_VERSION = 1;
 const STORE_NAME = "sessions";
 
+/** Serializable session data — stored directly in IndexedDB. */
 export interface SessionData {
-  name: string;
-  savedAt: number;
+  name: string;            // session identifier (also the IndexedDB key)
+  savedAt: number;         // timestamp for sorting
   bpm: number;
   timingMode: "free" | "quantized";
   masterLoopLength: number;
   tracks: {
-    layers: ArrayBuffer[];  // raw Float32 data as ArrayBuffers
+    layers: ArrayBuffer[];  // raw Float32 data as ArrayBuffers (structured-cloneable)
     volume: number;
     isReversed: boolean;
     playbackRate: number;
@@ -22,6 +26,10 @@ export interface SessionData {
   }[];
 }
 
+/**
+ * Open (or create) the IndexedDB database.
+ * On first open, creates the "sessions" object store keyed by name.
+ */
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -36,6 +44,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+/** Save a session (upsert — overwrites if name already exists). */
 export async function saveSession(session: SessionData): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -46,6 +55,7 @@ export async function saveSession(session: SessionData): Promise<void> {
   });
 }
 
+/** Load a session by name. Returns undefined if not found. */
 export async function loadSession(name: string): Promise<SessionData | undefined> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -56,6 +66,7 @@ export async function loadSession(name: string): Promise<SessionData | undefined
   });
 }
 
+/** List all saved sessions (name + timestamp), sorted newest first. */
 export async function listSessions(): Promise<{ name: string; savedAt: number }[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -73,6 +84,7 @@ export async function listSessions(): Promise<{ name: string; savedAt: number }[
   });
 }
 
+/** Delete a session by name. */
 export async function deleteSession(name: string): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
