@@ -222,7 +222,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                     if (isNaN(idx)) return;
                     const samples = await SAMPLE_PRESETS[idx].generate();
                     for (let i = 0; i < samples.length && i < layout.mapping.length; i++) {
-                      padEngine.importBuffer(layout.mapping[i], samples[i].buffer);
+                      padEngine.importBuffer(layout.mapping[i], samples[i].buffer, samples[i].name);
                     }
                   }
                 }}
@@ -341,7 +341,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                   : slot.status === "loaded" ? "var(--preview)" : "var(--text-dim)",
                 opacity: slot.status === "loaded" ? 0.7 : 1,
               }}>
-                {slot.status === "recording" ? "REC" : slot.id + 1}
+                {slot.status === "recording" ? "REC" : slot.name || (slot.id + 1)}
               </span>
 
               {slot.buffer && (
@@ -418,7 +418,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
 
       {/* Right: Step Sequencer */}
       <div className="pad-right">
-        <PadSequencer slots={slots} bpm={bpm} onTrigger={handleSequencerTrigger} />
+        <PadSequencer slots={slots} bpm={bpm} onTrigger={handleSequencerTrigger} padEngine={padEngine} />
       </div>
 
       {/* Sample Editor Modal */}
@@ -435,8 +435,8 @@ export function PadView({ engine, padEngine }: PadViewProps) {
       {browsingPad !== null && (
         <SoundBrowser
           padId={browsingPad}
-          onSelect={(buffer) => {
-            padEngine?.importBuffer(browsingPad, buffer);
+          onSelect={(buffer, name) => {
+            padEngine?.importBuffer(browsingPad, buffer, name);
           }}
           onClose={() => setBrowsingPad(null)}
         />

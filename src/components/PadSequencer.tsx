@@ -4,8 +4,9 @@
  * Supports drag-and-drop from pads onto steps.
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { PadSlot } from "../engine/PadEngine";
+import type { PadEngine } from "../engine/PadEngine";
 
 const STEP_OPTIONS = [8, 16, 32, 64] as const;
 
@@ -13,18 +14,18 @@ interface PadSequencerProps {
   slots: PadSlot[];
   bpm: number;
   onTrigger: (slotIds: number[]) => void;
+  padEngine: PadEngine | null;
 }
 
-export function PadSequencer({ slots, bpm, onTrigger }: PadSequencerProps) {
+export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: PadSequencerProps) {
+  void _onTrigger; // kept in interface for backwards compat, scheduling now in PadEngine
   const [numSteps, setNumSteps] = useState(16);
   const [grid, setGrid] = useState<boolean[][]>(() =>
-    Array.from({ length: 64 }, () => Array(16).fill(false)) // max size, slice to numSteps
+    Array.from({ length: 64 }, () => Array(16).fill(false))
   );
   const [playing, setPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [dragOverCell, setDragOverCell] = useState<{ step: number; slot: number } | null>(null);
-  const stepRef = useRef(-1);
-  const intervalRef = useRef<number | null>(null);
 
   const loadedSlots = slots.filter(s => s.status === "loaded");
 
@@ -76,37 +77,32 @@ export function PadSequencer({ slots, bpm, onTrigger }: PadSequencerProps) {
     }
   }, []);
 
-  // Sequencer playback
+  // Sync grid/bpm/steps to PadEngine's sequencer
   useEffect(() => {
-    if (!playing) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = null;
-      return;
+    if (!padEngine) return;
+    padEngine.setSeqGrid(grid);
+    padEngine.setSeqNumSteps(numSteps);
+    padEngine.setSeqBpm(bpm);
+  }, [padEngine, grid, numSteps, bpm]);
+
+  // Wire step change callback for UI indicator
+  useEffect(() => {
+    if (!padEngine) return;
+    padEngine.onStepChange = (step) => setCurrentStep(step);
+    return () => { padEngine.onStepChange = null; };
+  }, [padEngine]);
+
+  // Start/stop sequencer via PadEngine (Web Audio scheduled)
+  useEffect(() => {
+    if (!padEngine) return;
+    if (playing) {
+      padEngine.startSequencer();
+    } else {
+      padEngine.stopSequencer();
+      setCurrentStep(-1);
     }
-
-    const stepDuration = (60 / bpm / 4) * 1000; // 16th note
-    stepRef.current = 0;
-    setCurrentStep(0);
-
-    const tick = () => {
-      const step = stepRef.current;
-      setCurrentStep(step);
-      const triggers: number[] = [];
-      for (let s = 0; s < 16; s++) {
-        if (grid[step][s]) triggers.push(s);
-      }
-      if (triggers.length > 0) onTrigger(triggers);
-      stepRef.current = (step + 1) % numSteps;
-    };
-
-    tick();
-    intervalRef.current = window.setInterval(tick, stepDuration);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [playing, bpm, grid, onTrigger]);
-
-  useEffect(() => {
-    if (!playing) setCurrentStep(-1);
-  }, [playing]);
+    return () => { padEngine.stopSequencer(); };
+  }, [playing, padEngine]);
 
   if (loadedSlots.length === 0) {
     return (

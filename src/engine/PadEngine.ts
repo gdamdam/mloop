@@ -12,6 +12,8 @@ import { Recorder } from "./Recorder";
 /** Represents a single pad slot's state and audio data. */
 export interface PadSlot {
   id: number;
+  /** Display name (e.g. "Kick", "Snare"). */
+  name: string;
   /** Raw PCM data for serialization/export. */
   buffer: Float32Array | null;
   /** Decoded AudioBuffer for Web Audio playback. */
@@ -40,7 +42,7 @@ export class PadEngine {
 
     // Initialize 16 empty slots (4x4 grid)
     for (let i = 0; i < 16; i++) {
-      this.slots.push({ id: i, buffer: null, audioBuffer: null, status: "empty" });
+      this.slots.push({ id: i, name: "", buffer: null, audioBuffer: null, status: "empty" });
     }
   }
 
@@ -72,7 +74,7 @@ export class PadEngine {
       return;
     }
 
-    // Store both raw data (for serialization) and AudioBuffer (for playback)
+    slot.name = `Rec ${slot.id + 1}`;
     slot.buffer = raw;
     const audioBuf = this.ctx.createBuffer(1, raw.length, this.ctx.sampleRate);
     audioBuf.copyToChannel(new Float32Array(raw), 0);
@@ -81,12 +83,20 @@ export class PadEngine {
     this.onStateChange?.();
   }
 
-  /** Play a pad slot as a one-shot (not looped). Re-triggers stop the previous play. */
+  /** Play a pad slot as a one-shot. Re-triggers stop the previous instance. */
   play(slotId: number): void {
+    this.playAt(slotId, 0);
+  }
+
+  /**
+   * Schedule a pad to play at a specific AudioContext time.
+   * When `when` is 0, plays immediately. Used by the sequencer
+   * for sample-accurate timing via look-ahead scheduling.
+   */
+  playAt(slotId: number, when: number): void {
     const slot = this.slots[slotId];
     if (!slot?.audioBuffer) return;
 
-    // Re-trigger: stop any currently playing instance of this slot
     this.stopSlot(slotId);
 
     const source = this.ctx.createBufferSource();
@@ -95,8 +105,80 @@ export class PadEngine {
     source.onended = () => {
       this.activeSources.delete(slotId);
     };
-    source.start();
+    source.start(when);
     this.activeSources.set(slotId, source);
+  }
+
+  // ── Built-in sequencer (Web Audio scheduled) ──────────────────────────
+
+  private seqGrid: boolean[][] = [];
+  private seqNumSteps = 16;
+  private seqPlaying = false;
+  private seqBpm = 120;
+  private seqStepIndex = 0;
+  private seqNextStepTime = 0; // AudioContext seconds
+  private seqSchedulerId: number | null = null;
+  private seqLookaheadSec = 0.1;  // schedule 100ms ahead
+  private seqIntervalMs = 25;     // check every 25ms
+
+  /** Callback to notify UI of current step (for visual indicator). */
+  onStepChange: ((step: number) => void) | null = null;
+
+  /** Update sequencer grid from UI. */
+  setSeqGrid(grid: boolean[][]): void { this.seqGrid = grid; }
+  setSeqNumSteps(n: number): void { this.seqNumSteps = n; }
+  setSeqBpm(bpm: number): void { this.seqBpm = bpm; }
+
+  /** Start sequencer with Web Audio look-ahead scheduling. */
+  startSequencer(): void {
+    if (this.seqPlaying) return;
+    this.seqPlaying = true;
+    this.seqStepIndex = 0;
+    this.seqNextStepTime = this.ctx.currentTime;
+    this.seqSchedule(); // schedule first batch immediately
+    this.seqSchedulerId = window.setInterval(() => this.seqSchedule(), this.seqIntervalMs);
+  }
+
+  /** Stop sequencer. */
+  stopSequencer(): void {
+    this.seqPlaying = false;
+    if (this.seqSchedulerId !== null) {
+      clearInterval(this.seqSchedulerId);
+      this.seqSchedulerId = null;
+    }
+    this.onStepChange?.(-1);
+  }
+
+  get isSeqPlaying(): boolean { return this.seqPlaying; }
+
+  /**
+   * Look-ahead scheduler — schedules all steps within the lookahead window.
+   * Audio triggers are scheduled at exact AudioContext times (sample-accurate).
+   * UI step indicator updated via setTimeout for visual sync.
+   */
+  private seqSchedule(): void {
+    const stepDur = 60 / this.seqBpm / 4; // 16th note in seconds
+    const horizon = this.ctx.currentTime + this.seqLookaheadSec;
+
+    while (this.seqNextStepTime < horizon) {
+      const step = this.seqStepIndex;
+      const when = this.seqNextStepTime;
+
+      // Schedule pad triggers at exact audio time
+      const row = this.seqGrid[step];
+      if (row) {
+        for (let s = 0; s < 16; s++) {
+          if (row[s]) this.playAt(s, when);
+        }
+      }
+
+      // Schedule UI update (approximate — visual only)
+      const delayMs = Math.max(0, (when - this.ctx.currentTime) * 1000);
+      setTimeout(() => this.onStepChange?.(step), delayMs);
+
+      this.seqStepIndex = (step + 1) % this.seqNumSteps;
+      this.seqNextStepTime += stepDur;
+    }
   }
 
   /** Stop a currently playing pad slot. */
@@ -113,6 +195,7 @@ export class PadEngine {
     this.stopSlot(slotId);
     const slot = this.slots[slotId];
     if (slot) {
+      slot.name = "";
       slot.buffer = null;
       slot.audioBuffer = null;
       slot.status = "empty";
@@ -131,9 +214,10 @@ export class PadEngine {
   }
 
   /** Import raw audio data into a pad slot (e.g., from file or session restore). */
-  importBuffer(slotId: number, data: Float32Array): void {
+  importBuffer(slotId: number, data: Float32Array, name?: string): void {
     const slot = this.slots[slotId];
     if (!slot) return;
+    slot.name = name || `Pad ${slotId + 1}`;
     slot.buffer = data;
     const audioBuf = this.ctx.createBuffer(1, data.length, this.ctx.sampleRate);
     audioBuf.copyToChannel(new Float32Array(data), 0);
