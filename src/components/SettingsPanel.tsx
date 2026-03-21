@@ -7,11 +7,30 @@ import { useState } from "react";
 import { PALETTES, applyPalette } from "../themes";
 import type { PaletteId } from "../themes";
 import type { LoopCommand } from "../types";
+import type { LockBars } from "../types";
 import {
   loadLimits, saveLimits, TIME_OPTIONS, SIZE_OPTIONS,
   type RecordingLimits,
 } from "../utils/recordingLimits";
 import { PAD_LAYOUTS, loadPadLayout, savePadLayout, type PadLayoutId } from "../utils/kitManager";
+
+const VELOCITY_KEY = "mloop-velocity";
+const LOCK_BARS_KEY = "mloop-lock-bars";
+
+function loadVelocity(): boolean {
+  return localStorage.getItem(VELOCITY_KEY) !== "off";
+}
+function saveVelocity(on: boolean): void {
+  localStorage.setItem(VELOCITY_KEY, on ? "on" : "off");
+}
+function loadLockBars(): LockBars {
+  const v = parseInt(localStorage.getItem(LOCK_BARS_KEY) || "4");
+  if (v === 1 || v === 2 || v === 4 || v === 8) return v;
+  return 4;
+}
+function saveLockBarsValue(bars: LockBars): void {
+  localStorage.setItem(LOCK_BARS_KEY, String(bars));
+}
 
 interface SettingsPanelProps {
   palette: PaletteId;
@@ -20,11 +39,14 @@ interface SettingsPanelProps {
   command: (cmd: LoopCommand) => void;
   latencyMs: number; // measured input latency for display
   sessionSizeMB: number; // current session size estimate
+  engine?: { lockBars: number } | null; // AudioEngine reference for lockBars
 }
 
-export function SettingsPanel({ palette, onPaletteChange, onClose, command, latencyMs, sessionSizeMB }: SettingsPanelProps) {
+export function SettingsPanel({ palette, onPaletteChange, onClose, command, latencyMs, sessionSizeMB, engine }: SettingsPanelProps) {
   const [limits, setLimits] = useState<RecordingLimits>(loadLimits);
   const [layout, setLayout] = useState<PadLayoutId>(loadPadLayout);
+  const [velocity, setVelocity] = useState(loadVelocity);
+  const [lockBars, setLockBars] = useState<LockBars>(loadLockBars);
 
   /** Update a single limit field and persist. */
   const updateLimit = (key: keyof RecordingLimits, value: number) => {
@@ -174,6 +196,53 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
                 {l.name}
               </button>
             ))}
+          </div>
+
+          {/* ── Pad Settings ────────────────────────────────────────── */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+            Pad Settings
+          </div>
+
+          {/* Velocity sensitivity */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Velocity sensitivity</span>
+            <button
+              onClick={() => {
+                const next = !velocity;
+                setVelocity(next);
+                saveVelocity(next);
+              }}
+              style={{
+                padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                background: velocity ? "var(--preview)" : "var(--bg-cell)",
+                color: velocity ? "#000" : "var(--text-dim)",
+                cursor: "pointer",
+              }}
+            >
+              {velocity ? "ON" : "OFF"}
+            </button>
+          </div>
+
+          {/* Lock bars */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4 }}>Lock bars (LOCK sync mode window)</div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {([1, 2, 4, 8] as const).map(bars => (
+                <button key={bars} onClick={() => {
+                  setLockBars(bars);
+                  saveLockBarsValue(bars);
+                  if (engine) engine.lockBars = bars;
+                }}
+                  style={{
+                    flex: 1, padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 700,
+                    background: lockBars === bars ? "var(--preview)" : "var(--bg-cell)",
+                    color: lockBars === bars ? "#000" : "var(--text-dim)",
+                    cursor: "pointer",
+                  }}>
+                  {bars} bar{bars > 1 ? "s" : ""}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* ── Info ────────────────────────────────────────────────── */}

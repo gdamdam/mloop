@@ -9,6 +9,7 @@ const SECTIONS = [
       "**LOOPER** mode — record, layer, and loop audio from your mic",
       "Switch modes with the **PAD | LOOPER** toggle in the header",
       "7 built-in drum kits — select from the **Kit** dropdown in PAD view",
+      "Default **4-on-the-floor** pattern loads automatically on first visit",
     ],
   },
   {
@@ -19,7 +20,41 @@ const SECTIONS = [
       "**✎** edit — trim sample with draggable start/end handles",
       "**✕** delete — remove sample from pad",
       "Recording auto-stops when tapping another pad",
-      "**Drag pads** onto the step sequencer to place them",
+      "**Drag pads** to rearrange — drop one pad onto another to swap positions",
+      "**Pad detail panel** — click any pad to see waveform, editable name, and all per-pad controls",
+      "**Roll/repeat** — hold a pad (pointer or key) for >300ms to trigger rapid-fire at 1/16 rate",
+    ],
+  },
+  {
+    title: "Pad Detail Panel",
+    items: [
+      "**Volume** — per-pad gain (0–100%)",
+      "**Pan** — stereo position (L100 to R100)",
+      "**Pitch** — semitone offset (-12 to +12)",
+      "**Trim** — drag green (start) and red (end) handles on the waveform",
+      "**Play mode**: **ONE** (one-shot), **GATE** (plays while held), **LOOP** (continuous)",
+      "**Loop window presets** — snap loop to musical lengths (1/4, 1 beat, 1 bar, etc.)",
+      "**Mute group** (Choke) — assign pads to groups 1-4; triggering one stops others in same group (e.g. hat choke)",
+      "**Editable name** — click the name to rename any pad",
+    ],
+  },
+  {
+    title: "Sample Slicer & Auto-Chop",
+    items: [
+      "**✂** button — open the sample slicer to load and slice audio files across pads",
+      "**Equal slice** — divide audio evenly into N slices (2–16)",
+      "**Auto-chop** — transient detection finds natural slice points automatically",
+      "**Sensitivity** — adjust how aggressively transients are detected",
+      "Slices are loaded into consecutive pad slots",
+    ],
+  },
+  {
+    title: "Chromatic Mode & Resample",
+    items: [
+      "**♪** Chromatic — spread the selected pad's sample across all 16 pads at different pitches (-7 to +8 semitones)",
+      "**⏺R** Resample — record the master output into an empty pad",
+      "Press **⏺R** to start resampling, press **■R** to stop and save",
+      "Great for capturing sequencer output, layered sounds, or effects chains",
     ],
   },
   {
@@ -28,9 +63,31 @@ const SECTIONS = [
       "Click cells to toggle which pads play on which steps",
       "**▶/■** — start/stop sequencer playback",
       "Step counts: **8, 16, 32, 64** steps",
+      "**Swing** slider — add shuffle/groove to the sequencer timing",
+      "**RND** — generate a random musically-weighted drum pattern",
+      "**Row mute** toggles — mute individual pad rows without clearing them",
       "Multiple pads can trigger on the same step",
       "**Drag** loaded pads from the grid onto sequencer cells",
       "**CLR** — clear entire pattern",
+    ],
+  },
+  {
+    title: "Kit Management",
+    items: [
+      "**Save** — save current pad setup as a named kit (persists in browser)",
+      "**⬇** Export — download kit as a `.mloop-kit.json` file to share",
+      "**⬆** Import — load a kit file from disk",
+      "Saved kits appear in the **Kit** dropdown alongside built-in presets",
+      "**Auto-trim silence** — sample editor trims leading/trailing silence",
+    ],
+  },
+  {
+    title: "Sound Browser",
+    items: [
+      "**♫** button on any pad — browse all sounds from all 7 built-in kits",
+      "Mix and match — put a Hip-Hop kick with a House hi-hat",
+      "Works on both empty and loaded pads",
+      "Preview sounds before selecting",
     ],
   },
   {
@@ -64,10 +121,11 @@ const SECTIONS = [
     title: "Timing & Sync",
     items: [
       "**FREE/QNT** — toggle free-time or quantized (bar-snapped) recording",
-      "**3 sync modes** (cycle with ⊘/⟳/🔒): FREE, SYNC (phase-locked), LOCK (fixed window)",
+      "**3 sync modes** (cycle with icons): FREE, SYNC (phase-locked), LOCK (fixed window)",
       "**♩** Metronome — toggle click track",
       "**T** — tap tempo (averages last 5 taps)",
       "**+/−** — fine-tune BPM",
+      "**LINK** — sync tempo with mpump via Link Bridge (localhost:19876)",
     ],
   },
   {
@@ -82,13 +140,15 @@ const SECTIONS = [
     ],
   },
   {
-    title: "MIDI & Keyboard",
+    title: "Keyboard Shortcuts",
     items: [
-      "**M** button — map any MIDI CC/note to controls (Chrome/Edge)",
-      "Click **Learn** next to an action, then move a MIDI control to assign it",
-      "**Keyboard shortcuts** (press **?** to see all):",
-      "**1/2/3** — record, **Q/W/E** — play, **A/S/D** — mute, **Z/X/C** — clear",
-      "**Space** — stop recording or stop all, **P** — play all, **M** — metronome",
+      "**PAD mode finger drumming** (QWERTY 4x4 grid):",
+      "**M , . /** — Pads 1-4 · **J K L ;** — Pads 5-8",
+      "**U I O P** — Pads 9-12 · **7 8 9 0** — Pads 13-16",
+      "Hold any pad key >300ms for **roll/repeat**",
+      "**Looper**: **1/2/3** record, **Q/W/E** play, **A/S/D** mute, **Z/X/C** clear",
+      "**Shift+1/2/3** — overdub · **Space** — stop all · **P** — play all",
+      "**M** — metronome · **T** — tap tempo · **?** — show shortcuts",
     ],
   },
   {
