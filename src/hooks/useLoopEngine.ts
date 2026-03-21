@@ -185,6 +185,10 @@ export function useLoopEngine() {
     const run = async () => {
       switch (cmd.type) {
         case "track_record":
+          // Retry mic init if it failed at startup (Firefox)
+          if (!engine.hasMic) {
+            try { await engine.initMic(); } catch { /* still no mic */ }
+          }
           await engine.recordTrack(cmd.trackId);
           break;
         case "track_stop":
