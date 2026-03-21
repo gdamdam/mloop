@@ -17,6 +17,7 @@ import { VuMeter } from "./VuMeter";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useMidiMapping } from "../hooks/useMidiMapping";
 import { MidiController } from "../engine/MidiController";
+import { loadSession } from "../utils/storage";
 
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
 
@@ -35,6 +36,12 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [palette, setPalette] = useState<PaletteId>(loadPaletteId);
+  const [isPinned, setIsPinned] = useState(false);
+
+  // Check if a pinned session exists on mount
+  useEffect(() => {
+    loadSession("__pinned__").then(s => setIsPinned(!!s && s.tracks.some(t => t.layers.length > 0))).catch(() => {});
+  }, []);
 
   // Persist PadEngine across view switches (#14)
   const padEngineRef = useRef<PadEngine | null>(null);
@@ -181,7 +188,9 @@ export function Layout({ state, command, engine }: LayoutProps) {
           <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>◑</button>
           <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">⛶</button>
           <button className="header-btn" onClick={() => command({ type: "share_link" })} title="Share settings link">⤴</button>
-          <button className="header-btn" onClick={() => command({ type: "pin_session" })} title="Pin session (auto-loads on next visit)">★</button>
+          <button className="header-btn" onClick={() => { command({ type: "pin_session" }); setIsPinned(true); }}
+            style={isPinned ? { background: "var(--preview)", color: "#000" } : undefined}
+            title={isPinned ? "Session pinned — click to update" : "Pin session (auto-loads on next visit)"}>★</button>
           <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">↓</button>
           {MidiController.isSupported() && (
             <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
