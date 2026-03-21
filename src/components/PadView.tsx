@@ -18,6 +18,7 @@ import { SoundBrowser } from "./SoundBrowser";
 import { PadDetail } from "./PadDetail";
 import type { PlayMode } from "./PadDetail";
 import { SampleSlicer } from "./SampleSlicer";
+import { ScratchpadRecorder } from "./ScratchpadRecorder";
 
 interface PadViewProps {
   engine: AudioEngine | null;
@@ -41,7 +42,8 @@ function MiniWaveform({ buffer }: { buffer: Float32Array | null }) {
     const halfH = h / 2;
     const step = Math.max(1, Math.floor(buffer.length / w));
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "var(--preview)";
+    const preview = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
+    ctx.fillStyle = preview;
     for (let x = 0; x < w; x++) {
       const idx = Math.floor((x / w) * buffer.length);
       let max = 0;
@@ -50,7 +52,7 @@ function MiniWaveform({ buffer }: { buffer: Float32Array | null }) {
         if (v > max) max = v;
       }
       const barH = max * halfH * 0.9;
-      ctx.globalAlpha = 0.4;
+      ctx.globalAlpha = 0.6;
       ctx.fillRect(x, halfH - barH, 1, barH * 2);
     }
     ctx.globalAlpha = 1;
@@ -63,7 +65,7 @@ function MiniWaveform({ buffer }: { buffer: Float32Array | null }) {
   );
 }
 
-/** Live waveform from input analyser — draws real-time audio shape. */
+/** Live waveform from input analyser with decay trail for visibility. */
 function InputWaveform({ analyser, isRecording }: { analyser: AnalyserNode | null; isRecording: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
@@ -83,22 +85,34 @@ function InputWaveform({ analyser, isRecording }: { analyser: AnalyserNode | nul
         canvas.height = h * dpr;
         ctx.scale(dpr, dpr);
       }
-      ctx.clearRect(0, 0, w, h);
+
+      // Fade previous frame instead of clearing — creates decay trail
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(0, 0, w, h);
 
       const dataLen = analyser.fftSize;
       const data = new Uint8Array(dataLen);
       analyser.getByteTimeDomainData(data);
 
-      ctx.strokeStyle = isRecording ? "var(--record)" : "var(--preview)";
-      ctx.lineWidth = 1.5;
+      // Boost sensitivity: amplify the signal for display
+      const gain = 3;
+      const preview = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
+      ctx.strokeStyle = isRecording ? "#ff4444" : preview;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       const sliceW = w / dataLen;
       for (let i = 0; i < dataLen; i++) {
-        const v = data[i] / 128.0;
-        const y = (v * h) / 2;
+        const raw = (data[i] - 128) / 128;
+        const boosted = Math.max(-1, Math.min(1, raw * gain));
+        const y = (1 - boosted) * h / 2;
         if (i === 0) ctx.moveTo(0, y);
         else ctx.lineTo(i * sliceW, y);
       }
+      ctx.stroke();
+
+      // Glow effect
+      ctx.strokeStyle = (isRecording ? "#ff4444" : preview) + "40";
+      ctx.lineWidth = 4;
       ctx.stroke();
 
       rafRef.current = requestAnimationFrame(draw);
@@ -366,6 +380,16 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               onDrop={(e) => {
                 e.preventDefault();
                 setDragOverPad(null);
+                // Drop from scratchpad recorder
+                if (e.dataTransfer.getData("text/scratch") && padEngine) {
+                  const buf = (window as unknown as Record<string, unknown>).__mloop_scratch_buffer as Float32Array | undefined;
+                  if (buf) {
+                    padEngine.importBuffer(slot.id, buf, `Scratch ${slot.id + 1}`);
+                    delete (window as unknown as Record<string, unknown>).__mloop_scratch_buffer;
+                  }
+                  return;
+                }
+                // Drop from another pad (swap)
                 const fromId = parseInt(e.dataTransfer.getData("text/pad-id"));
                 if (!isNaN(fromId) && fromId !== slot.id && padEngine) {
                   padEngine.swapPads(fromId, slot.id);
@@ -490,8 +514,9 @@ export function PadView({ engine, padEngine }: PadViewProps) {
         </div>
       </div>
 
-      {/* Right: Pad Detail + Step Sequencer */}
+      {/* Right: Scratchpad + Pad Detail + Step Sequencer */}
       <div className="pad-right">
+        <ScratchpadRecorder engine={engine} />
         <PadDetail
           slot={selectedPad !== null ? slots[selectedPad] ?? null : null}
           volume={selectedPad !== null ? (padEngine?.slots[selectedPad]?.volume ?? 1) : 1}
