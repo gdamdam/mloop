@@ -238,7 +238,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                   }
                 }}
                 defaultValue=""
-                style={{ font: "inherit", fontSize: 9, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
+                style={{ font: "inherit", fontSize: 11, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 8px" }}
               >
                 <option value="" disabled>Kit</option>
                 {SAMPLE_PRESETS.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
@@ -253,7 +253,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                 const kit = padsToKit(name, padEngine.slots);
                 saveKit(kit);
                 setSavedKits(loadSavedKits());
-              }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Save current pads as kit">
+              }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Save current pads as kit">
                 Save
               </button>
               {/* Export kit */}
@@ -262,7 +262,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                 const name = prompt("Kit name for export:", "My Kit");
                 if (!name) return;
                 exportKit(padsToKit(name, padEngine.slots));
-              }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Export kit as file">
+              }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Export kit as file">
                 ⬇
               </button>
               {/* Import kit */}
@@ -271,12 +271,12 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                 const kit = await importKit();
                 if (!kit) return;
                 kitToPads(kit, (id, buf) => padEngine.importBuffer(id, buf), (id) => padEngine.clear(id));
-              }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Import kit from file">
+              }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Import kit from file">
                 ⬆
               </button>
               {/* Slice */}
               <button onClick={() => setShowSlicer(true)}
-                style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Slice audio file across pads">
+                style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Slice audio file across pads">
                 ✂
               </button>
               {/* Chromatic mode — load selected pad sample across all pads at different pitches */}
@@ -285,7 +285,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                 const slot = padEngine.slots[selectedPad];
                 if (!slot?.buffer) { alert("Select a loaded pad first"); return; }
                 padEngine.loadChromatic(slot.buffer, slot.name || "Sample");
-              }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Chromatic: spread selected pad across all pads at different pitches">
+              }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Chromatic: spread selected pad across all pads at different pitches">
                 ♪
               </button>
               {/* Resample — record master output to a pad */}
@@ -328,7 +328,7 @@ export function PadView({ engine, padEngine }: PadViewProps) {
                   setPadLayout(newId);
                   savePadLayout(newId);
                 }}
-                style={{ font: "inherit", fontSize: 9, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
+                style={{ font: "inherit", fontSize: 11, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 8px" }}
                 title="Pad layout"
               >
                 {PAD_LAYOUTS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
