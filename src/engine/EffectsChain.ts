@@ -68,6 +68,7 @@ export class EffectsChain {
   private fxNodes: AudioNode[] = [];
   private fxLFOs: OscillatorNode[] = [];
   private _bpm = 120;
+  private lastReverbDecay = 2; // track decay to know when IR needs regeneration
   // Live node references for smooth parameter updates (avoid rebuild on drag)
   private liveNodes: Map<EffectName, AudioNode[]> = new Map();
 
@@ -162,7 +163,9 @@ export class EffectsChain {
         return true;
       }
       case "reverb": {
-        // Mix can be updated smoothly, decay needs buffer regeneration
+        // Decay change requires IR regeneration (full rebuild)
+        if (this.fx.reverb.decay !== this.lastReverbDecay) return false;
+        // Mix-only: smooth update
         const dry = nodes[0] as GainNode;
         const wet = nodes[1] as GainNode;
         dry.gain.setTargetAtTime(1 - this.fx.reverb.mix, t, RAMP);
@@ -334,6 +337,7 @@ export class EffectsChain {
       }
       case "reverb": {
         const { decay, mix } = this.fx.reverb;
+        this.lastReverbDecay = decay;
         const dry = this.ctx.createGain(); dry.gain.value = 1 - mix;
         const wet = this.ctx.createGain(); wet.gain.value = mix;
         const conv = this.ctx.createConvolver(); conv.buffer = generateImpulseResponse(this.ctx, decay);

@@ -77,8 +77,12 @@ export function KaosPad({ engine }: KaosPadProps) {
   const trailsRef = useRef<Trail[]>([]);
   const posRef = useRef<{ x: number; y: number } | null>(null);
   const animRef = useRef<number>(0);
-  const [xTarget, setXTarget] = useState<XYTarget>("cutoff");
-  const [yTarget, setYTarget] = useState<XYTarget>("resonance");
+  const [xTarget, setXTarget] = useState<XYTarget>(() =>
+    (localStorage.getItem("mloop-xy-x") as XYTarget) || "cutoff"
+  );
+  const [yTarget, setYTarget] = useState<XYTarget>(() =>
+    (localStorage.getItem("mloop-xy-y") as XYTarget) || "resonance"
+  );
   const [editingEffect, setEditingEffect] = useState<EffectName | null>(null);
   const [showChainEditor, setShowChainEditor] = useState(false);
   const [effectOrder, setEffectOrder] = useState<EffectName[]>(DEFAULT_EFFECT_ORDER);
@@ -290,7 +294,7 @@ export function KaosPad({ engine }: KaosPadProps) {
           <span style={{ color: "var(--text-dim)" }}>X:</span>
           <select
             value={xTarget}
-            onChange={(e) => { const t = e.target.value as XYTarget; setXTarget(t); autoEnableForTarget(t); }}
+            onChange={(e) => { const t = e.target.value as XYTarget; setXTarget(t); localStorage.setItem("mloop-xy-x", t); autoEnableForTarget(t); }}
             style={{ font: "inherit", fontSize: 10, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
           >
             {XY_TARGETS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -300,7 +304,7 @@ export function KaosPad({ engine }: KaosPadProps) {
           <span style={{ color: "var(--text-dim)" }}>Y:</span>
           <select
             value={yTarget}
-            onChange={(e) => { const t = e.target.value as XYTarget; setYTarget(t); autoEnableForTarget(t); }}
+            onChange={(e) => { const t = e.target.value as XYTarget; setYTarget(t); localStorage.setItem("mloop-xy-y", t); autoEnableForTarget(t); }}
             style={{ font: "inherit", fontSize: 10, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
           >
             {XY_TARGETS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}

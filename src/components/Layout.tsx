@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { EngineState, LoopCommand } from "../types";
 import type { AudioEngine } from "../engine/AudioEngine";
+import { PadEngine } from "../engine/PadEngine";
 import { PALETTES, applyPalette, loadPaletteId } from "../themes";
 import type { PaletteId } from "../themes";
 import { TrackStrip } from "./TrackStrip";
@@ -35,8 +36,16 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [palette, setPalette] = useState<PaletteId>(loadPaletteId);
 
-  const { showOverlay, setShowOverlay } = useKeyboardShortcuts(command, true);
-  const midiRef = useMidiMapping(command, true);
+  // Persist PadEngine across view switches (#14)
+  const padEngineRef = useRef<PadEngine | null>(null);
+  useEffect(() => {
+    if (engine && !padEngineRef.current) {
+      padEngineRef.current = new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
+    }
+  }, [engine]);
+
+  // Check if any track is recording (for header play/stop logic)
+  const anyRecording = state.tracks.some(t => t.status === "recording" || t.status === "overdubbing");
 
   useEffect(() => {
     const p = PALETTES.find(x => x.id === palette)!;
@@ -62,6 +71,45 @@ export function Layout({ state, command, engine }: LayoutProps) {
     }
   }, []);
 
+  // Main play/stop — stops recording first, then stops/plays all
+  const handleMainPlayStop = useCallback(() => {
+    if (anyRecording) {
+      // Stop all recordings first
+      for (const t of state.tracks) {
+        if (t.status === "recording" || t.status === "overdubbing") {
+          command({ type: "track_stop", trackId: t.id });
+        }
+      }
+    } else {
+      const anyPlaying = state.tracks.some(t => t.status === "playing");
+      command({ type: anyPlaying ? "stop_all" : "play_all" });
+    }
+  }, [anyRecording, state.tracks, command]);
+
+  const { showOverlay, setShowOverlay } = useKeyboardShortcuts(command, true, handleMainPlayStop);
+  const midiRef = useMidiMapping(command, true);
+
+  // Logo click: 1x = random theme, 2x = toggle logo pulse
+  const [logoPulse, setLogoPulse] = useState(false);
+  const logoClickTimes = useRef<number[]>([]);
+  const logoClickTimer = useRef<number>(0);
+  const handleLogoClick = useCallback(() => {
+    const now = Date.now();
+    logoClickTimes.current = logoClickTimes.current.filter(t => now - t < 400);
+    logoClickTimes.current.push(now);
+    clearTimeout(logoClickTimer.current);
+    logoClickTimer.current = window.setTimeout(() => {
+      const count = logoClickTimes.current.length;
+      if (count >= 2) {
+        setLogoPulse(p => !p);
+      } else if (count === 1) {
+        const randomPalette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+        handlePaletteChange(randomPalette.id);
+      }
+      logoClickTimes.current = [];
+    }, 420);
+  }, [handlePaletteChange]);
+
   const isDark = PALETTES.find(x => x.id === palette)?.dark ?? true;
 
   return (
@@ -69,43 +117,47 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="header">
         <div className="title">
-          <pre className="title-art" style={{ color: "var(--preview)" }}>{LOGO}</pre>
-          <span className="title-version">0.3.1</span>
+          <pre className={`title-art ${logoPulse ? "logo-pulse" : ""}`} style={{ color: "var(--preview)" }} onClick={handleLogoClick}>{LOGO}</pre>
+          <span className="title-version">0.3.2</span>
         </div>
-        {/* View mode toggle */}
+
+        {/* View toggle */}
         <div style={{ display: "flex", gap: 2, background: "var(--bg-cell)", borderRadius: 6, padding: 2 }}>
-          <button
-            onClick={() => setViewMode("tracks")}
-            style={{
+          {(["tracks", "pads"] as const).map(m => (
+            <button key={m} onClick={() => setViewMode(m)} style={{
               fontSize: 9, fontWeight: 700, padding: "4px 8px", borderRadius: 4,
-              background: viewMode === "tracks" ? "var(--preview)" : "transparent",
-              color: viewMode === "tracks" ? "#000" : "var(--text-dim)",
-              letterSpacing: 0.5,
-            }}
-          >
-            3-TRACK
-          </button>
-          <button
-            onClick={() => setViewMode("pads")}
-            style={{
-              fontSize: 9, fontWeight: 700, padding: "4px 8px", borderRadius: 4,
-              background: viewMode === "pads" ? "var(--preview)" : "transparent",
-              color: viewMode === "pads" ? "#000" : "var(--text-dim)",
-              letterSpacing: 0.5,
-            }}
-          >
-            PAD
-          </button>
+              background: viewMode === m ? "var(--preview)" : "transparent",
+              color: viewMode === m ? "#000" : "var(--text-dim)", letterSpacing: 0.5,
+            }}>
+              {m === "tracks" ? "3-TRACK" : "PAD"}
+            </button>
+          ))}
         </div>
+
+        {/* Main play/stop button (#15) */}
+        <button
+          onClick={handleMainPlayStop}
+          style={{
+            width: 32, height: 32, borderRadius: "50%", fontSize: 14,
+            background: anyRecording ? "var(--record)" : state.tracks.some(t => t.status === "playing") ? "var(--playing)" : "var(--bg-cell)",
+            color: anyRecording || state.tracks.some(t => t.status === "playing") ? "#000" : "var(--text)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            border: "none", cursor: "pointer", flexShrink: 0,
+          }}
+          title={anyRecording ? "Stop Recording" : "Play/Stop All"}
+        >
+          {anyRecording ? "■" : state.tracks.some(t => t.status === "playing") ? "■" : "▶"}
+        </button>
+
         <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
+
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button className="header-btn"
             onClick={() => command({ type: "set_timing_mode", mode: state.timingMode === "free" ? "quantized" : "free" })}
             style={state.timingMode === "quantized" ? { background: "var(--preview)", color: "#000" } : undefined}
           >
-            {state.timingMode === "free" ? "FREE" : "QUANT"}
+            {state.timingMode === "free" ? "FREE" : "QNT"}
           </button>
-          {/* Sync mode: FREE → SYNC → LOCK cycle */}
           <button className="header-btn"
             onClick={() => {
               const modes: Array<"free" | "sync" | "lock"> = ["free", "sync", "lock"];
@@ -113,54 +165,48 @@ export function Layout({ state, command, engine }: LayoutProps) {
               command({ type: "set_sync_mode", mode: next });
             }}
             style={state.syncMode !== "free" ? { background: "var(--preview)", color: "#000" } : undefined}
-            title={`Sync: ${state.syncMode.toUpperCase()} — click to cycle`}
+            title={`Sync: ${state.syncMode.toUpperCase()}`}
           >
             {state.syncMode === "free" ? "⊘" : state.syncMode === "sync" ? "⟳" : "🔒"}
           </button>
           <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: "var(--preview)", minWidth: 32, textAlign: "center" }}>{state.bpm}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--preview)", minWidth: 28, textAlign: "center" }}>{state.bpm}</span>
           <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
-          <span style={{ fontSize: 9, color: "var(--text-dim)" }}>BPM</span>
+          <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
+          <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
+            style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
+          <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>TAP</button>
           <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
           <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>
             {isDark ? "☀" : "☾"}
           </button>
           <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">⛶</button>
+          <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">💾</button>
+          {MidiController.isSupported() && (
+            <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>MIDI</button>
+          )}
+          <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">⌨</button>
           <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">⚙</button>
         </div>
       </header>
 
       {/* ── View content ─────────────────────────────────────────────── */}
       {viewMode === "tracks" ? (
-        <div className="kaos-layout">
-          <div className="kaos-left">
-            <div className="tracks">
-              {state.tracks.map((track) => (
-                <TrackStrip key={track.id} track={track} command={command} engine={engine} />
-              ))}
-            </div>
+        <>
+          {/* 3 tracks in a row on top */}
+          <div className="tracks-row">
+            {state.tracks.map((track) => (
+              <TrackStrip key={track.id} track={track} command={command} engine={engine} />
+            ))}
           </div>
-          <div className="kaos-right">
+          {/* Centered square KaosPad below */}
+          <div className="kaos-center">
             <KaosPad engine={engine} />
           </div>
-        </div>
+        </>
       ) : (
-        <PadView engine={engine} />
+        <PadView engine={engine} padEngine={padEngineRef.current} />
       )}
-
-      {/* ── Global Transport ──────────────────────────────────────────── */}
-      <div className="global-transport">
-        <button className="transport-btn" onClick={() => command({ type: "play_all" })} title="Play All">▶</button>
-        <button className="transport-btn" onClick={() => command({ type: "stop_all" })} title="Stop All">■</button>
-        <button className="transport-btn" onClick={() => command({ type: "toggle_metronome" })}
-          style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
-        <button className="transport-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 10, fontWeight: 700 }}>TAP</button>
-        <button className="transport-btn" onClick={() => setShowSessions(true)} title="Sessions" style={{ fontSize: 12 }}>💾</button>
-        {MidiController.isSupported() && (
-          <button className="transport-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 10, fontWeight: 700 }}>MIDI</button>
-        )}
-        <button className="transport-btn" onClick={() => setShowOverlay(true)} title="Shortcuts" style={{ fontSize: 12 }}>⌨</button>
-      </div>
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
       <AppFooter onShowHelp={() => setShowHelp(true)} />

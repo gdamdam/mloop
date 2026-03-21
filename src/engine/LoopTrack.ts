@@ -33,6 +33,7 @@ export class LoopTrack {
   playbackRate = 1;
   private _muted = false;
   private _volume = 0.8;
+  private autoStopTimer: number | null = null;
 
   // Callback to notify engine of state changes
   onStateChange: (() => void) | null = null;
@@ -98,8 +99,10 @@ export class LoopTrack {
 
     // If we have a master loop length, auto-stop after that duration
     if (masterLength > 0) {
+      this.clearAutoStopTimer();
       const durationMs = (masterLength / this.ctx.sampleRate) * 1000;
-      setTimeout(() => {
+      this.autoStopTimer = window.setTimeout(() => {
+        this.autoStopTimer = null;
         if (this.status === "recording") {
           this.stopRecording(masterLength);
         }
@@ -158,8 +161,10 @@ export class LoopTrack {
     this.notifyChange();
 
     // Auto-stop after one loop cycle
+    this.clearAutoStopTimer();
     const durationMs = (this.loopLengthSamples / this.ctx.sampleRate) * 1000;
-    setTimeout(() => {
+    this.autoStopTimer = window.setTimeout(() => {
+      this.autoStopTimer = null;
       if (this.status === "overdubbing") {
         this.stopOverdub();
       }
@@ -211,7 +216,15 @@ export class LoopTrack {
     this.startPlayback(offsetSeconds);
   }
 
+  private clearAutoStopTimer(): void {
+    if (this.autoStopTimer !== null) {
+      clearTimeout(this.autoStopTimer);
+      this.autoStopTimer = null;
+    }
+  }
+
   stop(): void {
+    this.clearAutoStopTimer();
     this.stopSource();
     if (this.recorder) {
       this.recorder.stop(); // discard
@@ -303,6 +316,7 @@ export class LoopTrack {
 
   /** Clear all layers and reset. */
   clear(): void {
+    this.clearAutoStopTimer();
     this.stopSource();
     if (this.recorder) {
       this.recorder.stop();
