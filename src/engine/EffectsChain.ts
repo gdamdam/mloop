@@ -68,6 +68,8 @@ export class EffectsChain {
   private fxNodes: AudioNode[] = [];
   private fxLFOs: OscillatorNode[] = [];
   private _bpm = 120;
+  // Live node references for smooth parameter updates (avoid rebuild on drag)
+  private liveNodes: Map<EffectName, AudioNode[]> = new Map();
 
   constructor(ctx: AudioContext, inputNode: GainNode, outputNode: AudioNode) {
     this.ctx = ctx;
@@ -97,8 +99,94 @@ export class EffectsChain {
   }
 
   setEffect<K extends EffectName>(name: K, params: Partial<EffectParams[K]>): void {
+    const wasOn = this.fx[name].on;
     this.fx[name] = { ...this.fx[name], ...params } as EffectParams[K];
-    this.rebuildFxChain();
+    const isOn = this.fx[name].on;
+
+    // If on/off state changed, full rebuild needed
+    if (wasOn !== isOn) {
+      this.rebuildFxChain();
+      return;
+    }
+
+    // If effect is active, try smooth param update on live nodes
+    if (isOn && this.updateLiveParams(name)) {
+      return; // smoothly updated, no rebuild needed
+    }
+
+    // Fallback: rebuild (for effects without smooth update support)
+    if (isOn) {
+      this.rebuildFxChain();
+    }
+  }
+
+  /** Smoothly update AudioParams on live nodes. Returns true if handled. */
+  private updateLiveParams(name: EffectName): boolean {
+    const nodes = this.liveNodes.get(name);
+    if (!nodes || nodes.length === 0) return false;
+    const t = this.ctx.currentTime;
+    const RAMP = 0.02; // 20ms smooth ramp
+
+    switch (name) {
+      case "lowpass": {
+        const lp = nodes[0] as BiquadFilterNode;
+        lp.frequency.setTargetAtTime(Math.min(this.fx.lowpass.cutoff, 12000), t, RAMP);
+        lp.Q.setTargetAtTime(Math.min(this.fx.lowpass.q, 15), t, RAMP);
+        return true;
+      }
+      case "highpass": {
+        const hp = nodes[0] as BiquadFilterNode;
+        hp.frequency.setTargetAtTime(this.fx.highpass.cutoff, t, RAMP);
+        hp.Q.setTargetAtTime(this.fx.highpass.q, t, RAMP);
+        return true;
+      }
+      case "distortion": {
+        // Drive changes the curve shape — need to regenerate, but no disconnect
+        const ws = nodes[0] as WaveShaperNode;
+        ws.curve = makeDistortionCurve(this.fx.distortion.drive);
+        if (nodes[1]) (nodes[1] as GainNode).gain.setTargetAtTime(0.3 / (1 + this.fx.distortion.drive * 0.03), t, RAMP);
+        return true;
+      }
+      case "delay": {
+        // Update delay time and feedback smoothly
+        const dl = nodes[2] as DelayNode;  // dry=0, wet=1, dl=2, fb=3
+        const fb = nodes[3] as GainNode;
+        const dry = nodes[0] as GainNode;
+        const wet = nodes[1] as GainNode;
+        const { time, feedback, mix, sync, division } = this.fx.delay;
+        const delayTime = sync ? delayDivisionToSeconds(division, this._bpm) : time;
+        dl.delayTime.setTargetAtTime(delayTime, t, RAMP);
+        fb.gain.setTargetAtTime(feedback, t, RAMP);
+        dry.gain.setTargetAtTime(1 - mix, t, RAMP);
+        wet.gain.setTargetAtTime(mix, t, RAMP);
+        return true;
+      }
+      case "reverb": {
+        // Mix can be updated smoothly, decay needs buffer regeneration
+        const dry = nodes[0] as GainNode;
+        const wet = nodes[1] as GainNode;
+        dry.gain.setTargetAtTime(1 - this.fx.reverb.mix, t, RAMP);
+        wet.gain.setTargetAtTime(this.fx.reverb.mix, t, RAMP);
+        return true;
+      }
+      case "compressor": {
+        const comp = nodes[0] as DynamicsCompressorNode;
+        comp.threshold.setTargetAtTime(this.fx.compressor.threshold, t, RAMP);
+        comp.ratio.setTargetAtTime(this.fx.compressor.ratio, t, RAMP);
+        return true;
+      }
+      case "chorus": {
+        // Rate and depth on LFO, mix on gains
+        // Chorus nodes order: dry=0, wet=1, delay=2, lfoGain=3, merge=4
+        const dry = nodes[0] as GainNode;
+        const wet = nodes[1] as GainNode;
+        dry.gain.setTargetAtTime(1 - this.fx.chorus.mix, t, RAMP);
+        wet.gain.setTargetAtTime(this.fx.chorus.mix, t, RAMP);
+        return true;
+      }
+      default:
+        return false;
+    }
   }
 
   setEffectOrder(order: EffectName[]): void {
@@ -128,6 +216,7 @@ export class EffectsChain {
     }
     this.fxNodes = [];
     this.fxLFOs = [];
+    this.liveNodes.clear();
 
     // Build chain: input → [active effects] → output
     let prev: AudioNode = this.inputNode;
@@ -151,6 +240,7 @@ export class EffectsChain {
         lp.Q.value = Math.min(this.fx.lowpass.q, 15);
         prev.connect(lp);
         this.fxNodes.push(lp);
+        this.liveNodes.set("lowpass", [lp]);
         return lp;
       }
       case "compressor": {
@@ -161,6 +251,7 @@ export class EffectsChain {
         comp.release.value = 0.25;
         prev.connect(comp);
         this.fxNodes.push(comp);
+        this.liveNodes.set("compressor", [comp]);
         return comp;
       }
       case "highpass": {
@@ -170,6 +261,7 @@ export class EffectsChain {
         hp.Q.value = this.fx.highpass.q;
         prev.connect(hp);
         this.fxNodes.push(hp);
+        this.liveNodes.set("highpass", [hp]);
         return hp;
       }
       case "distortion": {
@@ -181,6 +273,7 @@ export class EffectsChain {
         prev.connect(ws);
         ws.connect(comp);
         this.fxNodes.push(ws, comp);
+        this.liveNodes.set("distortion", [ws, comp]);
         return comp;
       }
       case "bitcrusher": {
@@ -188,6 +281,7 @@ export class EffectsChain {
         ws.curve = makeBitcrushCurve(this.fx.bitcrusher.bits);
         prev.connect(ws);
         this.fxNodes.push(ws);
+        this.liveNodes.set("bitcrusher", [ws]);
         return ws;
       }
       case "chorus": {
@@ -203,6 +297,7 @@ export class EffectsChain {
         prev.connect(dry); prev.connect(delay); delay.connect(wet);
         dry.connect(merge); wet.connect(merge);
         this.fxNodes.push(dry, wet, delay, lfoGain, merge);
+        this.liveNodes.set("chorus", [dry, wet, delay, lfoGain, merge]);
         return merge;
       }
       case "phaser": {
@@ -221,6 +316,7 @@ export class EffectsChain {
         apPrev.connect(wet);
         const merge = this.ctx.createGain(); dry.connect(merge); wet.connect(merge);
         this.fxNodes.push(dry, wet, merge);
+        this.liveNodes.set("phaser", [dry, wet, merge]);
         return merge;
       }
       case "delay": {
@@ -233,6 +329,7 @@ export class EffectsChain {
         prev.connect(dry); prev.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet);
         const merge = this.ctx.createGain(); dry.connect(merge); wet.connect(merge);
         this.fxNodes.push(dry, wet, dl, fb, merge);
+        this.liveNodes.set("delay", [dry, wet, dl, fb, merge]);
         return merge;
       }
       case "reverb": {
@@ -243,6 +340,7 @@ export class EffectsChain {
         prev.connect(dry); prev.connect(conv); conv.connect(wet);
         const merge = this.ctx.createGain(); dry.connect(merge); wet.connect(merge);
         this.fxNodes.push(dry, wet, conv, merge);
+        this.liveNodes.set("reverb", [dry, wet, conv, merge]);
         return merge;
       }
     }
