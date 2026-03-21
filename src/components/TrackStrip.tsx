@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { TrackState, LoopCommand, EffectName } from "../types";
 import { DEFAULT_EFFECTS } from "../types";
 import { EffectRack } from "./EffectRack";
@@ -179,26 +179,7 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
       </div>
 
       {/* Destruction mode — progressive loop degradation */}
-      {layers > 0 && (
-        <div className="volume-control" style={{ marginTop: 4 }}>
-          <span style={{ fontSize: 9, color: "var(--text-dim)", minWidth: 36 }}>DECAY</span>
-          <input
-            type="range"
-            className="volume-slider"
-            min={0}
-            max={1}
-            step={0.05}
-            value={engine?.tracks[id]?.destruction.amount ?? 0}
-            onChange={(e) => {
-              const track = engine?.tracks[id];
-              if (track) track.destruction.amount = parseFloat(e.target.value);
-            }}
-          />
-          <span className="volume-label">
-            {Math.round((engine?.tracks[id]?.destruction.amount ?? 0) * 100)}%
-          </span>
-        </div>
-      )}
+      {layers > 0 && <DecaySlider engine={engine} trackId={id} />}
 
       <EffectRack
         trackId={id}
@@ -211,6 +192,31 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
         onFileLoaded={(buffer) => command({ type: "import_file", trackId: id, buffer })}
         disabled={layers > 0}
       />
+    </div>
+  );
+}
+
+/** Decay slider with local state so it updates visually on drag. */
+function DecaySlider({ engine, trackId }: { engine: AudioEngine | null; trackId: number }) {
+  const [value, setValue] = useState(() => engine?.tracks[trackId]?.destruction.amount ?? 0);
+  return (
+    <div className="volume-control" style={{ marginTop: 4 }}>
+      <span style={{ fontSize: 9, color: "var(--text-dim)", minWidth: 36 }}>DECAY</span>
+      <input
+        type="range"
+        className="volume-slider"
+        min={0}
+        max={1}
+        step={0.05}
+        value={value}
+        onChange={(e) => {
+          const v = parseFloat(e.target.value);
+          setValue(v);
+          const track = engine?.tracks[trackId];
+          if (track) track.destruction.amount = v;
+        }}
+      />
+      <span className="volume-label">{Math.round(value * 100)}%</span>
     </div>
   );
 }

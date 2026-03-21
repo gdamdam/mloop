@@ -9,6 +9,7 @@ import type { AudioEngine } from "../engine/AudioEngine";
 import type { PadEngine, PadSlot } from "../engine/PadEngine";
 import { PadSequencer } from "./PadSequencer";
 import { SampleEditor } from "./SampleEditor";
+import { SAMPLE_PRESETS } from "../engine/BuiltInSamples";
 
 interface PadViewProps {
   engine: AudioEngine | null;
@@ -194,9 +195,22 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               <div className={`track-status ${recordingSlot !== null ? "recording" : ""}`} />
               <span>{recordingSlot !== null ? `REC → PAD ${recordingSlot + 1}` : "INPUT"}</span>
             </div>
-            <span style={{ fontSize: 9, color: "var(--text-dim)" }}>
-              tap empty = rec · tap loaded = play
-            </span>
+            {/* Preset selector */}
+            <select
+              onChange={async (e) => {
+                const idx = parseInt(e.target.value);
+                if (isNaN(idx) || !padEngine) return;
+                const samples = await SAMPLE_PRESETS[idx].generate();
+                for (let i = 0; i < samples.length && i < 16; i++) {
+                  padEngine.importBuffer(i, samples[i].buffer);
+                }
+              }}
+              defaultValue=""
+              style={{ font: "inherit", fontSize: 9, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
+            >
+              <option value="" disabled>Kit</option>
+              {SAMPLE_PRESETS.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
+            </select>
           </div>
           {/* Live input waveform + level meter */}
           <div className="waveform-area" style={{ height: 48, position: "relative" }}>
