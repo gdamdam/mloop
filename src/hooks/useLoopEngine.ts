@@ -4,8 +4,9 @@ import { createInitialState } from "../types";
 import { AudioEngine } from "../engine/AudioEngine";
 import { saveSession, loadSession } from "../utils/storage";
 import type { SessionData } from "../utils/storage";
-import { encodeWav, downloadBlob } from "../utils/wav";
+import { encodeWav } from "../utils/wav";
 import { mixBuffers } from "../utils/bufferOps";
+import { saveFileAs, openFile } from "../utils/fileExport";
 
 // ── Reducer ──────────────────────────────────────────────────────────────
 
@@ -261,14 +262,13 @@ export function useLoopEngine() {
           break;
         }
         case "export_wav": {
-          // Mix all tracks into one buffer and download
+          // Mix all non-empty tracks and save via system Save As dialog
           const bufs: Float32Array[] = [];
           for (const t of engine.tracks) {
             const data = t.getMixedData();
             if (data) bufs.push(data);
           }
           if (bufs.length > 0) {
-            // Pad shorter buffers to longest
             const maxLen = Math.max(...bufs.map((b) => b.length));
             const padded = bufs.map((b) => {
               if (b.length === maxLen) return b;
@@ -278,7 +278,77 @@ export function useLoopEngine() {
             });
             const mixed = mixBuffers(padded);
             const wav = encodeWav(mixed, engine.ctx.sampleRate);
-            downloadBlob(wav, "mloop-mixdown.wav");
+            await saveFileAs(new Blob([wav], { type: "audio/wav" }), "mloop-mixdown.wav");
+          }
+          break;
+        }
+        case "export_session_file": {
+          // Serialize full session state to JSON + audio buffers, save via Save As
+          const sessionExport = {
+            version: 1,
+            bpm: engine.timing.bpm,
+            timingMode: engine.timingMode,
+            syncMode: engine.syncMode,
+            masterLoopLength: engine.masterLoopLength,
+            tracks: engine.tracks.map((t) => ({
+              layers: t.getLayers().map((l) => Array.from(l)), // Float32 → number[]
+              volume: t.volume,
+              isReversed: t.isReversed,
+              playbackRate: t.playbackRate,
+              loopLengthSamples: t.loopLengthSamples,
+            })),
+          };
+          const json = JSON.stringify(sessionExport);
+          await saveFileAs(new Blob([json], { type: "application/json" }), "mloop-session.json");
+          break;
+        }
+        case "import_session_file": {
+          // Open file picker, load JSON session, restore all state
+          const file = await openFile(".json");
+          if (!file) break;
+          try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (!data.version || !data.tracks) throw new Error("Invalid session file");
+            engine.stopAll();
+            engine.masterLoopLength = data.masterLoopLength ?? 0;
+            engine.timing.bpm = data.bpm ?? 120;
+            engine.timingMode = data.timingMode ?? "free";
+            engine.syncMode = data.syncMode ?? "free";
+            for (let i = 0; i < engine.tracks.length; i++) {
+              const td = data.tracks[i];
+              if (!td) continue;
+              const layers = td.layers.map((arr: number[]) => new Float32Array(arr));
+              engine.tracks[i].restoreLayers(layers, td.loopLengthSamples ?? 0);
+              engine.tracks[i].volume = td.volume ?? 0.8;
+              engine.tracks[i].isReversed = td.isReversed ?? false;
+              engine.tracks[i].playbackRate = td.playbackRate ?? 1;
+            }
+          } catch (e) {
+            alert("Failed to import session: " + (e instanceof Error ? e.message : "Unknown error"));
+          }
+          break;
+        }
+        case "pin_session": {
+          // Quick-save current state as pinned session (auto-loads on next visit)
+          const pinData: SessionData = {
+            name: "__pinned__",
+            savedAt: Date.now(),
+            bpm: engine.timing.bpm,
+            timingMode: engine.timingMode,
+            masterLoopLength: engine.masterLoopLength,
+            tracks: engine.tracks.map((t) => ({
+              layers: t.getLayers().map((l) => l.buffer.slice(0) as ArrayBuffer),
+              volume: t.volume,
+              isReversed: t.isReversed,
+              playbackRate: t.playbackRate,
+              loopLengthSamples: t.loopLengthSamples,
+            })),
+          };
+          try {
+            await saveSession(pinData);
+          } catch {
+            alert("Failed to pin session.");
           }
           break;
         }

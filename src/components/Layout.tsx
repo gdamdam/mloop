@@ -118,7 +118,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
       <header className="header">
         <div className="title">
           <pre className={`title-art ${logoPulse ? "logo-pulse" : ""}`} style={{ color: "var(--preview)" }} onClick={handleLogoClick}>{LOGO}</pre>
-          <span className="title-version">0.3.3</span>
+          <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
+          <span className="title-version">0.3.4</span>
         </div>
 
         {/* View toggle */}
@@ -181,6 +182,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
             {isDark ? "☀" : "☾"}
           </button>
           <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">⛶</button>
+          <button className="header-btn" onClick={() => command({ type: "pin_session" })} title="Pin session (auto-loads on next visit)">📌</button>
           <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">💾</button>
           {MidiController.isSupported() && (
             <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>MIDI</button>
@@ -223,7 +225,19 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {showOverlay && <ShortcutOverlay onClose={() => setShowOverlay(false)} />}
       {showMidi && midiRef.current && <MidiMapper controller={midiRef.current} onClose={() => setShowMidi(false)} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      {showSettings && <SettingsPanel palette={palette} onPaletteChange={handlePaletteChange} onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <SettingsPanel
+          palette={palette}
+          onPaletteChange={handlePaletteChange}
+          onClose={() => setShowSettings(false)}
+          command={command}
+          latencyMs={engine ? (engine.inputLatencySamples / 44100) * 1000 : 0}
+          sessionSizeMB={engine ? engine.tracks.reduce((acc, t) => {
+            const layers = t.getLayers();
+            return acc + layers.reduce((s, l) => s + l.byteLength, 0);
+          }, 0) / (1024 * 1024) : 0}
+        />
+      )}
     </div>
   );
 }
