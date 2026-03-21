@@ -1,13 +1,23 @@
+/**
+ * Core type definitions for mloop.
+ *
+ * Defines the entire app state shape, command protocol, and effect
+ * parameter types. Shared between the audio engine, React hooks,
+ * and UI components.
+ */
+
 // ── Track state ──────────────────────────────────────────────────────────
 
+/** Lifecycle states for a single loop track. */
 export type TrackStatus = "empty" | "recording" | "playing" | "overdubbing" | "stopped";
 
+/** React-side representation of a single track (mirrored from LoopTrack). */
 export interface TrackState {
   id: number;
   status: TrackStatus;
   volume: number;    // 0–1
   muted: boolean;
-  layers: number;    // count of recorded layers
+  layers: number;    // count of recorded layers (for undo availability)
   loopLengthSamples: number;
   isReversed: boolean;
   playbackRate: number;
@@ -15,9 +25,17 @@ export interface TrackState {
 
 // ── Engine state ─────────────────────────────────────────────────────────
 
+/** Timing mode: free = no grid, quantized = snap to bar boundaries. */
 export type TimingMode = "free" | "quantized";
+/**
+ * Sync mode controls how tracks relate to each other:
+ * - free: independent timing
+ * - sync: tracks start aligned to master loop position
+ * - lock: all recordings forced to master loop length
+ */
 export type SyncMode = "free" | "sync" | "lock";
 
+/** Top-level React state — mirrors engine state for rendering. */
 export interface EngineState {
   started: boolean;
   tracks: TrackState[];
@@ -29,8 +47,10 @@ export interface EngineState {
   inputLevel: number; // 0–1, for mic input meter
 }
 
+/** Number of loop tracks in the app. */
 export const NUM_TRACKS = 3;
 
+/** Create the initial engine state with all tracks empty. */
 export function createInitialState(): EngineState {
   return {
     started: false,
@@ -55,6 +75,11 @@ export function createInitialState(): EngineState {
 
 // ── Commands ─────────────────────────────────────────────────────────────
 
+/**
+ * Discriminated union of all commands the engine accepts.
+ * Used by both the React reducer (optimistic update) and the
+ * async engine dispatcher (real audio operations).
+ */
 export type LoopCommand =
   | { type: "track_record"; trackId: number }
   | { type: "track_stop"; trackId: number }
@@ -87,8 +112,10 @@ export type LoopCommand =
 
 // ── Effects (ported from mpump) ──────────────────────────────────────────
 
+/** Available effect types — order matches the default chain routing. */
 export type EffectName = "lowpass" | "compressor" | "highpass" | "distortion" | "bitcrusher" | "chorus" | "phaser" | "delay" | "reverb";
 
+/** Type-safe parameter shapes for each effect. All effects have an `on` toggle. */
 export interface EffectParams {
   lowpass: { on: boolean; cutoff: number; q: number };
   delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: string };
@@ -101,6 +128,7 @@ export interface EffectParams {
   bitcrusher: { on: boolean; bits: number };
 }
 
+/** Sensible defaults — all effects start off with moderate settings. */
 export const DEFAULT_EFFECTS: EffectParams = {
   lowpass: { on: false, cutoff: 8000, q: 1 },
   delay: { on: false, time: 0.3, feedback: 0.4, mix: 0.3, sync: true, division: "1/16" },

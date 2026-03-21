@@ -3,6 +3,10 @@
  * playback, overdub, undo, reverse, half-speed.
  *
  * State machine: empty → recording → playing ⇄ overdubbing → stopped
+ *
+ * Audio is stored as a stack of Float32Array layers. On playback,
+ * layers are summed into a single AudioBuffer. This layer approach
+ * enables non-destructive overdub with per-layer undo.
  */
 
 import type { TrackStatus, EffectParams, EffectName } from "../types";
@@ -15,18 +19,18 @@ export class LoopTrack {
   private ctx: AudioContext;
   private inputNode: AudioNode;
 
-  // Audio state
+  // Audio state — layers are the non-destructive overdub stack
   private layers: Float32Array[] = [];
   private mixedBuffer: AudioBuffer | null = null;
   private sourceNode: AudioBufferSourceNode | null = null;
   private recorder: Recorder | null = null;
 
-  // Playback nodes: outputGain → effectsChain → muteGain → master
+  // Playback routing: outputGain → fxInput → [effects] → muteGain → master
   readonly outputGain: GainNode;
   private fxInput: GainNode;
   private muteGain: GainNode;
   readonly effects: EffectsChain;
-  /** Destruction mode — progressive degradation per loop cycle. */
+  /** Destruction mode — progressive degradation applied each loop cycle. */
   readonly destruction = new DestructionEngine();
 
   // Track state
@@ -37,9 +41,10 @@ export class LoopTrack {
   private _muted = false;
   private _volume = 0.8;
   private autoStopTimer: number | null = null;
-  latencyTrimSamples = 0; // set by engine after mic init
+  /** Input latency in samples — set by AudioEngine after mic init for trim compensation. */
+  latencyTrimSamples = 0;
 
-  // Callback to notify engine of state changes
+  /** Callback to notify engine of state changes (triggers React re-render). */
   onStateChange: (() => void) | null = null;
 
   constructor(id: number, ctx: AudioContext, inputNode: AudioNode, masterNode: AudioNode) {
@@ -50,7 +55,7 @@ export class LoopTrack {
     this.outputGain = ctx.createGain();
     this.outputGain.gain.value = this._volume;
 
-    // Effects chain sits between output gain and mute
+    // Effects chain sits between output gain and mute gate
     this.fxInput = ctx.createGain();
     this.muteGain = ctx.createGain();
     this.muteGain.gain.value = 1;
@@ -62,14 +67,17 @@ export class LoopTrack {
 
   // ── Effects passthrough ────────────────────────────────────────────────
 
+  /** Apply effect parameter changes — delegates to the EffectsChain. */
   setEffect<K extends EffectName>(name: K, params: Partial<EffectParams[K]>): void {
     this.effects.setEffect(name, params);
   }
 
+  /** Get a snapshot of all current effect parameters. */
   getEffects(): EffectParams {
     return this.effects.getEffects();
   }
 
+  /** Number of overdub layers (0 = empty track). */
   get layerCount(): number {
     return this.layers.length;
   }
@@ -87,6 +95,7 @@ export class LoopTrack {
     return this._muted;
   }
 
+  /** Mute/unmute by zeroing the mute gate (preserves volume setting). */
   set muted(m: boolean) {
     this._muted = m;
     this.muteGain.gain.value = m ? 0 : 1;
@@ -94,14 +103,17 @@ export class LoopTrack {
 
   // ── Recording ──────────────────────────────────────────────────────────
 
-  /** Start recording a new layer. masterLength=0 means first recording (free length). */
+  /**
+   * Start recording a new layer.
+   * @param masterLength Master loop length in samples. 0 = first recording (free length).
+   */
   async startRecording(masterLength: number): Promise<void> {
     this.recorder = new Recorder(this.ctx, this.inputNode);
     await this.recorder.start();
     this.status = "recording";
     this.notifyChange();
 
-    // If we have a master loop length, auto-stop after that duration
+    // Auto-stop after one master loop cycle so overdubs stay aligned
     if (masterLength > 0) {
       this.clearAutoStopTimer();
       const durationMs = (masterLength / this.ctx.sampleRate) * 1000;
@@ -114,7 +126,11 @@ export class LoopTrack {
     }
   }
 
-  /** Stop recording, finalize buffer, start playback. Returns the loop length in samples. */
+  /**
+   * Stop recording, finalize the captured buffer, and begin looped playback.
+   * Applies latency compensation by trimming leading samples.
+   * @returns The final loop length in samples (0 if recording was empty).
+   */
   async stopRecording(masterLength: number): Promise<number> {
     if (!this.recorder) return 0;
 
@@ -127,16 +143,15 @@ export class LoopTrack {
       return 0;
     }
 
-    // Determine loop length
+    // Determine loop length — either from master or from this first recording
     if (masterLength > 0) {
-      // Trim or pad to master length (or nearest multiple)
       this.loopLengthSamples = masterLength;
     } else {
-      // First recording: this sets the master length
       this.loopLengthSamples = raw.length;
     }
 
-    // Trim start by latency compensation, then pad to loop length
+    // Latency compensation: trim leading silence caused by audio pipeline delay,
+    // then zero-pad to exact loop length for seamless looping
     const offset = Math.min(this.latencyTrimSamples, raw.length - 1);
     const compensated = offset > 0 ? raw.subarray(offset) : raw;
     const trimmed = new Float32Array(this.loopLengthSamples);
@@ -152,11 +167,14 @@ export class LoopTrack {
 
   // ── Overdub ────────────────────────────────────────────────────────────
 
-  /** Start overdubbing: play existing + record new layer. */
+  /**
+   * Start overdubbing: existing layers keep playing while a new layer records.
+   * Auto-stops after one loop cycle to keep layers aligned.
+   */
   async startOverdub(): Promise<void> {
     if (this.layers.length === 0) return;
 
-    // Ensure playback is running
+    // Ensure existing content is audible during overdub
     if (this.status !== "playing") {
       this.startPlayback();
     }
@@ -166,7 +184,7 @@ export class LoopTrack {
     this.status = "overdubbing";
     this.notifyChange();
 
-    // Auto-stop after one loop cycle
+    // Auto-stop after one loop cycle — overdubs are always one cycle
     this.clearAutoStopTimer();
     const durationMs = (this.loopLengthSamples / this.ctx.sampleRate) * 1000;
     this.autoStopTimer = window.setTimeout(() => {
@@ -177,7 +195,7 @@ export class LoopTrack {
     }, durationMs);
   }
 
-  /** Stop overdub, merge new layer. */
+  /** Stop overdub, merge the new layer into the stack, and restart playback. */
   async stopOverdub(): Promise<void> {
     if (!this.recorder) return;
 
@@ -185,6 +203,7 @@ export class LoopTrack {
     this.recorder = null;
 
     if (raw.length > 0) {
+      // Trim/pad to exact loop length for seamless alignment
       const trimmed = new Float32Array(this.loopLengthSamples);
       const copyLen = Math.min(raw.length, this.loopLengthSamples);
       trimmed.set(raw.subarray(0, copyLen));
@@ -192,7 +211,7 @@ export class LoopTrack {
       this.rebuildMixedBuffer();
     }
 
-    // Restart playback with updated mix
+    // Restart playback with updated mix (includes new layer)
     this.stopSource();
     this.startPlayback();
   }
@@ -201,6 +220,10 @@ export class LoopTrack {
 
   private destructionTimer: number | null = null;
 
+  /**
+   * Start looped playback of the mixed buffer.
+   * @param offsetSeconds Start position within the loop (for sync alignment).
+   */
   private startPlayback(offsetSeconds = 0): void {
     if (!this.mixedBuffer) return;
 
@@ -211,19 +234,21 @@ export class LoopTrack {
     source.loop = true;
     source.playbackRate.value = this.playbackRate;
     source.connect(this.outputGain);
+    // Modulo prevents offset > duration when syncing to master
     source.start(0, offsetSeconds % (this.mixedBuffer.duration || 1));
 
     this.sourceNode = source;
     this.status = "playing";
     this.notifyChange();
 
-    // Destruction mode: apply degradation at the end of each loop cycle
+    // If destruction mode is active, schedule buffer degradation at each loop boundary.
+    // Each cycle applies cumulative effects (bitcrush, noise, filtering) for tape-decay feel.
     this.stopDestructionTimer();
     if (this.destruction.amount > 0 && this.loopLengthSamples > 0) {
       const cycleDurationMs = (this.loopLengthSamples / this.ctx.sampleRate) * 1000 / this.playbackRate;
       this.destructionTimer = window.setInterval(() => {
         if (this.status !== "playing" || this.destruction.amount <= 0) return;
-        this.rebuildMixedBuffer(); // rebuild with destruction applied
+        this.rebuildMixedBuffer(); // rebuild applies destruction degradation
         if (this.sourceNode && this.mixedBuffer) {
           this.sourceNode.buffer = this.mixedBuffer;
         }
@@ -238,6 +263,7 @@ export class LoopTrack {
     }
   }
 
+  /** Public play entry point — no-ops if track is empty. */
   play(offsetSeconds = 0): void {
     if (this.layers.length === 0) return;
     this.startPlayback(offsetSeconds);
@@ -250,6 +276,7 @@ export class LoopTrack {
     }
   }
 
+  /** Stop playback/recording, discard any in-progress recording. */
   stop(): void {
     this.clearAutoStopTimer();
     this.stopDestructionTimer();
@@ -262,6 +289,7 @@ export class LoopTrack {
     this.notifyChange();
   }
 
+  /** Safely stop and disconnect the AudioBufferSourceNode. */
   private stopSource(): void {
     if (this.sourceNode) {
       try {
@@ -274,7 +302,10 @@ export class LoopTrack {
 
   // ── Buffer operations ──────────────────────────────────────────────────
 
-  /** Mix all layers into a single AudioBuffer for playback. */
+  /**
+   * Mix all layers into a single AudioBuffer for playback.
+   * Applies: layer summation → clamp → destruction degradation → reverse.
+   */
   private rebuildMixedBuffer(): void {
     if (this.layers.length === 0) {
       this.mixedBuffer = null;
@@ -284,22 +315,23 @@ export class LoopTrack {
     const len = this.loopLengthSamples;
     const mixed = new Float32Array(len);
 
+    // Sum all layers (additive mixing)
     for (const layer of this.layers) {
       for (let i = 0; i < len; i++) {
         mixed[i] += layer[i];
       }
     }
 
-    // Clamp to [-1, 1]
+    // Hard clamp to prevent digital clipping artifacts
     for (let i = 0; i < len; i++) {
       if (mixed[i] > 1) mixed[i] = 1;
       else if (mixed[i] < -1) mixed[i] = -1;
     }
 
-    // Apply destruction degradation (cumulative per cycle)
+    // Apply destruction degradation (cumulative — gets worse each cycle)
     this.destruction.degrade(mixed);
 
-    // Apply reverse if active
+    // Reverse the buffer in-place if reverse mode is active
     let finalData = mixed;
     if (this.isReversed) {
       finalData = new Float32Array(len);
@@ -313,7 +345,7 @@ export class LoopTrack {
     this.mixedBuffer = buf;
   }
 
-  /** Toggle reverse — rebuilds buffer and restarts playback. */
+  /** Toggle reverse — rebuilds buffer and restarts playback seamlessly. */
   toggleReverse(): void {
     this.isReversed = !this.isReversed;
     this.rebuildMixedBuffer();
@@ -324,7 +356,7 @@ export class LoopTrack {
     this.notifyChange();
   }
 
-  /** Toggle half-speed playback. */
+  /** Toggle half-speed playback (1x ↔ 0.5x). Updates live if playing. */
   toggleHalfSpeed(): void {
     this.playbackRate = this.playbackRate === 1 ? 0.5 : 1;
     if (this.sourceNode) {
@@ -333,7 +365,10 @@ export class LoopTrack {
     this.notifyChange();
   }
 
-  /** Undo last overdub layer. */
+  /**
+   * Undo the last overdub layer. Requires at least 2 layers
+   * (won't remove the base recording).
+   */
   undoLastLayer(): void {
     if (this.layers.length < 2) return;
     this.layers.pop();
@@ -345,7 +380,7 @@ export class LoopTrack {
     this.notifyChange();
   }
 
-  /** Clear all layers and reset. */
+  /** Clear all layers and reset track to pristine empty state. */
   clear(): void {
     this.clearAutoStopTimer();
     this.stopDestructionTimer();
@@ -364,12 +399,16 @@ export class LoopTrack {
     this.notifyChange();
   }
 
-  /** Import a decoded audio buffer as the first layer. */
+  /**
+   * Import a decoded audio buffer as the first (and only) layer.
+   * Used for file import. Respects master loop length if one exists.
+   * @returns The resulting loop length in samples.
+   */
   importBuffer(data: Float32Array, masterLength: number): number {
     this.clear();
 
     if (masterLength > 0) {
-      // Trim/pad to master length
+      // Conform to existing master loop length
       this.loopLengthSamples = masterLength;
       const trimmed = new Float32Array(masterLength);
       const copyLen = Math.min(data.length, masterLength);
@@ -385,12 +424,12 @@ export class LoopTrack {
     return this.loopLengthSamples;
   }
 
-  /** Get raw layers for session serialization. */
+  /** Get raw layers for session serialization (save/export). */
   getLayers(): Float32Array[] {
     return this.layers;
   }
 
-  /** Restore layers from session data. */
+  /** Restore layers from saved session data. Leaves track stopped (not auto-playing). */
   restoreLayers(layers: Float32Array[], loopLength: number): void {
     this.clear();
     this.layers = layers;
@@ -408,6 +447,7 @@ export class LoopTrack {
     return this.mixedBuffer.getChannelData(0);
   }
 
+  /** Fire the state change callback (used by React sync layer). */
   private notifyChange(): void {
     this.onStateChange?.();
   }
