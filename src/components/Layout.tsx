@@ -37,6 +37,21 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [palette, setPalette] = useState<PaletteId>(loadPaletteId);
   const [isPinned, setIsPinned] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+
+  // Check for app updates every 5 minutes (like mpump)
+  useEffect(() => {
+    const APP_VERSION = "0.4.1";
+    const check = () => {
+      fetch("version.json", { cache: "no-store" })
+        .then(r => r.json())
+        .then(data => { if (data.v && data.v !== APP_VERSION) setUpdateAvailable(true); })
+        .catch(() => {});
+    };
+    check();
+    const id = setInterval(check, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Check if a pinned session exists on mount
   useEffect(() => {
@@ -199,6 +214,16 @@ export function Layout({ state, command, engine }: LayoutProps) {
           <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">⚙</button>
         </div>
       </header>
+
+      {/* Update banner */}
+      {updateAvailable && (
+        <div onClick={() => location.reload()} style={{
+          textAlign: "center", padding: "8px 16px", fontSize: 12, fontWeight: 700,
+          background: "var(--preview)", color: "#000", cursor: "pointer",
+        }}>
+          New version available — tap to update
+        </div>
+      )}
 
       {/* ── View content ─────────────────────────────────────────────── */}
       {viewMode === "tracks" ? (
