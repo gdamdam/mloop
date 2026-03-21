@@ -33,7 +33,7 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
                 padding: "3px 8px",
                 borderRadius: 4,
                 background: "var(--bg-cell)",
-                color: "var(--accent)",
+                color: "var(--preview)",
                 fontFamily: "inherit",
               }}>
                 {key}

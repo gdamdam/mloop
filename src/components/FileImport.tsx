@@ -58,7 +58,7 @@ export function FileImport({ onFileLoaded, disabled }: FileImportProps) {
         marginTop: 6,
         padding: "8px 0",
         textAlign: "center",
-        border: `1px dashed ${dragOver ? "var(--accent)" : "var(--border)"}`,
+        border: `1px dashed ${dragOver ? "var(--preview)" : "var(--border)"}`,
         borderRadius: 4,
         fontSize: 10,
         color: "var(--text-dim)",
@@ -69,7 +69,7 @@ export function FileImport({ onFileLoaded, disabled }: FileImportProps) {
     >
       <label style={{ cursor: disabled ? "default" : "pointer" }}>
         Drop audio or{" "}
-        <span style={{ color: "var(--accent)", textDecoration: "underline" }}>browse</span>
+        <span style={{ color: "var(--preview)", textDecoration: "underline" }}>browse</span>
         <input
           type="file"
           accept="audio/*"

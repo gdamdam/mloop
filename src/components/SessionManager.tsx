@@ -70,7 +70,7 @@ export function SessionManager({ onClose, onSave, onLoad, onExportWav }: Session
                 borderRadius: 8,
                 fontSize: 13,
                 fontWeight: 700,
-                background: "var(--accent)",
+                background: "var(--preview)",
                 color: "var(--bg)",
                 opacity: saveName.trim() ? 1 : 0.4,
               }}
@@ -127,7 +127,7 @@ export function SessionManager({ onClose, onSave, onLoad, onExportWav }: Session
                       borderRadius: 6,
                       fontSize: 11,
                       fontWeight: 700,
-                      background: "var(--accent)",
+                      background: "var(--preview)",
                       color: "var(--bg)",
                     }}
                   >
