@@ -151,6 +151,38 @@ export function SampleEditor({ buffer, sampleRate, onSave, onClose }: SampleEdit
             Drag green/red handles to set trim points
           </div>
 
+          {/* Auto-trim: remove silence at start, cap trailing silence to 1s */}
+          <button
+            onClick={() => {
+              const threshold = 0.01; // silence threshold
+              const sr = sampleRate;
+              const len = buffer.length;
+              // Find first non-silent sample
+              let firstSound = 0;
+              for (let i = 0; i < len; i++) {
+                if (Math.abs(buffer[i]) > threshold) { firstSound = i; break; }
+              }
+              // Find last non-silent sample
+              let lastSound = len - 1;
+              for (let i = len - 1; i >= 0; i--) {
+                if (Math.abs(buffer[i]) > threshold) { lastSound = i; break; }
+              }
+              // Add up to 1 second of tail after last sound
+              const tailSamples = Math.min(sr, len - lastSound - 1);
+              const endSample = Math.min(len, lastSound + tailSamples);
+              setStartPct(firstSound / len);
+              setEndPct(endSample / len);
+            }}
+            style={{
+              marginTop: 8, width: "100%", padding: 8, borderRadius: 6,
+              fontSize: 11, fontWeight: 700,
+              background: "var(--bg-cell)", color: "var(--text)",
+              border: "none", cursor: "pointer",
+            }}
+          >
+            Auto-Trim Silence
+          </button>
+
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button
               onClick={onClose}
