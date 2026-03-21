@@ -170,15 +170,19 @@ export function PadView({ engine, padEngine }: PadViewProps) {
     } else if (slot.status === "loaded") {
       pe.playAt(slotId, 0, velocity);
       rollSlotRef.current = slotId;
-      // Start roll after 300ms hold
-      if (rollTimerRef.current) clearTimeout(rollTimerRef.current);
-      rollTimerRef.current = setTimeout(() => {
-        const bpmNow = engine?.timing.bpm ?? 120;
-        // 1/16 note rate in Hz = bpm * 4 / 60
-        const rateHz = (bpmNow * 4) / 60;
-        pe.startRoll(slotId, rateHz, velocity);
-        setRollingPad(slotId);
-      }, 300);
+      // Roll only if enabled in settings (off by default)
+      const rollEnabled = localStorage.getItem("mloop-roll") === "on";
+      if (rollEnabled) {
+        if (rollTimerRef.current) clearTimeout(rollTimerRef.current);
+        rollTimerRef.current = setTimeout(() => {
+          const bpmNow = engine?.timing.bpm ?? 120;
+          const rateStr = localStorage.getItem("mloop-roll-rate") || "16";
+          const div = parseInt(rateStr) || 16;
+          const rateHz = (bpmNow * div) / 60 / 4;
+          pe.startRoll(slotId, rateHz, velocity);
+          setRollingPad(slotId);
+        }, 300);
+      }
     } else {
       // Empty — stop any current recording first, then record into this pad
       if (pe.isRecording) {
