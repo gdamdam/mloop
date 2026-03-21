@@ -5,6 +5,7 @@ import { PALETTES, applyPalette, loadPaletteId } from "../themes";
 import type { PaletteId } from "../themes";
 import { TrackStrip } from "./TrackStrip";
 import { KaosPad } from "./KaosPad";
+import { PadView } from "./PadView";
 import { SessionManager } from "./SessionManager";
 import { ShortcutOverlay } from "./ShortcutOverlay";
 import { MidiMapper } from "./MidiMapper";
@@ -18,6 +19,8 @@ import { MidiController } from "../engine/MidiController";
 
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
 
+type ViewMode = "tracks" | "pads";
+
 interface LayoutProps {
   state: EngineState;
   command: (cmd: LoopCommand) => void;
@@ -25,6 +28,7 @@ interface LayoutProps {
 }
 
 export function Layout({ state, command, engine }: LayoutProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>("tracks");
   const [showSessions, setShowSessions] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -66,7 +70,32 @@ export function Layout({ state, command, engine }: LayoutProps) {
       <header className="header">
         <div className="title">
           <pre className="title-art" style={{ color: "var(--preview)" }}>{LOGO}</pre>
-          <span className="title-version">0.2.4</span>
+          <span className="title-version">0.2.5</span>
+        </div>
+        {/* View mode toggle */}
+        <div style={{ display: "flex", gap: 2, background: "var(--bg-cell)", borderRadius: 6, padding: 2 }}>
+          <button
+            onClick={() => setViewMode("tracks")}
+            style={{
+              fontSize: 9, fontWeight: 700, padding: "4px 8px", borderRadius: 4,
+              background: viewMode === "tracks" ? "var(--preview)" : "transparent",
+              color: viewMode === "tracks" ? "#000" : "var(--text-dim)",
+              letterSpacing: 0.5,
+            }}
+          >
+            3-TRACK
+          </button>
+          <button
+            onClick={() => setViewMode("pads")}
+            style={{
+              fontSize: 9, fontWeight: 700, padding: "4px 8px", borderRadius: 4,
+              background: viewMode === "pads" ? "var(--preview)" : "transparent",
+              color: viewMode === "pads" ? "#000" : "var(--text-dim)",
+              letterSpacing: 0.5,
+            }}
+          >
+            PAD
+          </button>
         </div>
         <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -89,15 +118,19 @@ export function Layout({ state, command, engine }: LayoutProps) {
         </div>
       </header>
 
-      {/* ── Tracks (compact, on top) ──────────────────────────────────── */}
-      <div className="tracks">
-        {state.tracks.map((track) => (
-          <TrackStrip key={track.id} track={track} command={command} engine={engine} />
-        ))}
-      </div>
-
-      {/* ── KAOS Pad (center) ─────────────────────────────────────────── */}
-      <KaosPad engine={engine} />
+      {/* ── View content ─────────────────────────────────────────────── */}
+      {viewMode === "tracks" ? (
+        <>
+          <div className="tracks">
+            {state.tracks.map((track) => (
+              <TrackStrip key={track.id} track={track} command={command} engine={engine} />
+            ))}
+          </div>
+          <KaosPad engine={engine} />
+        </>
+      ) : (
+        <PadView engine={engine} />
+      )}
 
       {/* ── Global Transport ──────────────────────────────────────────── */}
       <div className="global-transport">
