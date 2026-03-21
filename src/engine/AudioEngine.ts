@@ -17,7 +17,8 @@ export class AudioEngine {
   masterLoopLength = 0; // samples, set by first recording
   timingMode: TimingMode = "free";
   syncMode: SyncMode = "free";
-  private masterStartTime = 0; // AudioContext time when master playback started
+  inputLatencySamples = 0; // measured input latency for trim compensation
+  private masterStartTime = 0;
   private inputStream: MediaStream | null = null;
   private inputSource: MediaStreamAudioSourceNode | null = null;
   private inputGain: GainNode;
@@ -242,6 +243,15 @@ export class AudioEngine {
 
     if (this.ctx.state === "suspended") {
       await this.ctx.resume();
+    }
+
+    // Measure input latency — use baseLatency + outputLatency if available
+    const base = (this.ctx as unknown as { baseLatency?: number }).baseLatency ?? 0;
+    const output = (this.ctx as unknown as { outputLatency?: number }).outputLatency ?? 0;
+    this.inputLatencySamples = Math.round((base + output) * this.ctx.sampleRate);
+    // Propagate to all tracks
+    for (const track of this.tracks) {
+      track.latencyTrimSamples = this.inputLatencySamples;
     }
   }
 
