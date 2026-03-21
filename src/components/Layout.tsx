@@ -58,13 +58,13 @@ export function Layout({ state, command, engine }: LayoutProps) {
     loadSession("__pinned__").then(s => setIsPinned(!!s && s.tracks.some(t => t.layers.length > 0))).catch(() => {});
   }, []);
 
-  // Persist PadEngine across view switches (#14)
-  const padEngineRef = useRef<PadEngine | null>(null);
+  // PadEngine as state (not ref) so updates trigger re-render for PadView (#14)
+  const [padEngine, setPadEngine] = useState<PadEngine | null>(null);
   useEffect(() => {
-    if (engine && !padEngineRef.current) {
-      padEngineRef.current = new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
+    if (engine && !padEngine) {
+      setPadEngine(new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode()));
     }
-  }, [engine]);
+  }, [engine, padEngine]);
 
   // Check if any track is recording (for header play/stop logic)
   const anyRecording = state.tracks.some(t => t.status === "recording" || t.status === "overdubbing");
@@ -231,7 +231,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
           {/* 3 tracks in a row on top */}
           <div className="tracks-row">
             {state.tracks.map((track) => (
-              <TrackStrip key={track.id} track={track} command={command} engine={engine} padEngine={padEngineRef.current} />
+              <TrackStrip key={track.id} track={track} command={command} engine={engine} padEngine={padEngine} />
             ))}
           </div>
           {/* Centered square KaosPad below */}
@@ -240,7 +240,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
           </div>
         </>
       ) : (
-        <PadView engine={engine} padEngine={padEngineRef.current} />
+        <PadView engine={engine} padEngine={padEngine} />
       )}
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
