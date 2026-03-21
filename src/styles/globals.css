@@ -528,6 +528,50 @@ input[type="range"] {
   }
 }
 
+/* ── PAD layout ──────────────────────────────────────────────────────── */
+
+.pad-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.pad-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.pad-right {
+  min-height: 180px;
+  background: var(--bg-panel);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 10px;
+}
+
+@media (min-width: 900px) {
+  .pad-layout {
+    flex-direction: row;
+    max-width: none;
+    padding: 8px 16px;
+    align-items: start;
+  }
+  .pad-left {
+    width: 50%;
+    max-width: 500px;
+    flex-shrink: 0;
+  }
+  .pad-right {
+    flex: 1;
+    min-height: 300px;
+    align-self: stretch;
+  }
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────── */
 
 @media (min-width: 900px) {
