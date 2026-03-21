@@ -137,6 +137,23 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
             </div>
           </div>
 
+          {/* ── Link Bridge ────────────────────────────────────────── */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+            Link Bridge (mpump sync)
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
+            <button
+              onClick={() => command({ type: "toggle_metronome" })}
+              style={{
+                flex: 1, padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 700,
+                background: "var(--bg-cell)", color: "var(--text)",
+              }}
+            >
+              Link Bridge connects mloop to mpump for tempo sync via localhost:19876.
+              Enable in the header with the LINK button.
+            </button>
+          </div>
+
           {/* ── Pad layout ─────────────────────────────────────────── */}
           <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
             Pad Layout
