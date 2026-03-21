@@ -3,6 +3,7 @@ import type { EffectParams, EffectName } from "../types";
 import { EffectEditor } from "./EffectEditor";
 
 const EFFECT_LABELS: { name: EffectName; label: string }[] = [
+  { name: "lowpass", label: "LPF" },
   { name: "compressor", label: "COMP" },
   { name: "highpass", label: "HPF" },
   { name: "distortion", label: "DIST" },

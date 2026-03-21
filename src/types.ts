@@ -79,9 +79,10 @@ export type LoopCommand =
 
 // ── Effects (ported from mpump) ──────────────────────────────────────────
 
-export type EffectName = "compressor" | "highpass" | "distortion" | "bitcrusher" | "chorus" | "phaser" | "delay" | "reverb";
+export type EffectName = "lowpass" | "compressor" | "highpass" | "distortion" | "bitcrusher" | "chorus" | "phaser" | "delay" | "reverb";
 
 export interface EffectParams {
+  lowpass: { on: boolean; cutoff: number; q: number };
   delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: string };
   distortion: { on: boolean; drive: number };
   reverb: { on: boolean; decay: number; mix: number };
@@ -93,6 +94,7 @@ export interface EffectParams {
 }
 
 export const DEFAULT_EFFECTS: EffectParams = {
+  lowpass: { on: false, cutoff: 8000, q: 1 },
   delay: { on: false, time: 0.3, feedback: 0.4, mix: 0.3, sync: true, division: "1/16" },
   distortion: { on: false, drive: 20 },
   reverb: { on: false, decay: 2, mix: 0.3 },
