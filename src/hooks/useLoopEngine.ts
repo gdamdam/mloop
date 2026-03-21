@@ -440,12 +440,17 @@ export function useLoopEngine() {
 
     const engine = new AudioEngine();
     // Mic access is optional — app works without it (pads, file import, sessions).
-    // Firefox on some setups rejects getUserMedia on github.io pages.
     try {
       await engine.initMic();
     } catch (e) {
-      console.warn("Mic access denied or unavailable:", e);
-      // Continue without mic — recording won't work but everything else does
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn("Mic access denied or unavailable:", msg);
+      console.warn("mediaDevices:", !!navigator.mediaDevices);
+      console.warn("isSecureContext:", window.isSecureContext);
+      // Check if github.io blocks mic via Permissions-Policy
+      if (window.location.hostname.endsWith(".github.io")) {
+        console.warn("GitHub Pages may block microphone access on *.github.io");
+      }
     }
 
     // Wire track state change callbacks so engine-initiated changes
