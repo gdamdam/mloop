@@ -70,7 +70,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
       <header className="header">
         <div className="title">
           <pre className="title-art" style={{ color: "var(--preview)" }}>{LOGO}</pre>
-          <span className="title-version">0.3.0</span>
+          <span className="title-version">0.3.1</span>
         </div>
         {/* View mode toggle */}
         <div style={{ display: "flex", gap: 2, background: "var(--bg-cell)", borderRadius: 6, padding: 2 }}>
