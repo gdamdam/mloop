@@ -107,6 +107,18 @@ input[type="range"] {
   transition: text-shadow 0.2s ease;
 }
 
+/* Flash on every logo click — re-triggered via React key remount */
+.title-art.logo-flash {
+  animation: logoFlash 0.4s ease-out;
+}
+
+@keyframes logoFlash {
+  0% { transform: scale(1); text-shadow: 0 0 0 transparent; }
+  20% { transform: scale(1.15); text-shadow: 0 0 18px var(--preview), 0 0 40px var(--preview); filter: brightness(1.8); color: #fff; }
+  100% { transform: scale(1); text-shadow: 0 0 0 transparent; }
+}
+
+/* Continuous beat pulse when toggled on */
 .title-art.logo-pulse {
   animation: logoPulse 0.5s ease-in-out infinite;
 }
