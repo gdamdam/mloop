@@ -426,7 +426,14 @@ export function useLoopEngine() {
     if (engineRef.current) return;
 
     const engine = new AudioEngine();
-    await engine.initMic();
+    // Mic access is optional — app works without it (pads, file import, sessions).
+    // Firefox on some setups rejects getUserMedia on github.io pages.
+    try {
+      await engine.initMic();
+    } catch (e) {
+      console.warn("Mic access denied or unavailable:", e);
+      // Continue without mic — recording won't work but everything else does
+    }
 
     // Wire track state change callbacks so engine-initiated changes
     // (e.g., auto-stop timers) propagate to React
