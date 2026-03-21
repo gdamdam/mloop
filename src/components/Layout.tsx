@@ -111,24 +111,30 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const { showOverlay, setShowOverlay } = useKeyboardShortcuts(command, true, handleMainPlayStop);
   const midiRef = useMidiMapping(command, true);
 
-  // Logo click: 1x = random theme, 2x = toggle logo pulse
+  // Logo click — matches mpump: 1x=random theme, 2x=cycle pulse mode, 3+=about
+  // Every click triggers a flash animation via key remount
+  const [logoFlash, setLogoFlash] = useState(0);
   const [logoPulse, setLogoPulse] = useState(false);
-  const logoClickTimes = useRef<number[]>([]);
+  const logoClickCount = useRef(0);
   const logoClickTimer = useRef<number>(0);
   const handleLogoClick = useCallback(() => {
-    const now = Date.now();
-    logoClickTimes.current = logoClickTimes.current.filter(t => now - t < 400);
-    logoClickTimes.current.push(now);
+    logoClickCount.current++;
+    setLogoFlash(f => f + 1); // triggers CSS flash animation via key change
     clearTimeout(logoClickTimer.current);
     logoClickTimer.current = window.setTimeout(() => {
-      const count = logoClickTimes.current.length;
-      if (count >= 2) {
-        setLogoPulse(p => !p);
-      } else if (count === 1) {
+      const count = logoClickCount.current;
+      if (count === 1) {
+        // Random theme
         const randomPalette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
         handlePaletteChange(randomPalette.id);
+      } else if (count === 2) {
+        // Toggle logo pulse (beat-reactive animation)
+        setLogoPulse(p => !p);
+      } else if (count >= 3) {
+        // Show help/about
+        setShowHelp(true);
       }
-      logoClickTimes.current = [];
+      logoClickCount.current = 0;
     }, 420);
   }, [handlePaletteChange]);
 
@@ -139,7 +145,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="header">
         <div className="title">
-          <pre className={`title-art ${logoPulse ? "logo-pulse" : ""}`} style={{ color: "var(--preview)" }} onClick={handleLogoClick}>{LOGO}</pre>
+          <pre className={`title-art logo-flash ${logoPulse ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
           <span className="title-version">0.4.1</span>
         </div>
