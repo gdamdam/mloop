@@ -10,6 +10,10 @@ import type { PadEngine, PadSlot } from "../engine/PadEngine";
 import { PadSequencer } from "./PadSequencer";
 import { SampleEditor } from "./SampleEditor";
 import { SAMPLE_PRESETS } from "../engine/BuiltInSamples";
+import {
+  loadSavedKits, saveKit, exportKit, importKit, padsToKit, kitToPads,
+  PAD_LAYOUTS, loadPadLayout, savePadLayout, type PadLayoutId,
+} from "../utils/kitManager";
 
 interface PadViewProps {
   engine: AudioEngine | null;
@@ -111,6 +115,8 @@ export function PadView({ engine, padEngine }: PadViewProps) {
   const [recordingSlot, setRecordingSlot] = useState<number | null>(null);
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
+  const [savedKits, setSavedKits] = useState(loadSavedKits);
+  const [padLayout, setPadLayout] = useState<PadLayoutId>(loadPadLayout);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
   useEffect(() => {
@@ -195,22 +201,76 @@ export function PadView({ engine, padEngine }: PadViewProps) {
               <div className={`track-status ${recordingSlot !== null ? "recording" : ""}`} />
               <span>{recordingSlot !== null ? `REC → PAD ${recordingSlot + 1}` : "INPUT"}</span>
             </div>
-            {/* Preset selector */}
-            <select
-              onChange={async (e) => {
-                const idx = parseInt(e.target.value);
-                if (isNaN(idx) || !padEngine) return;
-                const samples = await SAMPLE_PRESETS[idx].generate();
-                for (let i = 0; i < samples.length && i < 16; i++) {
-                  padEngine.importBuffer(i, samples[i].buffer);
-                }
-              }}
-              defaultValue=""
-              style={{ font: "inherit", fontSize: 9, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
-            >
-              <option value="" disabled>Kit</option>
-              {SAMPLE_PRESETS.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
-            </select>
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {/* Built-in kit presets */}
+              <select
+                onChange={async (e) => {
+                  if (!padEngine) return;
+                  const val = e.target.value;
+                  const layout = PAD_LAYOUTS.find(l => l.id === padLayout)!;
+                  // Clear all pads
+                  for (let i = 0; i < 16; i++) padEngine.clear(i);
+                  if (val.startsWith("s")) {
+                    // Saved kit
+                    const kit = savedKits[parseInt(val.slice(1))];
+                    if (kit) kitToPads(kit, (id, buf) => padEngine.importBuffer(id, buf), (id) => padEngine.clear(id));
+                  } else {
+                    // Built-in preset — apply layout mapping
+                    const idx = parseInt(val);
+                    if (isNaN(idx)) return;
+                    const samples = await SAMPLE_PRESETS[idx].generate();
+                    for (let i = 0; i < samples.length && i < layout.mapping.length; i++) {
+                      padEngine.importBuffer(layout.mapping[i], samples[i].buffer);
+                    }
+                  }
+                }}
+                defaultValue=""
+                style={{ font: "inherit", fontSize: 9, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
+              >
+                <option value="" disabled>Kit</option>
+                {SAMPLE_PRESETS.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
+                {savedKits.length > 0 && <option disabled>──────</option>}
+                {savedKits.map((k, i) => <option key={`saved-${k.name}`} value={`s${i}`}>{k.name}</option>)}
+              </select>
+              {/* Save current kit */}
+              <button onClick={() => {
+                if (!padEngine) return;
+                const name = prompt("Kit name:");
+                if (!name) return;
+                const kit = padsToKit(name, padEngine.slots);
+                saveKit(kit);
+                setSavedKits(loadSavedKits());
+              }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Save current pads as kit">
+                Save
+              </button>
+              {/* Export kit */}
+              <button onClick={() => {
+                if (!padEngine) return;
+                const name = prompt("Kit name for export:", "My Kit");
+                if (!name) return;
+                exportKit(padsToKit(name, padEngine.slots));
+              }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Export kit as file">
+                ⬇
+              </button>
+              {/* Import kit */}
+              <button onClick={async () => {
+                if (!padEngine) return;
+                const kit = await importKit();
+                if (!kit) return;
+                kitToPads(kit, (id, buf) => padEngine.importBuffer(id, buf), (id) => padEngine.clear(id));
+              }} style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Import kit from file">
+                ⬆
+              </button>
+              {/* Layout selector */}
+              <select
+                value={padLayout}
+                onChange={(e) => { const id = e.target.value as PadLayoutId; setPadLayout(id); savePadLayout(id); }}
+                style={{ font: "inherit", fontSize: 9, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 4, padding: "2px 4px" }}
+                title="Pad layout"
+              >
+                {PAD_LAYOUTS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
           </div>
           {/* Live input waveform + level meter */}
           <div className="waveform-area" style={{ height: 48, position: "relative" }}>

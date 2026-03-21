@@ -11,6 +11,7 @@ import {
   loadLimits, saveLimits, TIME_OPTIONS, SIZE_OPTIONS,
   type RecordingLimits,
 } from "../utils/recordingLimits";
+import { PAD_LAYOUTS, loadPadLayout, savePadLayout, type PadLayoutId } from "../utils/kitManager";
 
 interface SettingsPanelProps {
   palette: PaletteId;
@@ -23,6 +24,7 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ palette, onPaletteChange, onClose, command, latencyMs, sessionSizeMB }: SettingsPanelProps) {
   const [limits, setLimits] = useState<RecordingLimits>(loadLimits);
+  const [layout, setLayout] = useState<PadLayoutId>(loadPadLayout);
 
   /** Update a single limit field and persist. */
   const updateLimit = (key: keyof RecordingLimits, value: number) => {
@@ -133,6 +135,28 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* ── Pad layout ─────────────────────────────────────────── */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+            Pad Layout
+          </div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+            {PAD_LAYOUTS.map(l => (
+              <button
+                key={l.id}
+                onClick={() => { setLayout(l.id); savePadLayout(l.id); }}
+                style={{
+                  flex: 1, padding: "8px 6px", borderRadius: 8, fontSize: 10, fontWeight: 700,
+                  background: layout === l.id ? "var(--preview)" : "var(--bg-cell)",
+                  color: layout === l.id ? "#000" : "var(--text-dim)",
+                  cursor: "pointer", textAlign: "center",
+                }}
+                title={l.description}
+              >
+                {l.name}
+              </button>
+            ))}
           </div>
 
           {/* ── Info ────────────────────────────────────────────────── */}
