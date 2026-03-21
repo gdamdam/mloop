@@ -17,6 +17,11 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* Smooth transitions only on interactive elements (not * — crashes Firefox) */
+button, select, input, .transport-btn, .header-btn, .track-status,
+.track-strip, .vu-meter, .sheet, .sheet-backdrop {
   transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
 }
 
