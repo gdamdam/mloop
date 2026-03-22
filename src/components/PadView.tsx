@@ -216,6 +216,21 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
     };
     padEngine.onStateChange = sync;
     padEngine.onCountIn = (beatsLeft) => setCountIn(beatsLeft);
+    // Flash pads when sequencer triggers them
+    padEngine.onPadTrigger = (padIds) => {
+      setPlayingPads(prev => {
+        const next = new Set(prev);
+        for (const id of padIds) next.add(id);
+        return next;
+      });
+      setTimeout(() => {
+        setPlayingPads(prev => {
+          const next = new Set(prev);
+          for (const id of padIds) next.delete(id);
+          return next;
+        });
+      }, 100);
+    };
     sync();
   }, [padEngine]);
 
@@ -498,11 +513,11 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               }}
               style={{
                 position: "relative", borderRadius: 8,
-                border: `2px solid ${flashPad === slot.id ? "#fff" : dragOverPad === slot.id ? "#fff" : slot.status === "recording" ? "var(--record)" : slot.status === "loaded" ? "var(--preview)" : "var(--border)"}`,
-                background: flashPad === slot.id ? "var(--preview)"
+                border: `2px solid ${(flashPad === slot.id || playingPads.has(slot.id)) ? "#fff" : dragOverPad === slot.id ? "#fff" : slot.status === "recording" ? "var(--record)" : slot.status === "loaded" ? "var(--preview)" : "var(--border)"}`,
+                background: (flashPad === slot.id || playingPads.has(slot.id)) ? "var(--preview)"
                   : slot.status === "recording" ? "rgba(255,68,68,0.15)"
                   : slot.status === "loaded" ? "var(--bg-cell)" : "var(--bg-panel)",
-                transform: flashPad === slot.id ? "scale(0.93)" : "scale(1)",
+                transform: (flashPad === slot.id || playingPads.has(slot.id)) ? "scale(0.93)" : "scale(1)",
                 cursor: "pointer", overflow: "hidden",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 transition: "border-color 0.15s, background 0.15s",

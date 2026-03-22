@@ -116,7 +116,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.16.5";
+    const APP_VERSION = "0.16.6";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -203,20 +203,34 @@ export function Layout({ state, command, engine }: LayoutProps) {
     }
   }, []);
 
-  // Main play/stop — stops recording first, then stops/plays all
+  // Main play/stop — PAD mode toggles sequencer, LOOPER mode toggles looper
+  const [seqPlaying, setSeqPlaying] = useState(false);
   const handleMainPlayStop = useCallback(() => {
-    if (anyRecording) {
-      // Stop all recordings first
-      for (const t of state.tracks) {
-        if (t.status === "recording" || t.status === "overdubbing") {
-          command({ type: "track_stop", trackId: t.id });
+    if (viewMode === "pads") {
+      // PAD mode: toggle sequencer
+      if (padEngine) {
+        if (padEngine.isSeqPlaying) {
+          padEngine.stopSequencer();
+          setSeqPlaying(false);
+        } else {
+          padEngine.startSequencer();
+          setSeqPlaying(true);
         }
       }
     } else {
-      const anyPlaying = state.tracks.some(t => t.status === "playing");
-      command({ type: anyPlaying ? "stop_all" : "play_all" });
+      // LOOPER mode: stop recordings first, then toggle playback
+      if (anyRecording) {
+        for (const t of state.tracks) {
+          if (t.status === "recording" || t.status === "overdubbing") {
+            command({ type: "track_stop", trackId: t.id });
+          }
+        }
+      } else {
+        const anyPlaying = state.tracks.some(t => t.status === "playing");
+        command({ type: anyPlaying ? "stop_all" : "play_all" });
+      }
     }
-  }, [anyRecording, state.tracks, command]);
+  }, [viewMode, padEngine, anyRecording, state.tracks, command]);
 
   const [flashPad, setFlashPad] = useState<number | null>(null);
   const handlePadTrigger = useCallback((padId: number) => {
@@ -267,7 +281,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.16.5</span>
+          <span className="title-version">0.16.6</span>
         </div>
 
         {/* View toggle */}
@@ -283,24 +297,28 @@ export function Layout({ state, command, engine }: LayoutProps) {
           ))}
         </div>
 
-        {/* Play/Stop — prominent */}
-        <button
-          onClick={handleMainPlayStop}
-          style={{
-            width: 36, height: 36, borderRadius: "50%", fontSize: 16, flexShrink: 0,
-            background: anyRecording ? "var(--record)"
-              : state.tracks.some(t => t.status === "playing") ? "var(--playing)"
-              : "var(--bg-cell)",
-            color: anyRecording || state.tracks.some(t => t.status === "playing") ? "#000" : "var(--text)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            border: "2px solid var(--border)", cursor: "pointer",
-            boxShadow: anyRecording ? "0 0 12px var(--record)"
-              : state.tracks.some(t => t.status === "playing") ? "0 0 10px var(--playing)" : "none",
-          }}
-          title={anyRecording ? "Stop Recording (Space)" : "Play/Stop All (Space)"}
-        >
-          {anyRecording || state.tracks.some(t => t.status === "playing") ? "■" : "▶"}
-        </button>
+        {/* Play/Stop — PAD mode: sequencer, LOOPER mode: looper */}
+        {(() => {
+          const looperPlaying = state.tracks.some(t => t.status === "playing");
+          const isActive = viewMode === "pads" ? seqPlaying : (anyRecording || looperPlaying);
+          const isRec = viewMode === "tracks" && anyRecording;
+          return (
+            <button
+              onClick={handleMainPlayStop}
+              style={{
+                width: 36, height: 36, borderRadius: "50%", fontSize: 16, flexShrink: 0,
+                background: isRec ? "var(--record)" : isActive ? "var(--playing)" : "var(--bg-cell)",
+                color: isActive ? "#000" : "var(--text)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: "2px solid var(--border)", cursor: "pointer",
+                boxShadow: isRec ? "0 0 12px var(--record)" : isActive ? "0 0 10px var(--playing)" : "none",
+              }}
+              title={viewMode === "pads" ? "Play/Stop Sequencer (Space)" : "Play/Stop All (Space)"}
+            >
+              {isActive ? "■" : "▶"}
+            </button>
+          );
+        })()}
 
         {/* Master volume */}
         <HeaderSlider label="VOL" min={0} max={1} step={0.01} initial={1}
@@ -453,7 +471,9 @@ export function Layout({ state, command, engine }: LayoutProps) {
           </div>
           <div className="tracks-row">
             {state.tracks.map((track) => (
-              <TrackStrip key={track.id} track={track} command={command} engine={engine} padEngine={padEngine} />
+              <TrackStrip key={track.id} track={track} command={command} engine={engine} padEngine={padEngine}
+                masterLoopSec={track.layers === 0 && state.tracks[0]?.loopLengthSamples
+                  ? state.tracks[0].loopLengthSamples / (engine?.ctx.sampleRate ?? 44100) : undefined} />
             ))}
           </div>
           <div className="kaos-row">
