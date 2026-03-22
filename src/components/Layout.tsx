@@ -15,6 +15,7 @@ import { Tutorial } from "./Tutorial";
 import { SettingsPanel } from "./SettingsPanel";
 import { AppFooter } from "./AppFooter";
 import { VuMeter } from "./VuMeter";
+import { NeedleMeter } from "./NeedleMeter";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useMidiMapping } from "../hooks/useMidiMapping";
 import { MidiController } from "../engine/MidiController";
@@ -46,7 +47,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.14.8";
+    const APP_VERSION = "0.15.0";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -195,7 +196,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.14.8</span>
+          <span className="title-version">0.15.0</span>
         </div>
 
         {/* View toggle */}
@@ -237,8 +238,14 @@ export function Layout({ state, command, engine }: LayoutProps) {
         />
 
         {/* VU meter — wraps to new line on mobile via CSS */}
-        <div className="header-vu">
-          <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
+        {/* Analog needle VU meter + spectrum */}
+        <div className="header-vu" style={{ display: "flex", gap: 4, height: 40 }}>
+          <div style={{ flex: 1 }}>
+            <NeedleMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
+          </div>
         </div>
 
         {/* Desktop: all buttons inline */}
@@ -324,7 +331,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
               {anyRecording || state.tracks.some(t => t.status === "playing") ? "■" : "▶"}
             </button>
             <HeaderSlider label="MIC" min={0} max={5} step={0.1} initial={1}
-              format={(v) => `${v.toFixed(1)}x`}
+              format={(v) => `${Math.round(v * 20)}%`}
               onChange={(v) => { if (engine) engine.getInputNode().gain.value = v; }}
             />
             <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
