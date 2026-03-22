@@ -11,90 +11,16 @@
 
 ---
 
-Open **[mloop](https://mloop.mpump.live/)** and start making beats immediately — no MIDI device required. Built-in mic recording, 9 real-time effects, KAOS XY pad, 16-pad sampler with step sequencer, sample slicer, chromatic mode, 7 synthesized drum kits, and Link Bridge sync — all running in the browser via Web Audio API.
+Open **[mloop](https://mloop.mpump.live/)** and start making music — no MIDI device required. 16-pad sampler with step sequencer, 3 loop tracks with overdub, 9 real-time effects, KAOS XY pad, 7 synthesized drum kits (56 sounds), sample slicer, mic recording, and Link Bridge sync — all in the browser via Web Audio API.
 
-Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based drum machine & synth sequencer.
+Companion to [mpump](https://mpump.live) — the browser-based drum machine & synth sequencer.
 
-## Table of Contents
-
-- [Features](#features)
-- [Tutorial Wizard](#tutorial-wizard)
-- [Sample Pads & Sequencer](#sample-pads--sequencer)
-- [Sample Slicer](#sample-slicer)
-- [Kit Management](#kit-management)
-- [Sound Browser](#sound-browser)
-- [Sample Presets](#sample-presets)
-- [Scratchpad Recorder](#scratchpad-recorder)
-- [Loop Station](#loop-station)
-- [KAOS XY Pad](#kaos-xy-pad)
-- [Effects](#effects-9-total)
-- [Gesture Loops](#gesture-loops)
-- [Destruction Mode](#destruction-mode)
-- [Sessions & Export](#sessions--export)
-- [Link Bridge](#link-bridge)
-- [Themes](#themes)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
-- [Tech Stack](#tech-stack)
-- [Development](#development)
-- [License](#license)
-
----
-
-## Features
-
-### Two Modes
+## Two Modes
 
 | Mode | Description |
 |---|---|
-| **PAD** (default) | 4x4 MPC-style sample pads with step sequencer (8/16/32/64 steps), sample slicer, chromatic mode, resample, 7 built-in drum kits. Keyboard finger drumming via QWERTY 4x4 grid. |
-| **LOOPER** | 3 independent loop tracks with record, overdub, undo, reverse, half-speed. Centered KAOS XY pad with master effects. |
-
-### What's in v0.15
-
-- **Audio input device selector** — pick mic/line-in from Settings
-- **Analog needle VU meter** — shows input level when idle, output when playing, red when recording
-- **Tape reel color states** — gray idle, red recording, green playing (works on all themes)
-- **Mic LED live polling** — real-time mic level indicator in looper bar
-- **Mic gain control** — adjustable input level (0–10x) with fine step control
-- **Low signal detection** — warns when mic input is too quiet
-- **Auto-gain option** — automatic mic level adjustment
-- **12 themes** — 6 dark + 6 light palettes, ported from mpump
-
-### What's in v0.14
-
-- **Tutorial wizard** — first-visit walkthrough covering all features, retriggerable from Help
-- **Scratchpad recorder** — MIC / RESAMPLE / DUB recording strip, auto-trim, drag onto any pad
-- **Tape reel animation** — spinning reels visualize playback and recording state in looper
-- **Mic LED status colors** — green (ready), red (recording), orange (overdubbing), dim (unavailable)
-- **Mobile hamburger menu** — responsive header collapses overflow buttons into a menu on small screens
-- **Count-in recording** — configurable beat count before recording starts
-
-### What's in v0.11–0.13
-
-- **Sample slicer** — equal slicing or auto-chop with transient detection
-- **Chromatic mode** (♪) — spread a sample across 16 pads at different pitches
-- **Resample** (⏺R) — record master output back into a pad
-- **Keyboard finger drumming** — QWERTY 4x4 grid triggers pads in PAD mode
-- **Swing slider** — adjustable swing on the step sequencer
-- **Mute groups** (choke) — per-pad groups so e.g. closed hat cuts open hat
-- **Random pattern generator** (RND) — generates musically-weighted drum patterns
-- **Sequencer row mute toggles** — mute individual rows in the sequencer
-- **Drag-and-drop pad swap** — rearrange pads by dragging
-- **Per-pad controls** — volume, pan, pitch, trim, play mode (ONE/GATE/LOOP)
-- **Loop window presets** — musical lengths (1/4, 1 beat, 1 bar, etc.)
-- **Sound browser** (♫) — mix and match sounds across all kits
-- **Kit save/export/import** — persist custom kits, share as files
-- **Auto-trim silence** in sample editor
-- **Default 4-on-the-floor** pattern on startup
-- **Pad detail panel** — editable names, waveform trim, all per-pad settings
-- **7 synthesized drum kits** — Default, Hip-Hop, House, Lo-Fi, Industrial, Reggaeton, FX
-- **Link Bridge** — tempo sync with mpump
-
----
-
-## Tutorial Wizard
-
-First-time visitors get a 10-step guided walkthrough covering all major features. The tutorial can also be retriggered anytime from the Help modal ("Show Tutorial" button). Steps cover: PAD/LOOPER modes, pad grid, sequencer, scratchpad recorder, kit selector, sound browser, KAOS pad, effects, keyboard shortcuts, and sessions.
+| **PAD** (default) | 4x4 MPC-style sample pads, step sequencer (8/16/32/64 steps), sample slicer, chromatic mode, resample, 7 built-in drum kits, keyboard finger drumming |
+| **LOOPER** | 3 independent loop tracks with record, overdub, undo, reverse, half-speed, KAOS XY pad with master effects |
 
 ---
 
@@ -102,55 +28,27 @@ First-time visitors get a 10-step guided walkthrough covering all major features
 
 - **16 pads** — tap empty to record from mic, tap loaded to play
 - **7 built-in kits** — all synthesized via `OfflineAudioContext`, zero sample files
-- **Step sequencer** — 8/16/32/64 steps, multiple pads per step
-- **Swing** — adjustable swing amount on the sequencer
-- **Random patterns** (RND) — auto-generate believable drum patterns
-- **Row mute toggles** — silence individual pads in the sequencer without editing
-- **Drag & drop** pads onto sequencer steps, or drag between pads to swap
-- **Per-pad controls**: volume, pan, pitch (±12 semitones), trim start/end, play mode
-- **Play modes**: ONE (one-shot), GATE (plays while held), LOOP (continuous)
-- **Mute groups** (choke) — assign pads to groups 1-4; triggering one stops others in the group
-- **Loop window presets** — snap loop length to musical values (1/4, 1 beat, 1 bar, etc.)
-- **Pad detail panel** — click a pad to see waveform, editable name, all controls
-- **Roll/repeat** — hold a pad key or pointer for rapid-fire retriggering at 1/16 rate
-- **Default 4-on-the-floor** pattern loads on startup
-- **Sample editor** — waveform trim with draggable handles, auto-trim silence
-- **Delete / edit / browse** icons on loaded pads
+- **Step sequencer** — 8/16/32/64 steps, swing, random pattern generator
+- **Per-pad controls** — volume, pan, pitch (±12 semitones), trim, play mode (ONE/GATE/LOOP)
+- **Mute groups** (choke) — assign pads to groups 1-4
+- **Drag & drop** — rearrange pads, drop onto sequencer
+- **Pad detail panel** — waveform trim, editable name, all controls
+- **Roll/repeat** — hold for rapid-fire retriggering
+- **URL import** — paste a link to load a sample from any URL
 
 ---
 
 ## Sample Slicer
 
-Load any audio file and slice it across pads:
 - **Equal slicing** — divide evenly into N slices (2-16)
-- **Auto-chop** — transient detection finds natural slice points (energy-based onset detection with zero-crossing snap)
-- **Sensitivity control** — tune how aggressively transients are detected
-- Access via the **✂** button in the pad toolbar
+- **Auto-chop** — transient detection with sensitivity control
+- Access via **✂** in the pad toolbar
 
 ---
 
-## Kit Management
+## Kits & Sounds
 
-- **Save** current pad configuration as a named kit (stored in localStorage)
-- **Export** kits as `.mloop-kit.json` files to share
-- **Import** kit files to load into pads
-- **Sound browser** (♫) — pick individual sounds from any built-in kit and mix across kits
-- Saved kits appear in the kit dropdown alongside built-in presets
-
----
-
-## Sound Browser
-
-Browse all sounds from all 7 built-in kits in one panel:
-- Click **♫** on any pad (empty or loaded) to open the browser
-- Preview and select individual sounds from any kit
-- Mix and match — put a Hip-Hop kick with a House hi-hat and an FX whistle
-
----
-
-## Sample Presets
-
-7 drum kits x 8 sounds each (56 sounds total), all synthesized via `OfflineAudioContext` — zero sample files:
+7 drum kits × 8 sounds (56 total), all synthesized — zero sample files:
 
 | Kit | Sounds |
 |---|---|
@@ -162,103 +60,82 @@ Browse all sounds from all 7 built-in kits in one panel:
 | **Reggaeton** | Kick, Side Stick, Tick HH, Open HH, Clap, Clave, Bongo, Cowbell |
 | **FX** | Uh, Ah, Breath, Whistle, Water Drop, Wood Knock, Wind, Cricket |
 
-Select kits from the dropdown in PAD view. Default kit with 4-on-the-floor pattern loads automatically on first visit.
+Save, export, import custom kits. Sound browser lets you mix sounds across kits.
 
 ---
 
 ## Scratchpad Recorder
 
-Dedicated recording strip in PAD mode for quick sampling:
-- **MIC** — record directly from microphone
-- **RESAMPLE** — capture master output (what you hear)
-- **DUB** — record mic + master output combined
-- **Auto-trim** — removes leading/trailing silence automatically
-- **Drag to pad** — drop the recording onto any pad slot
-- **Count-in** — configurable beat count before recording starts
+Quick sampling strip in PAD mode:
+- **MIC** — record from microphone
+- **RESAMPLE** — capture master output
+- **DUB** — mic + master combined
+- Auto-trim silence, drag onto any pad, configurable count-in
 
 ---
 
 ## Loop Station
+
 - **Record / Overdub / Play / Stop** per track
 - **Undo** last overdub layer
 - **Reverse** and **half-speed** playback
-- **3 sync modes**: FREE (independent), SYNC (phase-locked), LOCK (fixed time window)
-- **Free-time** or **quantized** recording (snap to bar boundaries)
+- **3 sync modes** — FREE, SYNC (phase-locked), LOCK (fixed time window)
 - **Metronome** with tap tempo
-- **Latency compensation** (auto-trim based on measured input latency)
 - **Destruction Mode** — progressive tape degradation per loop cycle
-- **Sound DNA** — unique spectral fingerprint glyph per loop
-- **Tape reel animation** — spinning reels with color states (gray/red/green)
-- **Analog needle VU meter** — input level when idle, output when playing, red accent when recording
-- **Mic LED** — live polling with green/orange/red status
-- **Audio input selector** — choose mic/line-in device from Settings
-- **Mic gain** — adjustable 0–10x with auto-gain option
-- **Low signal detection** — hint when mic input is too quiet
-- **Master record** (⏺) — capture full output as WAV with live timer
-- **->PAD** button to copy a track recording into a pad slot
+- **Master record** — capture full output as WAV with live timer
+- **Tape reel animation** — spinning reels with color states
+- **Analog needle VU meter** — input (idle), output (playing), red (recording)
+- **Audio input selector** — choose mic/line-in device
+- **Low signal detection** with auto-gain option
 
 ---
 
 ## KAOS XY Pad
-- Drag to control 2 effect parameters simultaneously
+
 - 7 assignable targets: Cutoff, Resonance, Distortion, Highpass, Delay, Reverb, Volume
 - Neon touch trails with audio-reactive visualizer
-- Auto-enables effects when selected as XY target
-- Effect chain with numbered badges, click chain to drag-reorder
-- **Gesture Loops** — record XY movements as repeating automation
+- **Gesture Loops** — record and loop XY movements as automation
+- Drag-to-reorder effect chain
 
 ---
 
 ## Effects (9 total)
-Low-Pass Filter . Compressor . High-Pass Filter . Distortion . Bitcrusher . Chorus . Phaser . Delay . Reverb
 
-- **Per-track** independent effect chains
-- **Master effects** via KAOS pad (applies to all tracks)
-- Tap to toggle, long-press to edit parameters
-- Drag-to-reorder effect chain
-- Smooth parameter updates (no audio clicks)
+Low-Pass · Compressor · High-Pass · Distortion · Bitcrusher · Chorus · Phaser · Delay · Reverb
 
----
-
-## Gesture Loops
-Record XY pad movements as automation that loops alongside your audio.
-- **REC GESTURE** — records your finger/mouse movements on the XY pad
-- **PLAY GESTURE** — loops the recorded movement in sync with audio, continuously automating effects
-- Syncs to master loop length or defaults to 4 bars
-
----
-
-## Destruction Mode
-Progressive tape degradation — loops evolve over time instead of staying static.
-- **DECAY slider** per track (0% = pristine digital, 100% = cassette-from-hell)
-- Each loop cycle applies cumulative: bitcrush, noise floor rise, high-frequency roll-off
+Per-track independent chains + master effects via KAOS pad. Smooth parameter updates.
 
 ---
 
 ## Sessions & Export
-- **Save / Load** sessions (IndexedDB — persists in browser)
-- **Export / Import** full session as JSON file (system Save As dialog)
-- **Export WAV** mixdown of all tracks
-- **Import audio** files (drag & drop WAV/MP3/OGG onto tracks)
-- **PIN** session (star) — auto-loads on next visit
-- **Share** settings link — copies URL with encoded BPM, effects, sync mode
-- **Recording limits** — configurable max time per track and max session size
+
+- **Save / Load** sessions (IndexedDB)
+- **Export / Import** session as JSON
+- **Export WAV** mixdown with metadata (title, software, date)
+- **Import audio** files (drag & drop)
+- **PIN** session — auto-loads on next visit
+- **Share** settings link
 
 ---
 
 ## Link Bridge
-Sync mloop with [mpump](https://github.com/gdamdam/mpump) via localhost:19876:
-- Tempo sync — mloop follows mpump's BPM
-- Enable with the **LINK** button in the header
+
+Sync with [mpump](https://mpump.live) via Link Bridge:
+- **BPM sync** — bidirectional, changes push both ways
+- **Play/stop sync** — play in one app, the other follows
+- Enable with the **L** button in the header
+- Both apps must be on the same computer with Link Bridge running
 
 ---
 
 ## Themes
+
 12 color themes (6 dark, 6 light):
 - **Dark**: Midnight, Neon, Forest, Ember, Cobalt, Violet
-- **Light**: Cream (default daytime), Minimal, Artic, Sand, Rose, Slate
+- **Light**: Minimal, Cream, Artic, Sand, Rose, Slate
+- Default: Sand (day), Forest (night)
 
-Logo click: 1x = random theme, 2x = toggle beat pulse, 3x = help.
+Logo click: 1× random theme, 2× beat pulse, 3× credits
 
 ---
 
@@ -273,12 +150,9 @@ Logo click: 1x = random theme, 2x = toggle beat pulse, 3x = help.
 | `A` `S` `D` | Mute track 1/2/3 |
 | `Z` `X` `C` | Clear track 1/2/3 |
 | `Shift+1/2/3` | Overdub track 1/2/3 |
-| `Space` | Stop all |
-| `P` | Play all |
-| `M` | Metronome toggle |
+| `Space` | Play/Stop all |
+| `M` | Metronome |
 | `T` | Tap tempo |
-| `R` | Reverse track 1 |
-| `H` | Half-speed track 1 |
 | `?` | Show shortcuts |
 
 ### PAD Mode — Finger Drumming
@@ -290,15 +164,12 @@ Logo click: 1x = random theme, 2x = toggle beat pulse, 3x = help.
 | `J` `K` `L` `;` | Pads 5-8 |
 | `M` `,` `.` `/` | Pads 1-4 (bottom row) |
 
-The keyboard grid mirrors the 4x4 pad layout — bottom-left key = bottom-left pad.
+### Global
 
----
-
-## Controls
-- **Keyboard shortcuts** (press `?` to see all)
-- **MIDI controller mapping** with learn mode (Chrome/Edge)
-- **Fullscreen** mode
-- **Auto-update check** — notifies when new version is available
+| Key | Action |
+|---|---|
+| `⌘/Ctrl+Z` | Undo |
+| `⌘/Ctrl+S` | Save session |
 
 ---
 
@@ -306,9 +177,10 @@ The keyboard grid mirrors the 4x4 pad layout — bottom-left key = bottom-left p
 
 - **React 19** + **TypeScript** + **Vite 8**
 - **Web Audio API** — all synthesis and effects in-browser
-- **AudioWorklet** — sample-accurate recording (ScriptProcessorNode fallback)
+- **AudioWorklet** — sample-accurate recording (ScriptProcessorNode fallback for Firefox)
 - **Zero runtime dependencies** beyond React
-- **~387KB** production bundle (gzipped ~110KB)
+- **~413KB** production bundle (gzipped ~119KB)
+- **PWA** — works offline via service worker
 
 ---
 
@@ -324,4 +196,4 @@ npm run deploy   # build + deploy to GitHub Pages
 
 ## License
 
-[GPL-3.0 + Commons Clause](LICENSE) — free for personal and non-commercial use. Commercial resale prohibited. Attribution required in derivative works.
+[GPL-3.0](LICENSE) with Commons Clause (no commercial use) and attribution requirement.
