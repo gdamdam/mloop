@@ -26,19 +26,25 @@ interface PadViewProps {
   flashPad?: number | null;
 }
 
-/** Mini waveform with playhead animation when playing. */
+/**
+ * Mini waveform — matches looper WaveformDisplay style:
+ * filled shape (top + mirror), status-colored, white playhead.
+ */
 function MiniWaveform({ buffer, isPlaying }: { buffer: Float32Array | null; isPlaying?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
   const startRef = useRef(0);
+
+  // Reset playhead on play state change (same as looper)
+  useEffect(() => {
+    if (isPlaying) startRef.current = performance.now();
+  }, [isPlaying]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    const preview = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
 
     const draw = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -50,14 +56,19 @@ function MiniWaveform({ buffer, isPlaying }: { buffer: Float32Array | null; isPl
         ctx.scale(dpr, dpr);
       }
       ctx.clearRect(0, 0, w, h);
-
       if (!buffer || buffer.length === 0) return;
 
+      const preview = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
+      const color = isPlaying ? "#66ff99" : preview;
       const halfH = h / 2;
       const step = Math.max(1, Math.floor(buffer.length / w));
 
-      // Draw waveform
-      ctx.fillStyle = preview;
+      // Filled waveform shape: top outline → bottom mirror → fill + stroke
+      ctx.fillStyle = color + "40";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, halfH);
       for (let x = 0; x < w; x++) {
         const idx = Math.floor((x / w) * buffer.length);
         let max = 0;
@@ -65,18 +76,27 @@ function MiniWaveform({ buffer, isPlaying }: { buffer: Float32Array | null; isPl
           const v = Math.abs(buffer[idx + j]);
           if (v > max) max = v;
         }
-        const barH = max * halfH * 0.9;
-        ctx.globalAlpha = 0.8;
-        ctx.fillRect(x, halfH - barH, 1, barH * 2);
+        ctx.lineTo(x, halfH - max * halfH * 0.9);
       }
-      ctx.globalAlpha = 1;
+      for (let x = w - 1; x >= 0; x--) {
+        const idx = Math.floor((x / w) * buffer.length);
+        let max = 0;
+        for (let j = 0; j < step && idx + j < buffer.length; j++) {
+          const v = Math.abs(buffer[idx + j]);
+          if (v > max) max = v;
+        }
+        ctx.lineTo(x, halfH + max * halfH * 0.9);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
 
-      // Playhead when playing
+      // White playhead sweeping across
       if (isPlaying && buffer.length > 0) {
         const dur = buffer.length / 44100;
         const elapsed = (performance.now() - startRef.current) / 1000;
         const pos = (elapsed % dur) / dur;
-        ctx.strokeStyle = "#fff";
+        ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(pos * w, 0);
@@ -89,14 +109,7 @@ function MiniWaveform({ buffer, isPlaying }: { buffer: Float32Array | null; isPl
       }
     };
 
-    if (isPlaying) {
-      startRef.current = performance.now();
-      draw();
-    } else {
-      cancelAnimationFrame(rafRef.current);
-      draw(); // static draw
-    }
-
+    draw();
     return () => cancelAnimationFrame(rafRef.current);
   }, [buffer, isPlaying]);
 
