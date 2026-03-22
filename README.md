@@ -2,7 +2,7 @@
 <p align="center">Browser-based loop station & MPC-style sampler.<br>Record, layer, slice, sequence, perform — no install, no subscription, no account.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.13.5-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.14.0-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-green" alt="License"></a>
   <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet?logo=anthropic&logoColor=white" alt="Built with Claude Code"></a>
   <br>
@@ -18,11 +18,13 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 ## Table of Contents
 
 - [Features](#features)
+- [Tutorial Wizard](#tutorial-wizard)
 - [Sample Pads & Sequencer](#sample-pads--sequencer)
 - [Sample Slicer](#sample-slicer)
 - [Kit Management](#kit-management)
 - [Sound Browser](#sound-browser)
 - [Sample Presets](#sample-presets)
+- [Scratchpad Recorder](#scratchpad-recorder)
 - [Loop Station](#loop-station)
 - [KAOS XY Pad](#kaos-xy-pad)
 - [Effects](#effects-9-total)
@@ -47,7 +49,17 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 | **PAD** (default) | 4x4 MPC-style sample pads with step sequencer (8/16/32/64 steps), sample slicer, chromatic mode, resample, 7 built-in drum kits. Keyboard finger drumming via QWERTY 4x4 grid. |
 | **LOOPER** | 3 independent loop tracks with record, overdub, undo, reverse, half-speed. Centered KAOS XY pad with master effects. |
 
-### What's in v0.11+
+### What's in v0.14
+
+- **Tutorial wizard** — first-visit walkthrough covering all features, retriggerable from Help
+- **Scratchpad recorder** — MIC / RESAMPLE / DUB recording strip, auto-trim, drag onto any pad
+- **Tape reel animation** — spinning reels visualize playback and recording state in looper
+- **Mic LED status colors** — green (ready), red (recording), orange (overdubbing), dim (unavailable)
+- **Mobile hamburger menu** — responsive header collapses overflow buttons into a menu on small screens
+- **Count-in recording** — configurable beat count before recording starts
+- **Mic gain control** — adjustable input level in the looper control bar
+
+### What's in v0.11–0.13
 
 - **Sample slicer** — equal slicing or auto-chop with transient detection
 - **Chromatic mode** (♪) — spread a sample across 16 pads at different pitches
@@ -67,6 +79,12 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 - **Pad detail panel** — editable names, waveform trim, all per-pad settings
 - **7 synthesized drum kits** — Default, Hip-Hop, House, Lo-Fi, Industrial, Reggaeton, FX
 - **Link Bridge** — tempo sync with mpump
+
+---
+
+## Tutorial Wizard
+
+First-time visitors get a 10-step guided walkthrough covering all major features. The tutorial can also be retriggered anytime from the Help modal ("Show Tutorial" button). Steps cover: PAD/LOOPER modes, pad grid, sequencer, scratchpad recorder, kit selector, sound browser, KAOS pad, effects, keyboard shortcuts, and sessions.
 
 ---
 
@@ -138,6 +156,18 @@ Select kits from the dropdown in PAD view. Default kit with 4-on-the-floor patte
 
 ---
 
+## Scratchpad Recorder
+
+Dedicated recording strip in PAD mode for quick sampling:
+- **MIC** — record directly from microphone
+- **RESAMPLE** — capture master output (what you hear)
+- **DUB** — record mic + master output combined
+- **Auto-trim** — removes leading/trailing silence automatically
+- **Drag to pad** — drop the recording onto any pad slot
+- **Count-in** — configurable beat count before recording starts
+
+---
+
 ## Loop Station
 - **Record / Overdub / Play / Stop** per track
 - **Undo** last overdub layer
@@ -148,6 +178,8 @@ Select kits from the dropdown in PAD view. Default kit with 4-on-the-floor patte
 - **Latency compensation** (auto-trim based on measured input latency)
 - **Destruction Mode** — progressive tape degradation per loop cycle
 - **Sound DNA** — unique spectral fingerprint glyph per loop
+- **Tape reel animation** — spinning reels visualize playback and recording state
+- **Mic LED colors** — green (ready), red (recording), orange (overdubbing), dim (unavailable)
 - **->PAD** button to copy a track recording into a pad slot
 
 ---
@@ -261,7 +293,7 @@ The keyboard grid mirrors the 4x4 pad layout — bottom-left key = bottom-left p
 - **Web Audio API** — all synthesis and effects in-browser
 - **AudioWorklet** — sample-accurate recording (ScriptProcessorNode fallback)
 - **Zero runtime dependencies** beyond React
-- **~348KB** production bundle (gzipped ~100KB)
+- **~369KB** production bundle (gzipped ~107KB)
 
 ---
 
