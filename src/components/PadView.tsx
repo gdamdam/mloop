@@ -247,7 +247,17 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
         <div className="track-strip" style={{ borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8 }}>
           <div className="track-header">
             <div className="track-label">
-              <div className={`track-status ${recordingSlot !== null ? "recording" : ""}`} />
+              <div style={{
+                width: 8, height: 8, borderRadius: "50%",
+                background: recordingSlot !== null ? "var(--record)"
+                  : !engine?.hasMic ? "var(--text-dim)"
+                  : inputLevel > 0.02 ? "#66ff99"
+                  : "#f0883e",
+                boxShadow: recordingSlot !== null ? "0 0 8px var(--record)"
+                  : inputLevel > 0.02 ? "0 0 6px #66ff99"
+                  : "none",
+                transition: "background 0.15s, box-shadow 0.15s",
+              }} />
               <span>{recordingSlot !== null ? `REC → PAD ${recordingSlot + 1}` : "INPUT"}</span>
             </div>
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
