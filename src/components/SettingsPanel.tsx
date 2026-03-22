@@ -3,7 +3,7 @@
  * All settings saved to localStorage for persistence across sessions.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PALETTES, applyPalette } from "../themes";
 import type { PaletteId } from "../themes";
 import type { LoopCommand } from "../types";
@@ -39,7 +39,7 @@ interface SettingsPanelProps {
   command: (cmd: LoopCommand) => void;
   latencyMs: number; // measured input latency for display
   sessionSizeMB: number; // current session size estimate
-  engine?: { lockBars: number } | null; // AudioEngine reference for lockBars
+  engine?: { lockBars: number; switchDevice: (id: string) => Promise<void> } | null;
 }
 
 export function SettingsPanel({ palette, onPaletteChange, onClose, command, latencyMs, sessionSizeMB, engine }: SettingsPanelProps) {
@@ -48,6 +48,24 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
   const [layout, setLayout] = useState<PadLayoutId>(loadPadLayout);
   const [velocity, setVelocity] = useState(loadVelocity);
   const [lockBars, setLockBars] = useState<LockBars>(loadLockBars);
+
+  // Audio input device enumeration
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDevice, setSelectedDevice] = useState(() => localStorage.getItem("mloop-audio-device") || "");
+
+  useEffect(() => {
+    navigator.mediaDevices?.enumerateDevices()
+      .then(all => setDevices(all.filter(d => d.kind === "audioinput")))
+      .catch(() => {});
+  }, []);
+
+  const handleDeviceChange = async (deviceId: string) => {
+    setSelectedDevice(deviceId);
+    localStorage.setItem("mloop-audio-device", deviceId);
+    if (engine) {
+      try { await engine.switchDevice(deviceId); } catch { /* ignore — device may be unavailable */ }
+    }
+  };
 
   /** Update a single limit field and persist. */
   const updateLimit = (key: keyof RecordingLimits, value: number) => {
@@ -118,6 +136,31 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
               ⬆ Import Session
             </button>
           </div>
+
+          {/* ── Audio Input Device ──────────────────────────────────── */}
+          {devices.length > 0 && (<>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+              Audio Input
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <select
+                value={selectedDevice}
+                onChange={(e) => handleDeviceChange(e.target.value)}
+                style={{
+                  width: "100%", padding: "8px 10px", borderRadius: 8, fontSize: 12,
+                  background: "var(--bg-cell)", color: "var(--text)",
+                  border: "1px solid var(--border)", cursor: "pointer",
+                }}
+              >
+                <option value="">Default</option>
+                {devices.map(d => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label || `Input ${d.deviceId.slice(0, 8)}…`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>)}
 
           {/* ── Recording limits ────────────────────────────────────── */}
           <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>

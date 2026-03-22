@@ -7,11 +7,11 @@ vi.stubGlobal("performance", { now: () => mockNow });
 
 // Mock requestAnimationFrame / cancelAnimationFrame
 // (startPlayback uses rAF which isn't available in Node)
-vi.stubGlobal("requestAnimationFrame", (_cb: FrameRequestCallback) => {
+vi.stubGlobal("requestAnimationFrame", () => {
   // Don't actually schedule — playback tests are limited to unit-level concerns
   return 1;
 });
-vi.stubGlobal("cancelAnimationFrame", (_id: number) => {});
+vi.stubGlobal("cancelAnimationFrame", () => {});
 
 beforeEach(() => {
   mockNow = 0;

@@ -309,19 +309,23 @@ export class AudioEngine {
         throw new Error("getUserMedia not supported in this browser");
       }
     } else {
+      // Use saved device if available
+      const savedDevice = localStorage.getItem("mloop-audio-device");
+      const constraints: MediaStreamConstraints = {
+        audio: {
+          ...(savedDevice ? { deviceId: { exact: savedDevice } } : {}),
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      };
       // Try with constraints first, fall back to simple {audio: true}
       try {
-        this.inputStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-          },
-        });
+        this.inputStream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch {
         // Firefox may reject advanced constraints — try simple audio
         this.inputStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
+          audio: savedDevice ? { deviceId: { exact: savedDevice } } : true,
         });
       }
     }
@@ -337,6 +341,42 @@ export class AudioEngine {
     for (const track of this.tracks) {
       track.latencyTrimSamples = this.inputLatencySamples;
     }
+  }
+
+  /**
+   * Switch to a specific audio input device by deviceId.
+   * Tears down existing mic stream and reconnects with the new device.
+   */
+  async switchDevice(deviceId: string): Promise<void> {
+    // Tear down existing input
+    if (this.inputSource) {
+      this.inputSource.disconnect();
+      this.inputSource = null;
+    }
+    if (this.inputStream) {
+      for (const track of this.inputStream.getTracks()) track.stop();
+      this.inputStream = null;
+    }
+
+    // Request the specific device
+    try {
+      this.inputStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: { exact: deviceId },
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
+    } catch {
+      // Fallback without processing constraints
+      this.inputStream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId } },
+      });
+    }
+
+    this.inputSource = this.ctx.createMediaStreamSource(this.inputStream);
+    this.inputSource.connect(this.inputGain);
   }
 
   /** Expose internal nodes for external wiring (e.g., pad engine, visualizers). */

@@ -439,6 +439,7 @@ export function KaosPad({ engine }: KaosPadProps) {
             >
               ● REC GESTURE
             </button>
+            {/* eslint-disable-next-line react-hooks/refs -- gestureRef is a stable class instance, reads are safe */}
             {gestureRef.current.hasGesture && (
               <button
                 onClick={() => {
@@ -470,6 +471,7 @@ export function KaosPad({ engine }: KaosPadProps) {
             }}
             style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--record)", color: "#fff", animation: "pulse 0.8s infinite" }}
           >
+            {/* eslint-disable-next-line react-hooks/refs -- gestureRef is a stable class instance */}
             ■ STOP REC ({gestureRef.current.points.length} pts)
           </button>
         )}
@@ -484,6 +486,7 @@ export function KaosPad({ engine }: KaosPadProps) {
             ■ STOP GESTURE
           </button>
         )}
+        {/* eslint-disable-next-line react-hooks/refs -- gestureRef is a stable class instance, reads are safe */}
         {gestureRef.current.hasGesture && gestureState === "idle" && (
           <button
             onClick={() => {

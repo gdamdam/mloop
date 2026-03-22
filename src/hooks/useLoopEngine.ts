@@ -429,6 +429,7 @@ export function useLoopEngine() {
     };
 
     run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureMic is stable, adding it causes infinite re-render loop
   }, [syncState]);
 
   /**
