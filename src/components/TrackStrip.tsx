@@ -3,6 +3,7 @@ import type { TrackState, LoopCommand, EffectName } from "../types";
 import { DEFAULT_EFFECTS } from "../types";
 import { EffectRack } from "./EffectRack";
 import { WaveformDisplay } from "./WaveformDisplay";
+import { TapeReels } from "./TapeReels";
 import { FileImport } from "./FileImport";
 import type { AudioEngine } from "../engine/AudioEngine";
 import type { PadEngine } from "../engine/PadEngine";
@@ -94,12 +95,18 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
         )}
       </div>
 
-      <WaveformDisplay
-        bufferData={bufferData}
-        status={status}
-        loopLengthSamples={loopLengthSamples}
-        analyser={status === "recording" ? inputAnalyser : null}
-      />
+      {/* Reel-to-reel + waveform */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, margin: "4px 0" }}>
+        <TapeReels status={status} />
+        <div style={{ flex: 1 }}>
+          <WaveformDisplay
+            bufferData={bufferData}
+            status={status}
+            loopLengthSamples={loopLengthSamples}
+            analyser={status === "recording" ? inputAnalyser : null}
+          />
+        </div>
+      </div>
 
       <div className="transport-row">
         <button
@@ -110,8 +117,9 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
               : { type: "track_record", trackId: id }
           )}
           title="Record"
+          style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}
         >
-          ●
+          REC
         </button>
         <button
           className={`transport-btn ${status === "playing" ? "active-play" : ""}`}
