@@ -115,6 +115,7 @@ const SECTIONS = [
       "**✕** Clear — delete all layers and reset the track",
       "**REV** — reverse the loop, **½×** — half-speed playback",
       "**→PAD** — copy track recording to an empty pad slot",
+      "**⏺ Master record** — capture the full output mix as a WAV file, with live timer",
       "**DECAY** slider — progressive tape degradation per loop cycle",
       "**Sound DNA** — spectral fingerprint glyph shows loop character",
       "**Tape reel animation** — spinning reels visualize playback/recording state",

@@ -379,6 +379,80 @@ export class AudioEngine {
     this.inputSource.connect(this.inputGain);
   }
 
+  // ── Master Recording ───────────────────────────────────────────────────
+
+  private masterRecorder: MediaRecorder | null = null;
+  private masterChunks: Blob[] = [];
+  masterRecording = false;
+
+  /** Start recording the master output (everything going to speakers). */
+  startMasterRecord(): void {
+    const dest = this.ctx.createMediaStreamDestination();
+    this.analyser.connect(dest);
+    this.masterChunks = [];
+    this.masterRecorder = new MediaRecorder(dest.stream, { mimeType: "audio/webm" });
+    this.masterRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) this.masterChunks.push(e.data);
+    };
+    this.masterRecorder.start(100);
+    this.masterRecording = true;
+  }
+
+  /** Stop master recording and return the captured audio as a WAV blob. */
+  async stopMasterRecord(): Promise<Blob | null> {
+    if (!this.masterRecorder || this.masterRecorder.state === "inactive") {
+      this.masterRecording = false;
+      return null;
+    }
+    return new Promise((resolve) => {
+      this.masterRecorder!.onstop = async () => {
+        this.masterRecording = false;
+        const webmBlob = new Blob(this.masterChunks, { type: "audio/webm" });
+        // Decode to AudioBuffer then encode as WAV for universal compatibility
+        const arrayBuf = await webmBlob.arrayBuffer();
+        try {
+          const audioBuf = await this.ctx.decodeAudioData(arrayBuf);
+          const wav = this.encodeWav(audioBuf);
+          resolve(new Blob([wav], { type: "audio/wav" }));
+        } catch {
+          // Fallback: return webm if WAV encoding fails
+          resolve(webmBlob);
+        }
+      };
+      this.masterRecorder!.stop();
+    });
+  }
+
+  /** Encode an AudioBuffer as 16-bit PCM WAV. */
+  private encodeWav(buf: AudioBuffer): ArrayBuffer {
+    const numCh = buf.numberOfChannels;
+    const sr = buf.sampleRate;
+    const len = buf.length;
+    const bytesPerSample = 2;
+    const dataSize = len * numCh * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    const writeStr = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+    writeStr(0, "RIFF"); view.setUint32(4, 36 + dataSize, true); writeStr(8, "WAVE");
+    writeStr(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
+    view.setUint32(28, sr * numCh * bytesPerSample, true);
+    view.setUint16(32, numCh * bytesPerSample, true); view.setUint16(34, 16, true);
+    writeStr(36, "data"); view.setUint32(40, dataSize, true);
+    // Interleave channels into 16-bit PCM
+    const channels = [];
+    for (let c = 0; c < numCh; c++) channels.push(buf.getChannelData(c));
+    let offset = 44;
+    for (let i = 0; i < len; i++) {
+      for (let c = 0; c < numCh; c++) {
+        const s = Math.max(-1, Math.min(1, channels[c][i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+    return buffer;
+  }
+
   /** Expose internal nodes for external wiring (e.g., pad engine, visualizers). */
   getInputNode(): GainNode { return this.inputGain; }
 

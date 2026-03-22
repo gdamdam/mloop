@@ -45,6 +45,37 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [isPinned, setIsPinned] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
+  const [masterRec, setMasterRec] = useState(false);
+  const [masterRecTime, setMasterRecTime] = useState(0);
+  const masterRecStart = useRef(0);
+
+  // Master record timer — counts up while recording
+  useEffect(() => {
+    if (!masterRec) { setMasterRecTime(0); return; }
+    masterRecStart.current = Date.now();
+    const id = setInterval(() => setMasterRecTime(Date.now() - masterRecStart.current), 200);
+    return () => clearInterval(id);
+  }, [masterRec]);
+
+  const handleMasterRec = async () => {
+    if (!engine) return;
+    if (!masterRec) {
+      engine.startMasterRecord();
+      setMasterRec(true);
+    } else {
+      const blob = await engine.stopMasterRecord();
+      setMasterRec(false);
+      if (blob) {
+        // Trigger download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `mloop-master-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.wav`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    }
+  };
 
   // Poll mic input level for LED indicator (looper bar)
   useEffect(() => {
@@ -60,7 +91,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.16.0";
+    const APP_VERSION = "0.16.1";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -209,7 +240,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.16.0</span>
+          <span className="title-version">0.16.1</span>
         </div>
 
         {/* View toggle */}
@@ -352,6 +383,22 @@ export function Layout({ state, command, engine }: LayoutProps) {
             <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
               style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
             <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
+            {/* Master record — captures full output as WAV */}
+            <button
+              className="header-btn"
+              onClick={handleMasterRec}
+              title={masterRec ? "Stop master recording" : "Record master output"}
+              style={{
+                fontSize: 9, fontWeight: 700, minWidth: masterRec ? 56 : 28,
+                background: masterRec ? "var(--record)" : undefined,
+                color: masterRec ? "#000" : undefined,
+                animation: masterRec ? "pulse 1s ease-in-out infinite" : undefined,
+              }}
+            >
+              {masterRec
+                ? `■ ${Math.floor(masterRecTime / 60000)}:${String(Math.floor((masterRecTime / 1000) % 60)).padStart(2, "0")}`
+                : "⏺"}
+            </button>
             {/* Analog needle VU meter — fixed width */}
             <div style={{ width: 70, height: 36, flexShrink: 0 }}>
               <NeedleMeter
