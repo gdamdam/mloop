@@ -261,7 +261,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
     setTimeout(() => setFlashPad(null), 120);
   }, [padEngine]);
   const { showOverlay, setShowOverlay } = useKeyboardShortcuts(
-    command, true, handleMainPlayStop, viewMode, handlePadTrigger
+    command, true, handleMainPlayStop, viewMode, handlePadTrigger, handleUndo
   );
   const midiRef = useMidiMapping(command, true);
   const [linkEnabled, setLinkEnabled] = useState(false);

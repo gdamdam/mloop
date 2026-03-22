@@ -83,6 +83,7 @@ export const SHORTCUT_DESCRIPTIONS: { key: string; description: string }[] = [
   { key: "M", description: "Metronome (Looper)" },
   { key: "T", description: "Tap tempo" },
   { key: "?", description: "Show shortcuts" },
+  { key: "⌘/Ctrl+Z", description: "Undo" },
 ];
 
 /**
@@ -97,6 +98,7 @@ export function useKeyboardShortcuts(
   onSpaceBar?: () => void,
   viewMode: "tracks" | "pads" = "pads",
   onPadTrigger?: (padId: number) => void,
+  onUndo?: () => void,
 ) {
   const [showOverlay, setShowOverlay] = useState(false);
 
@@ -117,6 +119,13 @@ export function useKeyboardShortcuts(
           onPadTrigger(padId);
           return;
         }
+      }
+
+      // Cmd+Z (Mac) / Ctrl+Z (Windows) → undo
+      if (key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault();
+        onUndo?.();
+        return;
       }
 
       // Space bar gets special handling
