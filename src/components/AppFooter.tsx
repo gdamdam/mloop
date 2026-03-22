@@ -1,3 +1,5 @@
+import { Recorder } from "../engine/Recorder";
+
 interface AppFooterProps {
   onShowHelp: () => void;
 }
@@ -12,7 +14,7 @@ export function AppFooter({ onShowHelp }: AppFooterProps) {
       opacity: 0.5,
       lineHeight: 1.8,
     }}>
-      <span>v1.0.0-pre.5</span>
+      <span>v1.0.0-pre.6</span>
       {" · "}
       <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener"
         style={{ color: "var(--text-dim)", textDecoration: "none" }}>
@@ -30,6 +32,11 @@ export function AppFooter({ onShowHelp }: AppFooterProps) {
         Built with Claude Code
         {" · "}
         <span>No cookies · No personal data</span>
+        {Recorder.isFallback && (
+          <span> · <span title="AudioWorklet unavailable — using ScriptProcessorNode (slightly lower recording quality)" style={{ color: "#f0883e" }}>
+            compat mode
+          </span></span>
+        )}
       </div>
     </footer>
   );
