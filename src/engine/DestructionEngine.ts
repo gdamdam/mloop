@@ -31,6 +31,11 @@ export class DestructionEngine {
     const intensity = this.amount * Math.min(this.cycleCount / 5, 1);
     const len = buffer.length;
 
+    // Measure RMS before processing — we'll match it after to prevent volume growth
+    let rmsBefore = 0;
+    for (let i = 0; i < len; i++) rmsBefore += buffer[i] * buffer[i];
+    rmsBefore = Math.sqrt(rmsBefore / len);
+
     // 1. Treble loss — progressive low-pass, the core of tape decay.
     //    Each pass through tape heads loses high frequencies.
     //    Multiple passes with moderate cutoff = natural cumulative roll-off.
@@ -91,15 +96,13 @@ export class DestructionEngine {
       }
     }
 
-    // 6. Peak limiter — prevent any volume growth over cycles.
-    //    Measure peak and scale down if above original level.
-    let peak = 0;
-    for (let i = 0; i < len; i++) {
-      const abs = Math.abs(buffer[i]);
-      if (abs > peak) peak = abs;
-    }
-    if (peak > 0.95) {
-      const scale = 0.95 / peak;
+    // 6. RMS matching — scale output to match original loudness.
+    //    Guarantees volume never grows regardless of what effects do.
+    let rmsAfter = 0;
+    for (let i = 0; i < len; i++) rmsAfter += buffer[i] * buffer[i];
+    rmsAfter = Math.sqrt(rmsAfter / len);
+    if (rmsAfter > 0.0001 && rmsBefore > 0.0001) {
+      const scale = rmsBefore / rmsAfter;
       for (let i = 0; i < len; i++) {
         buffer[i] *= scale;
       }
