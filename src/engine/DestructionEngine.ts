@@ -46,12 +46,13 @@ export class DestructionEngine {
 
     // 2. Tape saturation — soft clipping that compresses peaks.
     //    Tape naturally compresses loud signals, adding warmth not harshness.
+    //    Drive into soft clip, then compensate gain to maintain volume.
     if (intensity > 0.05) {
-      const drive = 1 + intensity * 3; // 1x–4x overdrive into soft clip
+      const drive = 1 + intensity * 1.5; // gentle 1x–2.5x overdrive
+      const compensation = 1 / (drive * 0.7); // bring level back down
       for (let i = 0; i < len; i++) {
         const x = buffer[i] * drive;
-        // Hyperbolic tangent approximation — smooth saturation curve
-        buffer[i] = x / (1 + Math.abs(x));
+        buffer[i] = (x / (1 + Math.abs(x))) * compensation;
       }
     }
 
@@ -85,20 +86,9 @@ export class DestructionEngine {
       }
     }
 
-    // 5. Normalize — compensate for volume loss from filtering/saturation.
-    //    Real tape playback cranks the gain to compensate for generation loss.
-    //    This keeps the signal loud while the quality degrades around it.
-    let peak = 0;
-    for (let i = 0; i < len; i++) {
-      const abs = Math.abs(buffer[i]);
-      if (abs > peak) peak = abs;
-    }
-    if (peak > 0.01 && peak < 0.8) {
-      const gain = Math.min(1 / peak, 1.5); // boost up to 1.5x, don't over-amplify
-      for (let i = 0; i < len; i++) {
-        buffer[i] *= gain;
-      }
-    }
+    // 5. No volume change — saturation preserves loudness naturally.
+    //    The soft clipping compresses peaks rather than cutting them,
+    //    so the signal stays at roughly the same perceived volume.
 
     // 6. Subtle tape hiss — only at higher intensities, very low level
     if (intensity > 0.4) {
