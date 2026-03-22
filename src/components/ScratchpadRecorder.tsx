@@ -340,18 +340,10 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
       {/* Waveform — draggable to pads */}
       <canvas
         ref={canvasRef}
-        draggable={!!buffer}
-        onDragStart={(e) => {
-          const trimmed = getTrimmedBuffer();
-          if (trimmed) {
-            // Store in a global for the drop handler to pick up
-            (window as unknown as Record<string, unknown>).__mloop_scratch_buffer = trimmed;
-            e.dataTransfer.setData("text/scratch", "1");
-            e.dataTransfer.effectAllowed = "copy";
-          }
-        }}
+        draggable={false}
         onPointerDown={(e) => {
           if (!buffer) return;
+          e.preventDefault(); // prevent browser drag/scroll
           const rect = (e.target as HTMLElement).getBoundingClientRect();
           const pct = (e.clientX - rect.left) / rect.width;
           dragging.current = Math.abs(pct - trimStart) < Math.abs(pct - trimEnd) ? "start" : "end";
@@ -370,8 +362,28 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
           background: "var(--bg-cell)", border: "1px solid var(--border)",
           touchAction: "none",
         }}
-        title={buffer ? "Drag waveform onto a pad to load it" : "Record something first"}
+        title={buffer ? "Drag trim handles to adjust" : "Record something first"}
       />
+      {/* Separate drag handle for dropping onto pads */}
+      {buffer && (
+        <div
+          draggable
+          onDragStart={(e) => {
+            const trimmed = getTrimmedBuffer();
+            if (trimmed) {
+              (window as unknown as Record<string, unknown>).__mloop_scratch_buffer = trimmed;
+              e.dataTransfer.setData("text/scratch", "1");
+              e.dataTransfer.effectAllowed = "copy";
+            }
+          }}
+          style={{
+            textAlign: "center", fontSize: 8, color: "var(--text-dim)", cursor: "grab",
+            padding: "2px 0", marginTop: 2,
+          }}
+        >
+          ⠿ drag to pad
+        </div>
+      )}
     </div>
   );
 }
