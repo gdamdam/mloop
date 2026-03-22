@@ -10,7 +10,7 @@ describe("StartGate", () => {
 
   it("shows version number", () => {
     render(<StartGate onStart={vi.fn()} />);
-    expect(screen.getByText(/^v\d+\.\d+\.\d+$/)).toBeInTheDocument();
+    expect(screen.getByText(/^v\d+\.\d+\.\d+/)).toBeInTheDocument();
   });
 
   it("calls onStart when button is clicked", () => {

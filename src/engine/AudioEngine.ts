@@ -13,6 +13,7 @@
 
 import { LoopTrack } from "./LoopTrack";
 import { TimingEngine } from "./TimingEngine";
+import { encodeWavStereo } from "../utils/wav";
 import { NUM_TRACKS } from "../types";
 import type { TimingMode, SyncMode } from "../types";
 
@@ -412,7 +413,13 @@ export class AudioEngine {
         const arrayBuf = await webmBlob.arrayBuffer();
         try {
           const audioBuf = await this.ctx.decodeAudioData(arrayBuf);
-          const wav = this.encodeWav(audioBuf);
+          const channels = [];
+          for (let c = 0; c < audioBuf.numberOfChannels; c++) channels.push(audioBuf.getChannelData(c));
+          const wav = encodeWavStereo(channels, audioBuf.sampleRate, {
+            title: "mloop master recording",
+            software: "mloop — https://mloop.mpump.live",
+            date: new Date().toISOString().slice(0, 10),
+          });
           resolve(new Blob([wav], { type: "audio/wav" }));
         } catch {
           // Fallback: return webm if WAV encoding fails
@@ -421,36 +428,6 @@ export class AudioEngine {
       };
       this.masterRecorder!.stop();
     });
-  }
-
-  /** Encode an AudioBuffer as 16-bit PCM WAV. */
-  private encodeWav(buf: AudioBuffer): ArrayBuffer {
-    const numCh = buf.numberOfChannels;
-    const sr = buf.sampleRate;
-    const len = buf.length;
-    const bytesPerSample = 2;
-    const dataSize = len * numCh * bytesPerSample;
-    const buffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(buffer);
-    const writeStr = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
-    writeStr(0, "RIFF"); view.setUint32(4, 36 + dataSize, true); writeStr(8, "WAVE");
-    writeStr(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
-    view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
-    view.setUint32(28, sr * numCh * bytesPerSample, true);
-    view.setUint16(32, numCh * bytesPerSample, true); view.setUint16(34, 16, true);
-    writeStr(36, "data"); view.setUint32(40, dataSize, true);
-    // Interleave channels into 16-bit PCM
-    const channels = [];
-    for (let c = 0; c < numCh; c++) channels.push(buf.getChannelData(c));
-    let offset = 44;
-    for (let i = 0; i < len; i++) {
-      for (let c = 0; c < numCh; c++) {
-        const s = Math.max(-1, Math.min(1, channels[c][i]));
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-        offset += 2;
-      }
-    }
-    return buffer;
   }
 
   /** Expose internal nodes for external wiring (e.g., pad engine, visualizers). */
