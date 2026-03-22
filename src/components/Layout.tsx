@@ -332,8 +332,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
                 : !engine?.hasMic ? "var(--text-dim)"
                 : (engine?.getInputLevel() ?? 0) > 0.02 ? "#66ff99" : "#f0883e",
             }} />
-            <HeaderSlider label="MIC" min={0} max={5} step={0.1} initial={1}
-              format={(v) => `${Math.round(v * 20)}%`}
+            <HeaderSlider label="MIC" min={0} max={20} step={0.1} initial={1}
+              format={(v) => `${Math.round(v * 5)}%`}
               onChange={(v) => { if (engine) engine.setMicGain(v); }}
             />
             <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
