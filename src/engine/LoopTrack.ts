@@ -241,19 +241,33 @@ export class LoopTrack {
     this.status = "playing";
     this.notifyChange();
 
-    // If destruction mode is active, schedule buffer degradation at each loop boundary.
-    // Each cycle applies cumulative effects (bitcrush, noise, filtering) for tape-decay feel.
+    // Destruction mode: degrade buffer each loop cycle by stopping and restarting
+    // with the modified buffer. AudioBufferSourceNode.buffer is readonly after start(),
+    // so we must create a new source each cycle.
+    this.startDestructionCycle();
+  }
+
+  /** Start the destruction cycle — checks every loop boundary. */
+  private startDestructionCycle(): void {
     this.stopDestructionTimer();
-    if (this.destruction.amount > 0 && this.loopLengthSamples > 0) {
-      const cycleDurationMs = (this.loopLengthSamples / this.ctx.sampleRate) * 1000 / this.playbackRate;
-      this.destructionTimer = window.setInterval(() => {
-        if (this.status !== "playing" || this.destruction.amount <= 0) return;
-        this.rebuildMixedBuffer(); // rebuild applies destruction degradation
-        if (this.sourceNode && this.mixedBuffer) {
-          this.sourceNode.buffer = this.mixedBuffer;
-        }
-      }, cycleDurationMs);
-    }
+    if (this.loopLengthSamples <= 0) return;
+    const cycleDurationMs = (this.loopLengthSamples / this.ctx.sampleRate) * 1000 / this.playbackRate;
+    this.destructionTimer = window.setInterval(() => {
+      if (this.status !== "playing") return;
+      if (this.destruction.amount <= 0) return;
+      // Degrade and restart with new buffer (buffer is readonly after start)
+      this.rebuildMixedBuffer();
+      if (this.mixedBuffer) {
+        this.stopSource();
+        const source = this.ctx.createBufferSource();
+        source.buffer = this.mixedBuffer;
+        source.loop = true;
+        source.playbackRate.value = this.playbackRate;
+        source.connect(this.outputGain);
+        source.start();
+        this.sourceNode = source;
+      }
+    }, cycleDurationMs);
   }
 
   private stopDestructionTimer(): void {
