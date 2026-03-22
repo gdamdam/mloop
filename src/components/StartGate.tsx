@@ -36,12 +36,21 @@ export function StartGate({ onStart }: StartGateProps) {
 
   const isIOS = /iPad|iPhone/.test(navigator.userAgent) && !("standalone" in navigator && (navigator as unknown as { standalone: boolean }).standalone);
   const [logoKey, setLogoKey] = useState(0);
+  const logoClickCount = useRef(0);
+  const logoClickTimer = useRef(0);
 
   const handleLogoClick = () => {
-    // Random theme + flash animation
-    const randomPalette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
-    applyPalette(randomPalette);
-    setLogoKey(k => k + 1); // re-mount to retrigger CSS animation
+    logoClickCount.current++;
+    setLogoKey(k => k + 1); // flash animation on every click
+    clearTimeout(logoClickTimer.current);
+    logoClickTimer.current = window.setTimeout(() => {
+      if (logoClickCount.current >= 2) {
+        // 2+ clicks: random theme
+        const randomPalette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+        applyPalette(randomPalette);
+      }
+      logoClickCount.current = 0;
+    }, 400);
   };
 
   const handleStart = () => {
@@ -106,7 +115,7 @@ export function StartGate({ onStart }: StartGateProps) {
         </div>
       )}
 
-      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.39</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.40</span>
     </div>
   );
 }
