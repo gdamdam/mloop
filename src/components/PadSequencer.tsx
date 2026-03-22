@@ -55,6 +55,9 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   const [currentStep, setCurrentStep] = useState(-1);
   const [dragOverCell, setDragOverCell] = useState<{ step: number; slot: number } | null>(null);
   const [mutedRows, setMutedRows] = useState<Set<number>>(new Set());
+  const [selectedSteps, setSelectedSteps] = useState<Set<number>>(new Set());
+  const [selectAnchor, setSelectAnchor] = useState<number | null>(null);
+  const draggingSelect = useRef(false);
   const currentStepRef = useRef(-1);
 
   // Real-time step recording — when recording + playing, pad hits write to grid
@@ -76,6 +79,25 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
     if (recordHitRef) recordHitRef.current = recordHit;
     return () => { if (recordHitRef) recordHitRef.current = null; };
   }, [recordHitRef, recordHit]);
+
+  // Duplicate pattern when increasing step count (e.g. 16→32 fills second half)
+  const changeSteps = useCallback((newSteps: number) => {
+    if (newSteps > numSteps) {
+      setGrid(prev => {
+        const next = prev.map(row => [...row]);
+        // Copy pattern from first half into empty second half
+        for (let step = numSteps; step < newSteps; step++) {
+          const src = step % numSteps;
+          for (let s = 0; s < 16; s++) {
+            if (!next[step][s]) next[step][s] = next[src][s];
+          }
+        }
+        return next;
+      });
+    }
+    setNumSteps(newSteps);
+    setSelectedSteps(new Set());
+  }, [numSteps]);
 
   const loadedSlots = slots.filter(s => s.status === "loaded");
 
@@ -215,7 +237,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
           {STEP_OPTIONS.map(n => (
             <button
               key={n}
-              onClick={() => setNumSteps(n)}
+              onClick={() => changeSteps(n)}
               style={{
                 fontSize: 8, fontWeight: 700, padding: "2px 5px", borderRadius: 3,
                 background: numSteps === n ? "var(--preview)" : "var(--bg-cell)",
@@ -227,10 +249,41 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
           ))}
         </div>
         <button
-          onClick={() => setGrid(Array.from({ length: 64 }, () => Array(16).fill(false)))}
-          style={{ fontSize: 9, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
+          onClick={() => {
+            if (selectedSteps.size > 0) {
+              // Clear only selected steps
+              setGrid(prev => {
+                const next = prev.map(row => [...row]);
+                for (const step of selectedSteps) {
+                  for (let s = 0; s < 16; s++) next[step][s] = false;
+                }
+                return next;
+              });
+              setSelectedSteps(new Set());
+            } else {
+              setGrid(Array.from({ length: 64 }, () => Array(16).fill(false)));
+            }
+          }}
+          style={{ fontSize: 9, color: selectedSteps.size > 0 ? "var(--record)" : "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
+          title={selectedSteps.size > 0 ? `Clear ${selectedSteps.size} selected steps` : "Clear all"}
         >
-          CLR
+          CLR{selectedSteps.size > 0 ? ` ${selectedSteps.size}` : ""}
+        </button>
+        <button
+          onClick={() => {
+            setGrid(prev => {
+              const next = prev.map(row => [...row]);
+              const half = Math.floor(numSteps / 2);
+              for (let step = half; step < numSteps; step++) {
+                for (let s = 0; s < 16; s++) next[step][s] = false;
+              }
+              return next;
+            });
+          }}
+          style={{ fontSize: 9, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
+          title="Clear second half"
+        >
+          CLR½
         </button>
         <button
           onClick={() => {
@@ -312,17 +365,50 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         ))}
       </div>
 
-      {/* Step indicators — also drop targets for pads without a row */}
-      <div style={{ display: "flex", gap: 1, paddingLeft: 20 }}>
+      {/* Step indicators — click/shift+click/drag to select, drop targets */}
+      <div style={{ display: "flex", gap: 1, paddingLeft: 20 }}
+        onPointerUp={() => { draggingSelect.current = false; }}
+        onPointerLeave={() => { draggingSelect.current = false; }}
+      >
         {Array.from({ length: numSteps }, (_, i) => (
           <div
             key={i}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleStepDrop(e, i)}
+            onPointerDown={(e) => {
+              draggingSelect.current = true;
+              if (e.shiftKey && selectAnchor !== null) {
+                // Shift+click: select range from anchor to here
+                const from = Math.min(selectAnchor, i);
+                const to = Math.max(selectAnchor, i);
+                const range = new Set<number>();
+                for (let s = from; s <= to; s++) range.add(s);
+                setSelectedSteps(range);
+              } else {
+                // Click: toggle single step, set anchor
+                setSelectAnchor(i);
+                setSelectedSteps(prev => {
+                  const next = new Set(prev);
+                  if (next.has(i)) next.delete(i); else next.add(i);
+                  return next;
+                });
+              }
+            }}
+            onPointerEnter={() => {
+              // Drag across to extend selection
+              if (draggingSelect.current && selectAnchor !== null) {
+                const from = Math.min(selectAnchor, i);
+                const to = Math.max(selectAnchor, i);
+                const range = new Set<number>();
+                for (let s = from; s <= to; s++) range.add(s);
+                setSelectedSteps(range);
+              }
+            }}
             style={{
-              flex: 1, height: 4, borderRadius: 1,
-              background: i === currentStep ? "var(--preview)" : "var(--bg-cell)",
-              opacity: i === currentStep ? 1 : 0.3,
+              flex: 1, height: 8, borderRadius: 2, cursor: "pointer",
+              background: selectedSteps.has(i) ? "var(--record)"
+                : i === currentStep ? "var(--preview)" : "var(--bg-cell)",
+              opacity: selectedSteps.has(i) ? 0.8 : i === currentStep ? 1 : 0.3,
               boxShadow: i === currentStep ? "0 0 4px var(--preview)" : "none",
               marginLeft: i % 4 === 0 && i > 0 ? 3 : 0,
             }}
