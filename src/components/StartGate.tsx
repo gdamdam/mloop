@@ -73,8 +73,8 @@ export function StartGate({ onStart }: StartGateProps) {
         </p>
       )}
 
-      <div style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.5, marginTop: 12 }}>
-        Works offline — save this page to play anywhere,<br />no internet needed.
+      <div style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.5, marginTop: 12, textAlign: "center" }}>
+        Works offline — save this page to play anywhere.<br />No internet needed.
       </div>
 
       {/* Android: native install prompt */}
@@ -98,7 +98,7 @@ export function StartGate({ onStart }: StartGateProps) {
         </div>
       )}
 
-      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.33</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.34</span>
     </div>
   );
 }
