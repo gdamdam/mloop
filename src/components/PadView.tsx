@@ -414,6 +414,27 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Import kit from file">
                 ⬆
               </button>
+              {/* Import from URL */}
+              <button onClick={async () => {
+                if (!padEngine) return;
+                const url = prompt("Paste audio URL (WAV, MP3, OGG):");
+                if (!url) return;
+                const target = selectedPad !== null ? selectedPad : padEngine.slots.findIndex(s => s.status === "empty");
+                if (target < 0) { alert("No empty pad available"); return; }
+                try {
+                  const resp = await fetch(url);
+                  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                  const arrayBuf = await resp.arrayBuffer();
+                  const audioBuf = await new AudioContext().decodeAudioData(arrayBuf);
+                  const data = audioBuf.getChannelData(0);
+                  const name = url.split("/").pop()?.split("?")[0]?.replace(/\.[^.]+$/, "") || "URL Sample";
+                  padEngine.importBuffer(target, data, name.slice(0, 30));
+                } catch (e) {
+                  alert(`Failed to load: ${e instanceof Error ? e.message : "unknown error"}\n\nMake sure the URL points directly to an audio file and allows cross-origin access.`);
+                }
+              }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Import sample from URL">
+                URL
+              </button>
               {/* Slice */}
               <button onClick={() => setShowSlicer(true)}
                 style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Slice audio file across pads">
