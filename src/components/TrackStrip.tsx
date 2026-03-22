@@ -94,19 +94,12 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
         )}
       </div>
 
-      {/* Tape recorder visual: two reels flanking the waveform */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, margin: "4px 0" }}>
-        <TapeReel spinning={status === "playing" || status === "recording" || status === "overdubbing"} direction="left" status={status} />
-        <div style={{ flex: 1 }}>
-          <WaveformDisplay
-            bufferData={bufferData}
-            status={status}
-            loopLengthSamples={loopLengthSamples}
-            analyser={status === "recording" ? inputAnalyser : null}
-          />
-        </div>
-        <TapeReel spinning={status === "playing" || status === "recording" || status === "overdubbing"} direction="right" status={status} />
-      </div>
+      <WaveformDisplay
+        bufferData={bufferData}
+        status={status}
+        loopLengthSamples={loopLengthSamples}
+        analyser={status === "recording" ? inputAnalyser : null}
+      />
 
       <div className="transport-row">
         <button
@@ -199,38 +192,6 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
 }
 
 /** Decay slider with local state so it updates visually on drag. */
-/** Tape reel visual — spinning circle that animates during playback. */
-function TapeReel({ spinning, direction, status }: { spinning: boolean; direction: "left" | "right"; status: string }) {
-  const color = status === "recording" ? "var(--record)"
-    : status === "overdubbing" ? "var(--overdub)"
-    : status === "playing" ? "var(--playing)"
-    : "var(--border)";
-  const speed = status === "recording" ? "1.5s" : "1s";
-  return (
-    <div style={{
-      width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-      border: `2px solid ${color}`,
-      background: "var(--bg-cell)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      animation: spinning ? `tapeSpin${direction === "left" ? "Left" : "Right"} ${speed} linear infinite` : "none",
-      position: "relative",
-    }}>
-      {/* Hub */}
-      <div style={{
-        width: 10, height: 10, borderRadius: "50%",
-        background: color, opacity: spinning ? 1 : 0.3,
-      }} />
-      {/* Spokes */}
-      {[0, 120, 240].map(deg => (
-        <div key={deg} style={{
-          position: "absolute", width: 1, height: 10,
-          background: color, opacity: 0.4,
-          transform: `rotate(${deg}deg)`, transformOrigin: "center center",
-        }} />
-      ))}
-    </div>
-  );
-}
 
 function DecaySlider({ engine, trackId }: { engine: AudioEngine | null; trackId: number }) {
   const [value, setValue] = useState(() => engine?.tracks[trackId]?.destruction.amount ?? 0);

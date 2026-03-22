@@ -270,7 +270,7 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
               color: playing ? "#000" : "var(--text)",
               border: "none", cursor: "pointer",
             }}>
-              {playing ? "■" : "▶"}
+              {playing ? "❚❚" : "▶"}
             </button>
             <button onClick={() => { setLooping(!looping); if (playing) { stopPreview(); } }} style={{
               fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,

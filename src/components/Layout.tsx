@@ -46,7 +46,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.13.5";
+    const APP_VERSION = "0.13.6";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -195,7 +195,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.13.5</span>
+          <span className="title-version">0.13.6</span>
         </div>
 
         {/* View toggle */}
@@ -323,10 +323,10 @@ export function Layout({ state, command, engine }: LayoutProps) {
             >
               {anyRecording || state.tracks.some(t => t.status === "playing") ? "■" : "▶"}
             </button>
-            <span style={{ fontSize: 7, color: "var(--text-dim)" }}>MIC</span>
-            <input type="range" className="volume-slider" min={0} max={5} step={0.1} defaultValue={1}
-              onChange={(e) => { if (engine) engine.getInputNode().gain.value = parseFloat(e.target.value); }}
-              style={{ width: 50 }} title="Mic gain" />
+            <HeaderSlider label="MIC" min={0} max={5} step={0.1} initial={1}
+              format={(v) => `${v.toFixed(1)}x`}
+              onChange={(v) => { if (engine) engine.getInputNode().gain.value = v; }}
+            />
             <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
               style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
             <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
