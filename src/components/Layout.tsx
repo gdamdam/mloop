@@ -407,7 +407,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         {/* Desktop: all buttons inline */}
         <div className="header-buttons-desktop" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <HeaderOverflowButtons
-            state={state} command={command} isPinned={isPinned} setIsPinned={setIsPinned}
+            state={state} command={linkedCommand} isPinned={isPinned} setIsPinned={setIsPinned}
             isDark={isDark} toggleDarkLight={toggleDarkLight} toggleFullscreen={toggleFullscreen}
             linkEnabled={linkEnabled} setLinkEnabled={setLinkEnabled} linkState={linkState}
             setShowSessions={setShowSessions} setShowMidi={setShowMidi}
@@ -647,9 +647,9 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       >
         {state.syncMode === "free" ? "\u2298" : state.syncMode === "sync" ? "\u27F3" : "\uD83D\uDD12"}
       </button>
-      <button className="header-btn" onClick={() => linkedCommand({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
+      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
       <span style={{ fontSize: 14, fontWeight: 700, color: "var(--preview)", minWidth: 28, textAlign: "center" }}>{state.bpm}</span>
-      <button className="header-btn" onClick={() => linkedCommand({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
+      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
       <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
       <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
         style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">{"\u2669"}</button>
