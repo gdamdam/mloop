@@ -260,6 +260,8 @@ export class PadEngine {
 
   /** Callback to notify UI of current step (for visual indicator). */
   onStepChange: ((step: number) => void) | null = null;
+  /** Called when sequencer triggers a pad — for UI flash feedback. */
+  onPadTrigger: ((padIds: number[]) => void) | null = null;
 
   /** Update sequencer grid from UI. */
   setSeqGrid(grid: boolean[][]): void { this.seqGrid = grid; }
@@ -307,14 +309,18 @@ export class PadEngine {
 
       // Schedule pad triggers at exact audio time
       const row = this.seqGrid[step];
+      const triggered: number[] = [];
       if (row) {
         for (let s = 0; s < 16; s++) {
-          if (row[s]) this.playAt(s, when);
+          if (row[s]) { this.playAt(s, when); triggered.push(s); }
         }
       }
 
       const delayMs = Math.max(0, (when - this.ctx.currentTime) * 1000);
-      setTimeout(() => this.onStepChange?.(step), delayMs);
+      setTimeout(() => {
+        this.onStepChange?.(step);
+        if (triggered.length > 0) this.onPadTrigger?.(triggered);
+      }, delayMs);
 
       this.seqStepIndex = (step + 1) % this.seqNumSteps;
       this.seqNextStepTime += stepDur;

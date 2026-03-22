@@ -14,9 +14,11 @@ interface TrackStripProps {
   command: (cmd: LoopCommand) => void;
   engine: AudioEngine | null;
   padEngine?: PadEngine | null;
+  /** Master loop duration in seconds (from first recorded track) — shown on empty tracks. */
+  masterLoopSec?: number;
 }
 
-export function TrackStrip({ track, command, engine, padEngine }: TrackStripProps) {
+export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }: TrackStripProps) {
   const { id, status, volume, muted, layers, isReversed, playbackRate, loopLengthSamples } = track;
 
   const effects = engine?.tracks[id]?.getEffects() ?? DEFAULT_EFFECTS;
@@ -38,11 +40,17 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
           <div className={`track-status ${status}`} />
           <SoundDNA buffer={bufferData} size={24} />
           <span>TRACK {id + 1}</span>
-          {layers > 0 && (
+          {layers > 0 ? (
             <span style={{ fontSize: 10, color: "var(--text-dim)" }}>
               {layers} layer{layers !== 1 ? "s" : ""}
             </span>
-          )}
+          ) : masterLoopSec ? (
+            <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.6 }}>
+              {masterLoopSec >= 60
+                ? `${Math.floor(masterLoopSec / 60)}:${String(Math.floor(masterLoopSec % 60)).padStart(2, "0")}`
+                : `${masterLoopSec.toFixed(1)}s`}
+            </span>
+          ) : null}
         </div>
         {/* Reverse + Half-speed toggles */}
         {layers > 0 && (
