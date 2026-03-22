@@ -229,19 +229,24 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
       const level = engine.getInputLevel();
       setInputLevel(level);
 
-      // Check for low signal every ~60 frames (~1 second)
+      // Check for low signal only while recording (not idle)
       frame++;
-      if (frame % 60 === 0 && engine.hasMic) {
+      const isRecording = padEngine?.slots.some(s => s.status === "recording");
+      if (frame % 60 === 0 && engine.hasMic && isRecording) {
         if (level > 0.001 && level < 0.02) {
           lowSignalCounter.current++;
-          // Show hint after 5 consecutive low readings (~5 seconds)
-          if (lowSignalCounter.current >= 5 && !lowSignalHint) {
+          // Show hint after 3 consecutive low readings (~3 seconds of recording)
+          if (lowSignalCounter.current >= 3 && !lowSignalHint) {
             setLowSignalHint(true);
           }
         } else {
           lowSignalCounter.current = 0;
           if (level >= 0.02) setLowSignalHint(false);
         }
+      } else if (!isRecording) {
+        // Reset when not recording
+        lowSignalCounter.current = 0;
+        if (lowSignalHint) setLowSignalHint(false);
 
         // Auto-gain if enabled
         if (localStorage.getItem("mloop-auto-gain") === "on") {

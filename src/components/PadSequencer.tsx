@@ -255,11 +255,15 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: P
                     style={{
                       flex: 1, height: 18, borderRadius: 2, padding: 0,
                       background: isDragOver ? "var(--preview)"
+                        : isActive && isCurrent ? "var(--preview)"
                         : isActive ? "var(--preview)"
-                        : isCurrent ? "var(--bg-panel)" : "var(--bg-cell)",
-                      opacity: isDragOver ? 0.6 : isActive ? 1 : isCurrent ? 0.8 : 0.5,
+                        : isCurrent ? "var(--preview)" : "var(--bg-cell)",
+                      opacity: isDragOver ? 0.6
+                        : isActive && isCurrent ? 1
+                        : isActive ? 0.7
+                        : isCurrent ? 0.35 : 0.4,
                       border: "none", cursor: "pointer",
-                      boxShadow: isCurrent && isActive ? "0 0 6px var(--preview)" : "none",
+                      boxShadow: isCurrent ? "0 0 6px var(--preview)" : "none",
                       marginLeft: step % 4 === 0 && step > 0 ? 3 : 0,
                     }}
                   />
@@ -278,8 +282,10 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: P
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleStepDrop(e, i)}
             style={{
-              flex: 1, height: 3, borderRadius: 1,
+              flex: 1, height: 4, borderRadius: 1,
               background: i === currentStep ? "var(--preview)" : "var(--bg-cell)",
+              opacity: i === currentStep ? 1 : 0.3,
+              boxShadow: i === currentStep ? "0 0 4px var(--preview)" : "none",
               marginLeft: i % 4 === 0 && i > 0 ? 3 : 0,
             }}
           />
