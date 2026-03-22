@@ -44,10 +44,23 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [palette, setPalette] = useState<PaletteId>(loadPaletteId);
   const [isPinned, setIsPinned] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+
+  // Poll mic input level for LED indicator (looper bar)
+  useEffect(() => {
+    if (!engine) return;
+    let raf = 0;
+    const poll = () => {
+      setMicLevel(engine.getInputLevel());
+      raf = requestAnimationFrame(poll);
+    };
+    raf = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(raf);
+  }, [engine]);
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.15.3";
+    const APP_VERSION = "0.15.6";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -196,7 +209,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.15.3</span>
+          <span className="title-version">0.15.6</span>
         </div>
 
         {/* View toggle */}
@@ -330,10 +343,10 @@ export function Layout({ state, command, engine }: LayoutProps) {
               width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
               background: anyRecording ? "var(--record)"
                 : !engine?.hasMic ? "var(--text-dim)"
-                : (engine?.getInputLevel() ?? 0) > 0.02 ? "#66ff99" : "#f0883e",
+                : micLevel > 0.02 ? "#66ff99" : "#f0883e",
             }} />
             <HeaderSlider label="MIC" min={0} max={50} step={0.5} initial={1}
-              format={(v) => `${Math.round(v * 2)}%`}
+              format={(v) => `${Math.round(v)}%`}
               onChange={(v) => { if (engine) engine.setMicGain(v); }}
             />
             <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
