@@ -341,6 +341,11 @@ export class AudioEngine {
 
   /** Expose internal nodes for external wiring (e.g., pad engine, visualizers). */
   getInputNode(): GainNode { return this.inputGain; }
+
+  /** Set mic gain — uses setValueAtTime for Firefox compatibility. */
+  setMicGain(v: number): void {
+    this.inputGain.gain.setValueAtTime(v, this.ctx.currentTime);
+  }
   getMasterNode(): GainNode { return this.masterGain; }
   getAnalyser(): AnalyserNode { return this.analyser; }
   getInputAnalyser(): AnalyserNode { return this.inputAnalyser; }
@@ -372,7 +377,7 @@ export class AudioEngine {
     const ratio = targetLevel / Math.max(level, 0.01);
     // Gentle adjustment: move 10% toward ideal gain, clamp 0.1–10
     const newGain = Math.max(0.1, Math.min(10, currentGain + (currentGain * ratio - currentGain) * 0.1));
-    this.inputGain.gain.value = newGain;
+    this.inputGain.gain.setValueAtTime(newGain, this.ctx.currentTime);
   }
 
   /** Enable/disable live mic monitoring through speakers. */

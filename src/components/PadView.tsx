@@ -357,7 +357,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
                 min={0} max={5} step={0.1}
                 defaultValue={1}
                 onChange={(e) => {
-                  if (engine) engine.getInputNode().gain.value = parseFloat(e.target.value);
+                  if (engine) engine.setMicGain(parseFloat(e.target.value));
                 }}
                 style={{ width: 40 }}
                 title="Mic gain (0–5x)"
@@ -468,19 +468,16 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               transition: "width 0.05s",
             }} />
           </div>
+          {/* Low signal hint — inside INPUT div */}
+          {lowSignalHint && (
+            <div onClick={() => setLowSignalHint(false)} style={{
+              padding: "2px 8px", fontSize: 9, cursor: "pointer",
+              color: "var(--overdub)", textAlign: "center",
+            }}>
+              ⚠ Low signal — increase MIC gain ✕
+            </div>
+          )}
         </div>
-
-        {/* Low signal hint */}
-        {lowSignalHint && (
-          <div onClick={() => setLowSignalHint(false)} style={{
-            padding: "4px 10px", marginBottom: 4, borderRadius: 6,
-            background: "var(--overdub)", color: "#000",
-            fontSize: 10, fontWeight: 700, cursor: "pointer",
-            textAlign: "center",
-          }}>
-            Low signal detected — try increasing MIC gain ✕
-          </div>
-        )}
 
         {/* 4x4 Pad Grid */}
         <div style={{
