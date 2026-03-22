@@ -204,6 +204,8 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
   const [dragOverPad, setDragOverPad] = useState<number | null>(null);
   const [countIn, setCountIn] = useState(0);
   const [playingPads, setPlayingPads] = useState<Set<number>>(new Set());
+  const [lowSignalHint, setLowSignalHint] = useState(false);
+  const lowSignalCounter = useRef(0);
   const [, forceUpdate] = useState(0);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
@@ -218,17 +220,40 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
     sync();
   }, [padEngine]);
 
-  // Input level meter
+  // Input level meter + low signal detection + auto-gain
   useEffect(() => {
     if (!engine) return;
     let raf = 0;
+    let frame = 0;
     const update = () => {
-      setInputLevel(engine.getInputLevel());
+      const level = engine.getInputLevel();
+      setInputLevel(level);
+
+      // Check for low signal every ~60 frames (~1 second)
+      frame++;
+      if (frame % 60 === 0 && engine.hasMic) {
+        if (level > 0.001 && level < 0.02) {
+          lowSignalCounter.current++;
+          // Show hint after 5 consecutive low readings (~5 seconds)
+          if (lowSignalCounter.current >= 5 && !lowSignalHint) {
+            setLowSignalHint(true);
+          }
+        } else {
+          lowSignalCounter.current = 0;
+          if (level >= 0.02) setLowSignalHint(false);
+        }
+
+        // Auto-gain if enabled
+        if (localStorage.getItem("mloop-auto-gain") === "on") {
+          engine.autoGain(0.3);
+        }
+      }
+
       raf = requestAnimationFrame(update);
     };
     update();
     return () => cancelAnimationFrame(raf);
-  }, [engine]);
+  }, [engine, lowSignalHint]);
 
   // Roll state — hold >300ms triggers roll at 1/16 rate
   const rollSlotRef = useRef<number | null>(null);
@@ -444,6 +469,18 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
             }} />
           </div>
         </div>
+
+        {/* Low signal hint */}
+        {lowSignalHint && (
+          <div onClick={() => setLowSignalHint(false)} style={{
+            padding: "4px 10px", marginBottom: 4, borderRadius: 6,
+            background: "var(--overdub)", color: "#000",
+            fontSize: 10, fontWeight: 700, cursor: "pointer",
+            textAlign: "center",
+          }}>
+            Low signal detected — try increasing MIC gain ✕
+          </div>
+        )}
 
         {/* 4x4 Pad Grid */}
         <div style={{
