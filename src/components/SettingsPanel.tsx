@@ -280,29 +280,6 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
             )}
           </div>
 
-          {/* Tape reel style */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4 }}>Tape reel style (looper)</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {([
-                { id: "c", label: "Classic", desc: "Thick top + thin return" },
-                { id: "a", label: "Cassette", desc: "Top + bottom tape" },
-                { id: "b", label: "Minimal", desc: "Center line only" },
-              ] as const).map(s => (
-                <button key={s.id} onClick={() => { localStorage.setItem("mloop-tape-style", s.id); forceUpdate(n => n + 1); }}
-                  title={s.desc}
-                  style={{
-                    flex: 1, padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                    background: (localStorage.getItem("mloop-tape-style") || "c") === s.id ? "var(--preview)" : "var(--bg-cell)",
-                    color: (localStorage.getItem("mloop-tape-style") || "c") === s.id ? "#000" : "var(--text-dim)",
-                    cursor: "pointer",
-                  }}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Count-in before recording */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4 }}>Count-in before recording</div>

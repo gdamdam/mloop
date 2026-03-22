@@ -54,7 +54,6 @@ export function TapeReels({ status }: TapeReelsProps) {
   const speed = status === "recording" ? "2s" : "1.2s";
   const reelSize = 36;
 
-  const tapeStyle = (localStorage.getItem("mloop-tape-style") || "c") as "a" | "b" | "c";
   const tapeOpacity = spinning ? 0.6 : 0.2;
 
   return (
@@ -62,43 +61,28 @@ export function TapeReels({ status }: TapeReelsProps) {
       display: "flex", flexDirection: "column", alignItems: "center", gap: 0,
       opacity: status === "empty" ? 0.3 : 1,
     }}>
-      {/* Top tape line (Style A only) */}
-      {tapeStyle === "a" && (
-        <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-          <div style={{ width: reelSize / 2 }} />
-          <div style={{ flex: 1, height: 2, background: color, opacity: tapeOpacity, borderRadius: 1 }} />
-          <div style={{ width: reelSize / 2 }} />
-        </div>
-      )}
-
-      {/* Main tape (Style C: thick) + reels row */}
-      {tapeStyle === "c" && (
-        <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-          <div style={{ width: reelSize / 2 }} />
-          <div style={{ flex: 1, height: 3, background: color, opacity: tapeOpacity, borderRadius: 1 }} />
-          <div style={{ width: reelSize / 2 }} />
-        </div>
-      )}
-
-      {/* Reels row */}
+      {/* Reels row with tape head in center */}
       <div style={{ display: "flex", alignItems: "center" }}>
         <Reel size={reelSize} spokeColor={color} spinning={spinning} speed={speed} direction="ccw" />
-        {/* Center tape (Style B only — tape over heads) */}
-        {tapeStyle === "b" && (
-          <div style={{ width: 8, height: 2, background: color, opacity: tapeOpacity, margin: "0 -2px" }} />
-        )}
-        {tapeStyle !== "b" && <div style={{ width: 4 }} />}
+        {/* Tape head block — glows when active */}
+        <div style={{
+          width: 8, height: 14, borderRadius: 2, margin: "0 -1px",
+          background: spinning ? color : "var(--bg-cell)",
+          border: `1px solid ${color}`,
+          opacity: spinning ? 0.9 : 0.3,
+          boxShadow: spinning ? `0 0 6px ${color}` : "none",
+          transition: "opacity 0.2s, box-shadow 0.2s",
+        }} />
         <Reel size={reelSize} spokeColor={color} spinning={spinning} speed={speed} direction="ccw" />
       </div>
 
-      {/* Bottom return line (all styles) */}
+      {/* Bottom return tape line */}
       <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
         <div style={{ width: reelSize / 2 }} />
         <div style={{
-          flex: 1, height: tapeStyle === "c" ? 1 : 2,
+          flex: 1, height: 1,
           background: color, opacity: tapeOpacity * 0.5,
           borderRadius: 1,
-          borderTop: tapeStyle === "c" ? "none" : undefined,
         }} />
         <div style={{ width: reelSize / 2 }} />
       </div>
