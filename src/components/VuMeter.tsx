@@ -128,11 +128,13 @@ export function VuMeter({ getAnalyser }: VuMeterProps) {
     return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
   }, [getAnalyser, style]);
 
+  /* eslint-disable react-hooks/refs -- these refs are continuously updated by rAF loop; reading during render is intentional for display */
   const peakDb = peakRef.current > 0 ? (20 * Math.log10(peakRef.current)).toFixed(1) : "-∞";
   const rmsDb = rmsRef.current > 0 ? (20 * Math.log10(rmsRef.current)).toFixed(1) : "-∞";
   const freqLabel = peakFreqRef.current >= 1000
     ? `${(peakFreqRef.current / 1000).toFixed(1)}kHz`
     : `${Math.round(peakFreqRef.current)}Hz`;
+  /* eslint-enable react-hooks/refs */
 
   return (
     <div

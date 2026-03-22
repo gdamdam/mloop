@@ -123,10 +123,14 @@ const SECTIONS = [
   {
     title: "Mic & Recording",
     items: [
-      "**Mic LED colors**: green = mic ready, red = recording, orange = overdubbing, dim = mic unavailable",
+      "**Mic LED colors**: green = signal detected, orange = low signal, red = recording, dim = mic unavailable",
+      "**Audio input selector** — choose mic/line-in device in Settings (persists across sessions)",
+      "**Mic gain** — adjustable 0–10x (MIC slider in looper control bar)",
+      "**Auto-gain** — automatic mic level adjustment (enable in Settings)",
+      "**Low signal detection** — hint appears when mic input is too quiet",
+      "**Analog VU meter** — needle shows input level (idle), output level (playing), red accent (recording)",
       "**Auto-trim** — automatically removes leading/trailing silence from recordings",
       "**Count-in** — configurable beat count before recording starts (Settings)",
-      "**Mic gain** — adjustable input level (MIC slider in looper control bar)",
       "**Latency compensation** — auto-trims based on measured input latency",
       "**Recording limits** — configurable max time per track and max session size (Settings)",
     ],
@@ -181,7 +185,7 @@ const SECTIONS = [
     title: "Themes & Settings",
     items: [
       "**◑** — toggle light/dark mode (Cream/Midnight)",
-      "**⚙** Settings — 12 themes, session export/import, recording limits",
+      "**⚙** Settings — 12 themes, audio input device, session export/import, recording limits",
       "**Logo click**: 1× = random theme, 2× = toggle beat pulse, 3× = help",
       "Logo pulses with the beat when audio is playing",
       "**⛶** — fullscreen mode",

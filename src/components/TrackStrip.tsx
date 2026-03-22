@@ -212,6 +212,7 @@ function DecaySlider({ engine, trackId }: { engine: AudioEngine | null; trackId:
           const v = parseFloat(e.target.value);
           setValue(v);
           const track = engine?.tracks[trackId];
+          // eslint-disable-next-line react-hooks/immutability -- engine tracks are external mutable objects
           if (track) track.destruction.amount = v;
         }}
         style={{ flex: 1 }}

@@ -17,7 +17,7 @@ export function SessionManager({ onClose, onSave, onLoad, onExportWav }: Session
     setSessions(list);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh]); // eslint-disable-line react-hooks/set-state-in-effect
 
   const handleSave = () => {
     const name = saveName.trim();

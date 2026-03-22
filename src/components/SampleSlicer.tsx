@@ -96,7 +96,7 @@ export function SampleSlicer({ padEngine, onClose }: SampleSlicerProps) {
   useEffect(() => {
     if (!buffer || sliceMode !== "auto") return;
     const points = detectTransients(buffer, sliceCount, sensitivity);
-    setAutoPoints(points);
+    setAutoPoints(points); // eslint-disable-line react-hooks/set-state-in-effect -- derived state from props, no cascade risk
   }, [buffer, sliceMode, sensitivity, sliceCount]);
 
   /** Apply slicing — equal or auto-chop — and load into pads. */

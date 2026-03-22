@@ -302,12 +302,12 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
         pe.startRecording(slotId, engine?.timing.bpm ?? 120);
       }
     }
-  }, [engine]);
+  }, [engine, padEngine]);
 
   const handleDelete = useCallback((e: React.MouseEvent, slotId: number) => {
     e.stopPropagation();
     padEngine?.clear(slotId);
-  }, []);
+  }, [padEngine]);
 
   const handleEdit = useCallback((e: React.MouseEvent, slotId: number) => {
     e.stopPropagation();
@@ -318,7 +318,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
     if (editingSlot === null) return;
     padEngine?.importBuffer(editingSlot, trimmed);
     setEditingSlot(null);
-  }, [editingSlot]);
+  }, [editingSlot, padEngine]);
 
   const handleSequencerTrigger = useCallback((slotIds: number[]) => {
     const pe = padEngine;
@@ -326,7 +326,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
     for (const id of slotIds) {
       pe.play(id);
     }
-  }, []);
+  }, [padEngine]);
 
   const bpm = engine?.timing.bpm ?? 120;
 

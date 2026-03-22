@@ -144,6 +144,7 @@ export function useKeyboardShortcuts(
 
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSpaceBar is a useCallback, but adding it causes re-binds on every render cycle
   }, [command, enabled, viewMode, onPadTrigger]);
 
   return { showOverlay, setShowOverlay };

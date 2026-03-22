@@ -2,7 +2,7 @@
 <p align="center">Browser-based loop station & MPC-style sampler.<br>Record, layer, slice, sequence, perform — no install, no subscription, no account.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.15.9-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.16.0-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-green" alt="License"></a>
   <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet?logo=anthropic&logoColor=white" alt="Built with Claude Code"></a>
   <br>
@@ -49,6 +49,17 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 | **PAD** (default) | 4x4 MPC-style sample pads with step sequencer (8/16/32/64 steps), sample slicer, chromatic mode, resample, 7 built-in drum kits. Keyboard finger drumming via QWERTY 4x4 grid. |
 | **LOOPER** | 3 independent loop tracks with record, overdub, undo, reverse, half-speed. Centered KAOS XY pad with master effects. |
 
+### What's in v0.15
+
+- **Audio input device selector** — pick mic/line-in from Settings
+- **Analog needle VU meter** — shows input level when idle, output when playing, red when recording
+- **Tape reel color states** — gray idle, red recording, green playing (works on all themes)
+- **Mic LED live polling** — real-time mic level indicator in looper bar
+- **Mic gain control** — adjustable input level (0–10x) with fine step control
+- **Low signal detection** — warns when mic input is too quiet
+- **Auto-gain option** — automatic mic level adjustment
+- **12 themes** — 6 dark + 6 light palettes, ported from mpump
+
 ### What's in v0.14
 
 - **Tutorial wizard** — first-visit walkthrough covering all features, retriggerable from Help
@@ -57,7 +68,6 @@ Companion to [mpump](https://github.com/gdamdam/mpump) — the browser-based dru
 - **Mic LED status colors** — green (ready), red (recording), orange (overdubbing), dim (unavailable)
 - **Mobile hamburger menu** — responsive header collapses overflow buttons into a menu on small screens
 - **Count-in recording** — configurable beat count before recording starts
-- **Mic gain control** — adjustable input level in the looper control bar
 
 ### What's in v0.11–0.13
 
@@ -178,8 +188,12 @@ Dedicated recording strip in PAD mode for quick sampling:
 - **Latency compensation** (auto-trim based on measured input latency)
 - **Destruction Mode** — progressive tape degradation per loop cycle
 - **Sound DNA** — unique spectral fingerprint glyph per loop
-- **Tape reel animation** — spinning reels visualize playback and recording state
-- **Mic LED colors** — green (ready), red (recording), orange (overdubbing), dim (unavailable)
+- **Tape reel animation** — spinning reels with color states (gray/red/green)
+- **Analog needle VU meter** — input level when idle, output when playing, red accent when recording
+- **Mic LED** — live polling with green/orange/red status
+- **Audio input selector** — choose mic/line-in device from Settings
+- **Mic gain** — adjustable 0–10x with auto-gain option
+- **Low signal detection** — hint when mic input is too quiet
 - **->PAD** button to copy a track recording into a pad slot
 
 ---
@@ -293,7 +307,7 @@ The keyboard grid mirrors the 4x4 pad layout — bottom-left key = bottom-left p
 - **Web Audio API** — all synthesis and effects in-browser
 - **AudioWorklet** — sample-accurate recording (ScriptProcessorNode fallback)
 - **Zero runtime dependencies** beyond React
-- **~369KB** production bundle (gzipped ~107KB)
+- **~387KB** production bundle (gzipped ~110KB)
 
 ---
 

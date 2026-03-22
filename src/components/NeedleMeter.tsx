@@ -34,11 +34,12 @@ function dbToAngle(db: number): number {
 
 interface NeedleMeterProps {
   getAnalyser: () => AnalyserNode | null;
-  /** Accent goes green only when a track is playing */
+  /** Accent goes green when playing, red when recording */
   isPlaying?: boolean;
+  isRecording?: boolean;
 }
 
-export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
+export function NeedleMeter({ getAnalyser, isPlaying, isRecording }: NeedleMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
   const ms = useRef({
@@ -48,10 +49,15 @@ export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
     accent: "#999",
     accentFrame: 0,
     isPlaying: false,
+    isRecording: false,
   });
   // Keep refs in sync without triggering effect re-runs
+  // eslint-disable-next-line react-hooks/refs -- intentional ref sync pattern to avoid effect re-runs
   ms.current.isPlaying = isPlaying ?? false;
+  // eslint-disable-next-line react-hooks/refs -- intentional ref sync pattern to avoid effect re-runs
+  ms.current.isRecording = isRecording ?? false;
   const getAnalyserRef = useRef(getAnalyser);
+  // eslint-disable-next-line react-hooks/refs -- intentional ref sync pattern to avoid effect re-runs
   getAnalyserRef.current = getAnalyser;
 
   useEffect(() => {
@@ -99,8 +105,8 @@ export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
         s.smoothedRms *= 0.95;
       }
 
-      // Green only when tracks are playing; gray otherwise
-      s.accent = s.isPlaying ? "#66ff99" : "#999";
+      // Red when recording, green when playing, gray when idle
+      s.accent = s.isRecording ? "#ff4444" : s.isPlaying ? "#66ff99" : "#999";
 
       const db = toDB(s.smoothedRms);
       const targetAngle = dbToAngle(db);
@@ -159,7 +165,7 @@ export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
 
     draw();
     return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — refs keep values current
+  }, []);
 
   return (
     <canvas ref={canvasRef} style={{

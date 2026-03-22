@@ -125,6 +125,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: P
   // Wire step change callback for UI indicator
   useEffect(() => {
     if (!padEngine) return;
+    // eslint-disable-next-line react-hooks/immutability -- padEngine is an external class instance, not React state
     padEngine.onStepChange = (step) => setCurrentStep(step);
     return () => { padEngine.onStepChange = null; };
   }, [padEngine]);
