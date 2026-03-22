@@ -1,4 +1,18 @@
+import { useState, useEffect } from "react";
 import { Recorder } from "../engine/Recorder";
+
+/** Fetches total page views from GoatCounter. */
+function VisitCounter() {
+  const [count, setCount] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("https://mloop99.goatcounter.com/counter/TOTAL.json")
+      .then(r => r.json())
+      .then(d => setCount(d.count))
+      .catch(() => {});
+  }, []);
+  if (!count) return null;
+  return <span title="Total page views (GoatCounter — no cookies, no personal data)">{count} visits</span>;
+}
 
 interface AppFooterProps {
   onShowHelp: () => void;
@@ -16,7 +30,9 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
       opacity: 0.5,
       lineHeight: 1.8,
     }}>
-      <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.13</span>
+      <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.14</span>
+      {" · "}
+      <VisitCounter />
       {" · "}
       <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener"
         style={{ color: "var(--text-dim)", textDecoration: "none" }}>
