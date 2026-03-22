@@ -372,6 +372,37 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
             <div>Sample rate: <b style={{ color: "var(--text)" }}>44100 Hz</b></div>
           </div>
 
+          {/* ── Reset ──────────────────────────────────────────────── */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginTop: 24, marginBottom: 8 }}>
+            Danger Zone
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm("Reset everything? This will delete all sessions, samples, settings, and reload the app. This cannot be undone.")) {
+                // Clear all storage
+                localStorage.clear();
+                // Clear IndexedDB databases
+                indexedDB.databases?.().then(dbs => {
+                  for (const db of dbs) {
+                    if (db.name) indexedDB.deleteDatabase(db.name);
+                  }
+                }).catch(() => {});
+                // Reload the app
+                window.location.reload();
+              }
+            }}
+            style={{
+              width: "100%", padding: 12, borderRadius: 8, fontSize: 12, fontWeight: 700,
+              background: "#ff4444", color: "#fff", cursor: "pointer",
+              border: "none",
+            }}
+          >
+            Reset Everything
+          </button>
+          <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 4, textAlign: "center" }}>
+            Deletes all sessions, samples, kits, and settings
+          </div>
+
         </div>
       </div>
     </div>

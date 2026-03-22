@@ -25,7 +25,7 @@ export function StartGate({ onStart }: StartGateProps) {
   return (
     <div className="start-gate">
       <pre className="start-gate-title">{LOGO}</pre>
-      <span style={{ fontSize: 10, color: "var(--text-dim)" }}>v0.16.7</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)" }}>v0.16.8</span>
       <p className="start-gate-sub">
         Browser-based loop station.<br />
         Record, layer, and perform — no install needed.
