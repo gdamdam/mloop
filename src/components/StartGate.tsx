@@ -74,7 +74,7 @@ export function StartGate({ onStart }: StartGateProps) {
       )}
 
       <div style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.5, marginTop: 12 }}>
-        Works offline — save this page to play anywhere, no internet needed.
+        Works offline — save this page to play anywhere,<br />no internet needed.
       </div>
 
       {/* Android: native install prompt */}
