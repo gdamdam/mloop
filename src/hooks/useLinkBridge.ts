@@ -23,31 +23,39 @@ export function useLinkBridge(
   const prevPlaying = useRef<boolean | null>(null);
   const prevBpm = useRef<number>(0);
 
-  // Subscribe to Link state updates
+  // Use refs for callbacks so the effect doesn't re-subscribe when they change
+  const onPlayRef = useRef(onLinkPlay);
+  onPlayRef.current = onLinkPlay;
+  const onStopRef = useRef(onLinkStop);
+  onStopRef.current = onLinkStop;
+  const commandRef = useRef(command);
+  commandRef.current = command;
+
+  // Subscribe to Link state updates — single subscription, refs avoid stale closures
   useEffect(() => {
     const unsub = onLinkState((state) => {
       setLinkState(state);
       if (state.connected && state.tempo > 0) {
-        // Sync BPM from Link — only when it actually changes
+        // Sync BPM — only when it actually changes
         const roundedBpm = Math.round(state.tempo);
         if (roundedBpm !== prevBpm.current) {
           prevBpm.current = roundedBpm;
-          command({ type: "set_bpm", bpm: roundedBpm });
+          commandRef.current({ type: "set_bpm", bpm: roundedBpm });
         }
 
-        // Sync play/stop — only react to changes, not every tick
+        // Sync play/stop — only react to changes
         if (prevPlaying.current !== null && state.playing !== prevPlaying.current) {
           if (state.playing) {
-            onLinkPlay?.();
+            onPlayRef.current?.();
           } else {
-            onLinkStop?.();
+            onStopRef.current?.();
           }
         }
         prevPlaying.current = state.playing;
       }
     });
     return unsub;
-  }, [command, onLinkPlay, onLinkStop]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — refs keep values current
 
   // Auto-detect on mount, or enable/disable based on setting
   useEffect(() => {
