@@ -297,20 +297,21 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         </button>
       </div>
 
-      {/* Swing slider */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, maxWidth: 200 }}>
-        <span style={{ fontSize: 8, color: "var(--text-dim)", width: 28 }}>Swing</span>
+      {/* Swing slider — compact inline */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+        <span style={{ fontSize: 7, color: "var(--text-dim)" }}>Swing</span>
         <input type="range" className="volume-slider" min={0} max={1} step={0.05}
           value={padEngine?.getSeqSwing() ?? 0}
           onChange={(e) => padEngine?.setSeqSwing(parseFloat(e.target.value))}
-          style={{ flex: 1, maxWidth: 120 }} />
-        <span style={{ fontSize: 8, color: "var(--text-dim)", width: 20 }}>
+          style={{ width: 60 }} />
+        <span style={{ fontSize: 7, color: "var(--text-dim)", minWidth: 16 }}>
           {Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%
         </span>
       </div>
 
-      {/* Step indicators — click/shift+click/drag to select */}
+      {/* Step indicators — click/shift+click/drag to select steps for CLR */}
       <div style={{ display: "flex", gap: 1, paddingLeft: 20, marginBottom: 4 }}
+        title="Click to select steps · Shift+click for range · Drag to select · CLR clears selected"
         onPointerUp={() => { draggingSelect.current = false; }}
         onPointerLeave={() => { draggingSelect.current = false; }}
       >
@@ -345,13 +346,15 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
                 setSelectedSteps(range);
               }
             }}
+            title={`Step ${i + 1}`}
             style={{
-              flex: 1, height: 8, borderRadius: 2, cursor: "pointer",
+              flex: 1, height: 10, borderRadius: 2, cursor: "pointer",
               background: selectedSteps.has(i) ? "var(--record)"
                 : i === currentStep ? "var(--preview)" : "var(--bg-cell)",
-              opacity: selectedSteps.has(i) ? 0.8 : i === currentStep ? 1 : 0.3,
+              opacity: selectedSteps.has(i) ? 0.9 : i === currentStep ? 1 : 0.5,
               boxShadow: i === currentStep ? "0 0 4px var(--preview)" : "none",
               marginLeft: i % 4 === 0 && i > 0 ? 3 : 0,
+              border: selectedSteps.has(i) ? "1px solid var(--record)" : "1px solid transparent",
             }}
           />
         ))}
