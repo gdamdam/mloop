@@ -27,7 +27,7 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
       padding: "16px 12px 24px",
       fontSize: 10,
       color: "var(--text-dim)",
-      opacity: 0.5,
+      opacity: 0.7,
       lineHeight: 1.8,
     }}>
       <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.30</span>
