@@ -21,7 +21,7 @@ const STEPS = [
   {
     title: "Step Sequencer",
     description:
-      "Below the pad grid is the step sequencer. Click cells to toggle which pads trigger on which steps. Use 8/16/32/64 step modes, add swing, generate random patterns with RND, and mute individual rows. The sequencer drives the rhythm while you perform live on top.",
+      "Below the pad grid is the step sequencer. Click cells to toggle which pads trigger on which steps. Use 8/16/32/64 step modes, add swing, generate random patterns with RND, and mute individual rows. Press ● REC to record pad hits into the grid in real-time. The sequencer drives the rhythm while you perform live on top.",
     area: "Below the pad grid — the grid of small cells",
   },
   {

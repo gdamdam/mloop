@@ -69,6 +69,7 @@ const SECTIONS = [
       "**Row mute** toggles — mute individual pad rows without clearing them",
       "Multiple pads can trigger on the same step",
       "**Drag** loaded pads from the grid onto sequencer cells",
+      "**● REC** — real-time step recording: play pads (tap, keyboard, MIDI) to record hits into the grid live",
       "**CLR** — clear entire pattern",
     ],
   },

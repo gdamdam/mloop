@@ -19,7 +19,7 @@ Companion to [mpump](https://mpump.live) — the browser-based drum machine & sy
 
 | Mode | Description |
 |---|---|
-| **PAD** (default) | 4x4 MPC-style sample pads, step sequencer (8/16/32/64 steps), sample slicer, chromatic mode, resample, 7 built-in drum kits, keyboard finger drumming |
+| **PAD** (default) | 4x4 MPC-style sample pads, step sequencer (8/16/32/64 steps) with real-time step recording, sample slicer, chromatic mode, resample, 7 built-in drum kits, keyboard finger drumming |
 | **LOOPER** | 3 independent loop tracks with record, overdub, undo, reverse, half-speed, KAOS XY pad with master effects |
 
 ---
@@ -29,6 +29,7 @@ Companion to [mpump](https://mpump.live) — the browser-based drum machine & sy
 - **16 pads** — tap empty to record from mic, tap loaded to play
 - **7 built-in kits** — all synthesized via `OfflineAudioContext`, zero sample files
 - **Step sequencer** — 8/16/32/64 steps, swing, random pattern generator
+- **Real-time step recording** — press ● REC, play pads to record hits into the grid live
 - **Per-pad controls** — volume, pan, pitch (±12 semitones), trim, play mode (ONE/GATE/LOOP)
 - **Mute groups** (choke) — assign pads to groups 1-4
 - **Drag & drop** — rearrange pads, drop onto sequencer
