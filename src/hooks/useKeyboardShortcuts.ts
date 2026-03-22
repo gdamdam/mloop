@@ -84,6 +84,7 @@ export const SHORTCUT_DESCRIPTIONS: { key: string; description: string }[] = [
   { key: "T", description: "Tap tempo" },
   { key: "?", description: "Show shortcuts" },
   { key: "⌘/Ctrl+Z", description: "Undo" },
+  { key: "⌘/Ctrl+S", description: "Save session" },
 ];
 
 /**
@@ -125,6 +126,13 @@ export function useKeyboardShortcuts(
       if (key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault();
         onUndo?.();
+        return;
+      }
+
+      // Cmd+S (Mac) / Ctrl+S (Windows) → save session
+      if (key === "s" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        command({ type: "save_session", name: "__quicksave__" });
         return;
       }
 
