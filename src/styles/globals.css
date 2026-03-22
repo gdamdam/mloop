@@ -114,7 +114,8 @@ input[type="range"] {
 }
 
 /* Flash on every logo click — re-triggered via React key remount */
-.title-art.logo-flash {
+.title-art.logo-flash,
+.start-gate-title.logo-flash {
   animation: logoFlash 0.4s ease-out;
 }
 
@@ -737,4 +738,81 @@ input[type="range"] {
   .sheet-backdrop {
     align-items: center;
   }
+}
+
+/* ── About / Credits modal ────────────────────────────────────────────── */
+
+.about-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 300;
+  cursor: pointer;
+}
+
+.about-screen {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.about-bg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.about-scroll {
+  text-align: center;
+  will-change: transform;
+  position: relative;
+  z-index: 1;
+}
+
+.about-line {
+  font-family: "Courier New", "Courier", monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #b388ff;
+  line-height: 2;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+.about-logo {
+  font-size: 12px;
+  color: #ffcc00;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.about-sep {
+  color: #442288;
+  font-size: 10px;
+}
+
+.about-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.15) 2px,
+    rgba(0,0,0,0.15) 4px
+  );
+}
+
+@media (max-width: 480px) {
+  .about-line { font-size: 11px; letter-spacing: 1px; }
+  .about-logo { font-size: 9px; }
 }

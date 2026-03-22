@@ -197,9 +197,10 @@ const SECTIONS = [
 interface HelpModalProps {
   onClose: () => void;
   onShowTutorial?: () => void;
+  onShowCredits?: () => void;
 }
 
-export function HelpModal({ onClose, onShowTutorial }: HelpModalProps) {
+export function HelpModal({ onClose, onShowTutorial, onShowCredits }: HelpModalProps) {
   const [expanded, setExpanded] = useState<number | null>(0);
 
   return (
@@ -234,9 +235,9 @@ export function HelpModal({ onClose, onShowTutorial }: HelpModalProps) {
             </div>
           ))}
 
-          {/* Show Tutorial button */}
-          {onShowTutorial && (
-            <div style={{ padding: "16px 0 4px", textAlign: "center" }}>
+          {/* Show Tutorial + Credits buttons */}
+          <div style={{ padding: "16px 0 4px", textAlign: "center", display: "flex", gap: 8, justifyContent: "center" }}>
+            {onShowTutorial && (
               <button
                 onClick={onShowTutorial}
                 style={{
@@ -247,8 +248,20 @@ export function HelpModal({ onClose, onShowTutorial }: HelpModalProps) {
               >
                 Show Tutorial
               </button>
-            </div>
-          )}
+            )}
+            {onShowCredits && (
+              <button
+                onClick={onShowCredits}
+                style={{
+                  fontSize: 12, fontWeight: 700, padding: "10px 24px",
+                  borderRadius: 8, background: "var(--bg-cell)", color: "var(--text-dim)",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Credits
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

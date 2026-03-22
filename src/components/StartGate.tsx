@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 // Same logo as the header — block-art style
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
@@ -9,22 +9,30 @@ interface StartGateProps {
 
 export function StartGate({ onStart }: StartGateProps) {
   const [starting, setStarting] = useState(false);
+  const [logoFlash, setLogoFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const flashTimer = useRef(0);
 
-  const handleStart = async () => {
-    setStarting(true);
-    setError(null);
-    try {
-      await onStart();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start audio");
-      setStarting(false);
-    }
+  const handleStart = () => {
+    // Flash the logo, then start after animation
+    setLogoFlash(true);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(async () => {
+      setStarting(true);
+      setError(null);
+      try {
+        await onStart();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to start audio");
+        setStarting(false);
+        setLogoFlash(false);
+      }
+    }, 450);
   };
 
   return (
     <div className="start-gate">
-      <pre className="start-gate-title">{LOGO}</pre>
+      <pre className={`start-gate-title ${logoFlash ? "logo-flash" : ""}`}>{LOGO}</pre>
       <p className="start-gate-sub">
         Loop Station &amp; Sampler<br />
         Record, loop, sample, perform<br />
@@ -45,7 +53,7 @@ export function StartGate({ onStart }: StartGateProps) {
       <div style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.5, marginTop: 12 }}>
         Works offline — save this page to play anywhere, no internet needed.
       </div>
-      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.10</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.11</span>
     </div>
   );
 }
