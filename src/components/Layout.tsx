@@ -218,9 +218,11 @@ export function Layout({ state, command, engine }: LayoutProps) {
         if (padEngine.isSeqPlaying) {
           padEngine.stopSequencer();
           setSeqPlaying(false);
+          pushPlayingRef.current?.(false);
         } else {
           padEngine.startSequencer();
           setSeqPlaying(true);
+          pushPlayingRef.current?.(true);
         }
       }
     } else {
@@ -231,9 +233,11 @@ export function Layout({ state, command, engine }: LayoutProps) {
             command({ type: "track_stop", trackId: t.id });
           }
         }
+        pushPlayingRef.current?.(false);
       } else {
         const anyPlaying = state.tracks.some(t => t.status === "playing");
         command({ type: anyPlaying ? "stop_all" : "play_all" });
+        pushPlayingRef.current?.(!anyPlaying);
       }
     }
   }, [viewMode, padEngine, anyRecording, state.tracks, command]);
@@ -265,7 +269,24 @@ export function Layout({ state, command, engine }: LayoutProps) {
   );
   const midiRef = useMidiMapping(command, true);
   const [linkEnabled, setLinkEnabled] = useState(false);
-  const { linkState } = useLinkBridge(command, linkEnabled);
+  const pushPlayingRef = useRef<((playing: boolean) => void) | null>(null);
+  // Link play/stop sync — start/stop sequencer (PAD) or looper (LOOPER)
+  const linkPlay = useCallback(() => {
+    if (viewMode === "pads") {
+      if (padEngine && !padEngine.isSeqPlaying) { padEngine.startSequencer(); setSeqPlaying(true); }
+    } else {
+      command({ type: "play_all" });
+    }
+  }, [viewMode, padEngine, command]);
+  const linkStop = useCallback(() => {
+    if (viewMode === "pads") {
+      if (padEngine && padEngine.isSeqPlaying) { padEngine.stopSequencer(); setSeqPlaying(false); }
+    } else {
+      command({ type: "stop_all" });
+    }
+  }, [viewMode, padEngine, command]);
+  const { linkState, pushPlaying } = useLinkBridge(command, linkEnabled, linkPlay, linkStop);
+  pushPlayingRef.current = pushPlaying;
 
   // Logo click — matches mpump: 1x=random theme, 2x=cycle pulse mode, 3+=about
   // Every click triggers a flash animation via key remount
