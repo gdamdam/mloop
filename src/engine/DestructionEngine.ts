@@ -85,10 +85,19 @@ export class DestructionEngine {
       }
     }
 
-    // 5. Volume loss — each generation slightly quieter (signal degradation)
-    const volumeDecay = 1 - intensity * 0.05;
+    // 5. Normalize — compensate for volume loss from filtering/saturation.
+    //    Real tape playback cranks the gain to compensate for generation loss.
+    //    This keeps the signal loud while the quality degrades around it.
+    let peak = 0;
     for (let i = 0; i < len; i++) {
-      buffer[i] *= volumeDecay;
+      const abs = Math.abs(buffer[i]);
+      if (abs > peak) peak = abs;
+    }
+    if (peak > 0.01 && peak < 0.8) {
+      const gain = Math.min(1 / peak, 1.5); // boost up to 1.5x, don't over-amplify
+      for (let i = 0; i < len; i++) {
+        buffer[i] *= gain;
+      }
     }
 
     // 6. Subtle tape hiss — only at higher intensities, very low level
