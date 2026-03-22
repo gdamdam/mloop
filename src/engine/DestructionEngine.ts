@@ -25,36 +25,45 @@ export class DestructionEngine {
     if (this.amount <= 0) return;
     this.cycleCount++;
 
-    // Intensity ramps up over 10 cycles for faster audible effect
-    const intensity = this.amount * Math.min(this.cycleCount / 10, 1);
+    // Intensity ramps up over 15 cycles
+    const intensity = this.amount * Math.min(this.cycleCount / 15, 1);
     const len = buffer.length;
 
-    // Pass 1: Bitcrush — reduce bit depth (most audible degradation)
-    const bits = 16 - intensity * 12; // down to ~4 bits at full intensity
-    if (bits < 15) {
+    // Pass 1: Bitcrush — heavy sample degradation (most audible)
+    const bits = 16 - intensity * 13; // down to ~3 bits at full intensity
+    if (bits < 14) {
       const steps = Math.pow(2, Math.max(2, bits));
       for (let i = 0; i < len; i++) {
         buffer[i] = Math.round(buffer[i] * steps) / steps;
       }
     }
 
-    // Pass 2: Lowpass — dull the highs (separate pass avoids feedback issues)
-    const cutoff = Math.max(0.3, 1 - intensity * 0.6); // 1.0→0.3 = very dull
+    // Pass 2: Lowpass — dull the highs aggressively
+    const cutoff = Math.max(0.15, 1 - intensity * 0.8); // 1.0→0.15 = very dull
     let prev = buffer[0];
     for (let i = 1; i < len; i++) {
       buffer[i] = prev * (1 - cutoff) + buffer[i] * cutoff;
       prev = buffer[i];
     }
 
-    // Pass 3: Noise floor — tape hiss
-    const noiseLevel = intensity * 0.04;
+    // Pass 3: Wow/flutter — subtle pitch wobble via sample skipping
+    if (intensity > 0.2) {
+      const wobbleDepth = Math.floor(intensity * 3);
+      for (let i = wobbleDepth; i < len - wobbleDepth; i++) {
+        const offset = Math.floor(Math.sin(i * 0.001) * wobbleDepth);
+        buffer[i] = buffer[i + offset] * 0.7 + buffer[i] * 0.3;
+      }
+    }
+
+    // Pass 4: Noise floor — tape hiss (slow ramp)
+    const noiseLevel = intensity * 0.015; // gentler noise buildup
     for (let i = 0; i < len; i++) {
       buffer[i] += (Math.random() * 2 - 1) * noiseLevel;
       buffer[i] = Math.max(-1, Math.min(1, buffer[i]));
     }
 
-    // Pass 4: Slight volume reduction per cycle (simulates signal loss)
-    const volumeLoss = 1 - intensity * 0.03;
+    // Pass 5: Volume reduction per cycle (signal loss)
+    const volumeLoss = 1 - intensity * 0.05;
     for (let i = 0; i < len; i++) {
       buffer[i] *= volumeLoss;
     }
