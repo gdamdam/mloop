@@ -68,8 +68,8 @@ export function TapeReels({ status }: TapeReelsProps) {
         <Reel size={reelSize} spokeColor={color} spinning={spinning} speed={speed} direction="ccw" />
       </div>
 
-      {/* Bottom return tape line with head crossing it */}
-      <div style={{ display: "flex", alignItems: "center", width: "100%", position: "relative" }}>
+      {/* Bottom return tape line */}
+      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
         <div style={{ width: reelSize / 2 }} />
         <div style={{
           flex: 1, height: 1,
@@ -77,17 +77,6 @@ export function TapeReels({ status }: TapeReelsProps) {
           borderRadius: 1,
         }} />
         <div style={{ width: reelSize / 2 }} />
-        {/* Tape head — small block crossing the tape line */}
-        <div style={{
-          position: "absolute", left: "50%", top: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 6, height: 8, borderRadius: 1,
-          background: spinning ? color : "var(--bg-cell)",
-          border: `1px solid ${color}`,
-          opacity: spinning ? 0.9 : 0.3,
-          boxShadow: spinning ? `0 0 4px ${color}` : "none",
-          transition: "opacity 0.2s, box-shadow 0.2s",
-        }} />
       </div>
     </div>
   );
