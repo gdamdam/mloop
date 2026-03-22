@@ -30,8 +30,9 @@ export class DestructionEngine {
     const len = buffer.length;
 
     // 1. Treble loss — progressive low-pass, the core of tape decay.
-    const cutoff = 0.15 + (1 - intensity) * 0.75;
-    const passes = 1 + Math.floor(intensity * 3);
+    //    More aggressive: lower cutoff floor, more passes
+    const cutoff = 0.05 + (1 - intensity) * 0.65; // 0.7 → 0.05 (heavier muffling)
+    const passes = 2 + Math.floor(intensity * 4); // 2–6 filter passes
     for (let p = 0; p < passes; p++) {
       let prev = buffer[0];
       for (let i = 1; i < len; i++) {
@@ -41,9 +42,8 @@ export class DestructionEngine {
     }
 
     // 2. Tape saturation — soft clipping without volume change.
-    //    Apply tanh to samples above a threshold, leave quiet parts alone.
-    //    This compresses peaks (warmth) without amplifying anything.
-    if (intensity > 0.1) {
+    //    Compresses dynamic range each cycle — sound gets flatter/warmer.
+    if (intensity > 0.05) {
       for (let i = 0; i < len; i++) {
         const s = buffer[i];
         // Only saturate — never make louder than input
@@ -55,7 +55,7 @@ export class DestructionEngine {
     if (intensity > 0.1) {
       const copy = new Float32Array(buffer);
       const wowFreq = 0.5 + Math.random() * 1.5;
-      const wowDepth = intensity * 8;
+      const wowDepth = intensity * 16; // more audible pitch wobble
       const wowPhase = Math.random() * Math.PI * 2;
       for (let i = 0; i < len; i++) {
         const offset = Math.sin(wowPhase + (i / len) * Math.PI * 2 * wowFreq) * wowDepth;
