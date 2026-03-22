@@ -21,14 +21,19 @@ export function useLinkBridge(
 ) {
   const [linkState, setLinkState] = useState<LinkState>(getLinkState);
   const prevPlaying = useRef<boolean | null>(null);
+  const prevBpm = useRef<number>(0);
 
   // Subscribe to Link state updates
   useEffect(() => {
     const unsub = onLinkState((state) => {
       setLinkState(state);
       if (state.connected && state.tempo > 0) {
-        // Sync BPM from Link session
-        command({ type: "set_bpm", bpm: Math.round(state.tempo) });
+        // Sync BPM from Link — only when it actually changes
+        const roundedBpm = Math.round(state.tempo);
+        if (roundedBpm !== prevBpm.current) {
+          prevBpm.current = roundedBpm;
+          command({ type: "set_bpm", bpm: roundedBpm });
+        }
 
         // Sync play/stop — only react to changes, not every tick
         if (prevPlaying.current !== null && state.playing !== prevPlaying.current) {

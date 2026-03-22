@@ -285,8 +285,18 @@ export function Layout({ state, command, engine }: LayoutProps) {
       command({ type: "stop_all" });
     }
   }, [viewMode, padEngine, command]);
-  const { linkState, pushPlaying } = useLinkBridge(command, linkEnabled, linkPlay, linkStop);
+  const { linkState, pushPlaying, pushTempo } = useLinkBridge(command, linkEnabled, linkPlay, linkStop);
+  const pushTempoRef = useRef<((bpm: number) => void) | null>(null);
+  pushTempoRef.current = pushTempo;
   pushPlayingRef.current = pushPlaying;
+
+  // Wrap command so BPM changes also push to Link when connected
+  const linkedCommand = useCallback((cmd: LoopCommand) => {
+    command(cmd);
+    if (cmd.type === "set_bpm" && linkState.connected) {
+      pushTempoRef.current?.(cmd.bpm);
+    }
+  }, [command, linkState.connected]);
 
   // Logo click — matches mpump: 1x=random theme, 2x=cycle pulse mode, 3+=about
   // Every click triggers a flash animation via key remount
@@ -637,9 +647,9 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       >
         {state.syncMode === "free" ? "\u2298" : state.syncMode === "sync" ? "\u27F3" : "\uD83D\uDD12"}
       </button>
-      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
+      <button className="header-btn" onClick={() => linkedCommand({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
       <span style={{ fontSize: 14, fontWeight: 700, color: "var(--preview)", minWidth: 28, textAlign: "center" }}>{state.bpm}</span>
-      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
+      <button className="header-btn" onClick={() => linkedCommand({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
       <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
       <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
         style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">{"\u2669"}</button>
