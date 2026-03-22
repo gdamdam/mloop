@@ -131,9 +131,14 @@ function InputWaveform({ analyser, isRecording }: { analyser: AnalyserNode | nul
       // Fade previous frame — use theme bg for proper light/dark support
       const bgColor = getComputedStyle(document.documentElement).getPropertyValue("--bg-cell").trim() || "#21262d";
       ctx.fillStyle = bgColor;
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = 0.35;
       ctx.fillRect(0, 0, w, h);
       ctx.globalAlpha = 1;
+      // Draw a subtle center line so empty canvas isn't blank
+      const accentColor = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
+      ctx.strokeStyle = accentColor + "20";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
 
       const dataLen = analyser.fftSize;
       const data = new Uint8Array(dataLen);
@@ -405,7 +410,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
                 }
                 forceUpdate(n => n + 1);
               }} style={{
-                fontSize: 9, padding: "2px 5px", borderRadius: 4,
+                fontSize: 11, padding: "5px 10px", borderRadius: 6,
                 background: padEngine?.isResampling ? "var(--record)" : "var(--bg-cell)",
                 color: padEngine?.isResampling ? "#fff" : "var(--text-dim)",
               }} title={padEngine?.isResampling ? "Stop resampling" : "Resample: record output to pad"}>

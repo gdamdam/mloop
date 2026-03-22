@@ -14,6 +14,18 @@ interface ScratchpadRecorderProps {
   engine: AudioEngine | null;
 }
 
+/** Auto-trim silence from a buffer: remove leading, cap trailing at 1s. */
+function autoTrimBuffer(raw: Float32Array, sampleRate: number): Float32Array {
+  if (raw.length === 0) return raw;
+  const threshold = 0.01;
+  let first = 0;
+  for (let i = 0; i < raw.length; i++) { if (Math.abs(raw[i]) > threshold) { first = i; break; } }
+  let last = raw.length - 1;
+  for (let i = raw.length - 1; i >= 0; i--) { if (Math.abs(raw[i]) > threshold) { last = i; break; } }
+  const tail = Math.min(sampleRate, raw.length - last - 1);
+  return raw.slice(first, last + tail + 1);
+}
+
 export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
   const [source, setSource] = useState<RecordSource>("mic");
   const [recording, setRecording] = useState(false);
@@ -66,7 +78,8 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
     if (source === "mic" && recorderRef.current) {
       const raw = await recorderRef.current.stop();
       recorderRef.current = null;
-      setBuffer(raw.length > 0 ? raw : null);
+      const trimmed = raw.length > 0 ? autoTrimBuffer(raw, engine.ctx.sampleRate) : null;
+      setBuffer(trimmed);
       setTrimStart(0);
       setTrimEnd(1);
     } else if (dubRecorderRef.current) {
@@ -93,7 +106,8 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
       }
       dubRecorderRef.current = null;
       destRef.current = null;
-      setBuffer(mono.length > 0 ? mono : null);
+      const trimmedMono = mono.length > 0 ? autoTrimBuffer(mono, engine.ctx.sampleRate) : null;
+      setBuffer(trimmedMono);
       setTrimStart(0);
       setTrimEnd(1);
     }
