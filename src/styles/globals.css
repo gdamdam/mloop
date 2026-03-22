@@ -524,6 +524,16 @@ input[type="range"] {
   50%      { opacity: 0.5; }
 }
 
+@keyframes tapeSpinLeft {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes tapeSpinRight {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
 /* ── 3-TRACK layout: tracks row on top, centered square kaos pad ──────── */
 
 .looper-layout {
