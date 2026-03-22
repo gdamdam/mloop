@@ -200,6 +200,14 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
   // Pad layout removed — drag pads to rearrange
   const [browsingPad, setBrowsingPad] = useState<number | null>(null);
   const [selectedPad, setSelectedPad] = useState<number | null>(null);
+  const seqRecordHitRef = useRef<((padId: number) => void) | null>(null);
+
+  // Record keyboard/MIDI pad triggers into sequencer grid
+  useEffect(() => {
+    if (flashPad !== null && flashPad !== undefined) {
+      seqRecordHitRef.current?.(flashPad);
+    }
+  }, [flashPad]);
   const [showSlicer, setShowSlicer] = useState(false);
   const [dragOverPad, setDragOverPad] = useState<number | null>(null);
   const [countIn, setCountIn] = useState(0);
@@ -264,6 +272,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
       pe.stopRecording();
     } else if (slot.status === "loaded") {
       pe.playAt(slotId, 0, velocity);
+      seqRecordHitRef.current?.(slotId); // real-time step recording
       rollSlotRef.current = slotId;
       // Track playing state for playhead animation
       setPlayingPads(prev => new Set(prev).add(slotId));
@@ -676,7 +685,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
           onMuteGroupChange={(g) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].muteGroup = g; forceUpdate(n => n + 1); } }}
           onNameChange={(name) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].name = name; forceUpdate(n => n + 1); } }}
         />
-        <PadSequencer slots={slots} bpm={bpm} onTrigger={handleSequencerTrigger} padEngine={padEngine} />
+        <PadSequencer slots={slots} bpm={bpm} onTrigger={handleSequencerTrigger} padEngine={padEngine} recordHitRef={seqRecordHitRef} />
       </div>
 
       {/* Sample Editor Modal */}
