@@ -32,26 +32,6 @@ function saveLockBarsValue(bars: LockBars): void {
   localStorage.setItem(LOCK_BARS_KEY, String(bars));
 }
 
-// Reusable compact styles
-const S = {
-  section: { fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase" as const, letterSpacing: 1, margin: "16px 0 6px" },
-  row: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0" } as const,
-  label: { fontSize: 11, color: "var(--text-dim)" },
-  toggle: (on: boolean) => ({
-    padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: "pointer", border: "none",
-    background: on ? "var(--preview)" : "var(--bg-cell)", color: on ? "#000" : "var(--text-dim)",
-  }),
-  optRow: { display: "flex", gap: 3, marginTop: 4 } as const,
-  opt: (on: boolean) => ({
-    flex: 1, padding: "4px 2px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", border: "none", textAlign: "center" as const,
-    background: on ? "var(--preview)" : "var(--bg-cell)", color: on ? "#000" : "var(--text-dim)",
-  }),
-  select: {
-    width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: 11,
-    background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer",
-  },
-};
-
 interface SettingsPanelProps {
   palette: PaletteId;
   onPaletteChange: (id: PaletteId) => void;
@@ -98,16 +78,16 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
   const lsOn = (key: string) => localStorage.getItem(key) === "on";
 
   return (
-    <div className="sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="sheet" style={{ maxHeight: "85dvh" }}>
-        <div className="sheet-header">
-          <span className="sheet-title">Settings</span>
-          <button className="sheet-close" onClick={onClose}>✕</button>
+    <div className="settings-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="settings-panel">
+        <div className="settings-header">
+          <span className="settings-title">Settings</span>
+          <button className="settings-close" onClick={onClose}>✕</button>
         </div>
-        <div className="sheet-body">
 
-          {/* ── Theme ─────────────────────────────────────────── */}
-          <div style={S.section}>Theme</div>
+        {/* ── Theme ─────────────────────────────────────────── */}
+        <div className="settings-section">
+          <div className="settings-label">Theme</div>
           <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 3 }}>DARK</div>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
             {PALETTES.filter(p => p.dark).map(p => (
@@ -124,7 +104,7 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
             ))}
           </div>
           <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 3 }}>LIGHT</div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             {PALETTES.filter(p => !p.dark).map(p => (
               <button key={p.id} onClick={() => { onPaletteChange(p.id); applyPalette(p); }}
                 style={{
@@ -138,11 +118,17 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
               </button>
             ))}
           </div>
+        </div>
 
-          {/* ── Audio Input ───────────────────────────────────── */}
-          {devices.length > 0 && (<>
-            <div style={S.section}>Audio Input</div>
-            <select value={selectedDevice} onChange={(e) => handleDeviceChange(e.target.value)} style={S.select}>
+        {/* ── Audio Input ───────────────────────────────────── */}
+        {devices.length > 0 && (
+          <div className="settings-section">
+            <div className="settings-label">Audio Input</div>
+            <select value={selectedDevice} onChange={(e) => handleDeviceChange(e.target.value)}
+              style={{
+                width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: 11,
+                background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer",
+              }}>
               <option value="">Default</option>
               {devices.map(d => (
                 <option key={d.deviceId} value={d.deviceId}>
@@ -150,24 +136,28 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
                 </option>
               ))}
             </select>
-          </>)}
+          </div>
+        )}
 
-          {/* ── Recording ─────────────────────────────────────── */}
-          <div style={S.section}>Recording</div>
+        {/* ── Recording ─────────────────────────────────────── */}
+        <div className="settings-section">
+          <div className="settings-label">Recording</div>
 
-          <div style={S.row}>
-            <span style={S.label}>Auto-gain</span>
-            <button onClick={() => lsToggle("mloop-auto-gain")} style={S.toggle(lsOn("mloop-auto-gain"))}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0" }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Auto-gain</span>
+            <button className={`settings-toggle${lsOn("mloop-auto-gain") ? " on" : ""}`} onClick={() => lsToggle("mloop-auto-gain")}>
+              <span className="settings-toggle-dot" />
               {lsOn("mloop-auto-gain") ? "ON" : "OFF"}
             </button>
           </div>
 
           <div style={{ padding: "5px 0" }}>
-            <span style={S.label}>Count-in</span>
-            <div style={S.optRow}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Count-in</span>
+            <div className="settings-toggles" style={{ marginTop: 4 }}>
               {([0, 4, 8] as const).map(beats => (
-                <button key={beats} onClick={() => localStorage.setItem("mloop-count-in", String(beats))}
-                  style={S.opt(parseInt(localStorage.getItem("mloop-count-in") || "4") === beats)}>
+                <button key={beats} className={`settings-toggle${parseInt(localStorage.getItem("mloop-count-in") || "4") === beats ? " on" : ""}`}
+                  onClick={() => localStorage.setItem("mloop-count-in", String(beats))}
+                  style={{ justifyContent: "center" }}>
                   {beats === 0 ? "Off" : beats === 4 ? "1 bar" : "2 bars"}
                 </button>
               ))}
@@ -175,11 +165,12 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
           </div>
 
           <div style={{ padding: "5px 0" }}>
-            <span style={S.label}>Max time per track</span>
-            <div style={S.optRow}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Max time per track</span>
+            <div className="settings-toggles" style={{ marginTop: 4 }}>
               {TIME_OPTIONS.map(opt => (
-                <button key={opt.value} onClick={() => updateLimit("maxRecordingTimeSec", opt.value)}
-                  style={S.opt(limits.maxRecordingTimeSec === opt.value)}>
+                <button key={opt.value} className={`settings-toggle${limits.maxRecordingTimeSec === opt.value ? " on" : ""}`}
+                  onClick={() => updateLimit("maxRecordingTimeSec", opt.value)}
+                  style={{ justifyContent: "center" }}>
                   {opt.label}
                 </button>
               ))}
@@ -187,39 +178,45 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
           </div>
 
           <div style={{ padding: "5px 0" }}>
-            <span style={S.label}>Max session size</span>
-            <div style={S.optRow}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Max session size</span>
+            <div className="settings-toggles" style={{ marginTop: 4 }}>
               {SIZE_OPTIONS.map(opt => (
-                <button key={opt.value} onClick={() => updateLimit("maxSessionSizeMB", opt.value)}
-                  style={S.opt(limits.maxSessionSizeMB === opt.value)}>
+                <button key={opt.value} className={`settings-toggle${limits.maxSessionSizeMB === opt.value ? " on" : ""}`}
+                  onClick={() => updateLimit("maxSessionSizeMB", opt.value)}
+                  style={{ justifyContent: "center" }}>
                   {opt.label}
                 </button>
               ))}
             </div>
           </div>
+        </div>
 
-          {/* ── Pads ──────────────────────────────────────────── */}
-          <div style={S.section}>Pads</div>
+        {/* ── Pads ──────────────────────────────────────────── */}
+        <div className="settings-section">
+          <div className="settings-label">Pads</div>
 
-          <div style={S.row}>
-            <span style={S.label}>Velocity sensitivity</span>
-            <button onClick={() => { const n = !velocity; setVelocity(n); saveVelocity(n); }}
-              style={S.toggle(velocity)}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0" }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Velocity sensitivity</span>
+            <button className={`settings-toggle${velocity ? " on" : ""}`}
+              onClick={() => { const n = !velocity; setVelocity(n); saveVelocity(n); }}>
+              <span className="settings-toggle-dot" />
               {velocity ? "ON" : "OFF"}
             </button>
           </div>
 
-          <div style={S.row}>
-            <span style={S.label}>Roll on hold</span>
-            <button onClick={() => lsToggle("mloop-roll")} style={S.toggle(lsOn("mloop-roll"))}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0" }}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Roll on hold</span>
+            <button className={`settings-toggle${lsOn("mloop-roll") ? " on" : ""}`} onClick={() => lsToggle("mloop-roll")}>
+              <span className="settings-toggle-dot" />
               {lsOn("mloop-roll") ? "ON" : "OFF"}
             </button>
           </div>
           {lsOn("mloop-roll") && (
-            <div style={S.optRow}>
+            <div className="settings-toggles" style={{ marginTop: 4 }}>
               {[{v: "8", l: "1/8"}, {v: "16", l: "1/16"}, {v: "32", l: "1/32"}, {v: "64", l: "1/64"}].map(r => (
-                <button key={r.v} onClick={() => localStorage.setItem("mloop-roll-rate", r.v)}
-                  style={S.opt((localStorage.getItem("mloop-roll-rate") || "16") === r.v)}>
+                <button key={r.v} className={`settings-toggle${(localStorage.getItem("mloop-roll-rate") || "16") === r.v ? " on" : ""}`}
+                  onClick={() => localStorage.setItem("mloop-roll-rate", r.v)}
+                  style={{ justifyContent: "center" }}>
                   {r.l}
                 </button>
               ))}
@@ -227,50 +224,68 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
           )}
 
           <div style={{ padding: "5px 0" }}>
-            <span style={S.label}>Lock bars (LOCK sync)</span>
-            <div style={S.optRow}>
+            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Lock bars (LOCK sync)</span>
+            <div className="settings-toggles" style={{ marginTop: 4 }}>
               {([1, 2, 4, 8] as const).map(bars => (
-                <button key={bars} onClick={() => {
-                  setLockBars(bars); saveLockBarsValue(bars);
-                  if (engine) engine.lockBars = bars;
-                }} style={S.opt(lockBars === bars)}>
+                <button key={bars} className={`settings-toggle${lockBars === bars ? " on" : ""}`}
+                  onClick={() => {
+                    setLockBars(bars); saveLockBarsValue(bars);
+                    if (engine) engine.lockBars = bars;
+                  }}
+                  style={{ justifyContent: "center" }}>
                   {bars} bar{bars > 1 ? "s" : ""}
                 </button>
               ))}
             </div>
           </div>
+        </div>
 
-          {/* ── Session ───────────────────────────────────────── */}
-          <div style={S.section}>Session</div>
+        {/* ── Session ───────────────────────────────────────── */}
+        <div className="settings-section">
+          <div className="settings-label">Session</div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => command({ type: "export_session_file" })}
-              style={{ ...S.toggle(false), flex: 1, padding: "6px 4px", fontSize: 10 }}>
+            <button className="settings-toggle" onClick={() => command({ type: "export_session_file" })}
+              style={{ flex: 1, justifyContent: "center" }}>
               Export
             </button>
-            <button onClick={() => command({ type: "import_session_file" })}
-              style={{ ...S.toggle(false), flex: 1, padding: "6px 4px", fontSize: 10 }}>
+            <button className="settings-toggle" onClick={() => command({ type: "import_session_file" })}
+              style={{ flex: 1, justifyContent: "center" }}>
               Import
             </button>
           </div>
+        </div>
 
-          {/* ── Link Bridge ───────────────────────────────────── */}
-          <div style={S.section}>Link Bridge</div>
+        {/* ── Link Bridge ───────────────────────────────────── */}
+        <div className="settings-section">
+          <div className="settings-label">Link Bridge</div>
           <div style={{ fontSize: 10, color: "var(--text-dim)", lineHeight: 1.5 }}>
             Sync BPM and play/stop with <a href="https://mpump.live" target="_blank" rel="noopener" style={{ color: "var(--preview)" }}>mpump</a> via Link Bridge.
             Enable with the <b style={{ color: "var(--text)" }}>L</b> button in the header.
             Both apps must be on the same computer with Link Bridge running.
           </div>
+        </div>
 
-          {/* ── Info ──────────────────────────────────────────── */}
-          <div style={S.section}>Info</div>
+        {/* ── Companion App ───────────────────────────────────── */}
+        <div className="settings-section">
+          <div className="settings-label">Companion</div>
+          <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.6 }}>
+            <a href="https://mpump.live" target="_blank" rel="noopener" style={{ color: "var(--preview)", fontWeight: 700 }}>mpump</a> — Drums, synth, sequencer. Sync via Link Bridge.
+          </div>
+        </div>
+
+        {/* ── Info ──────────────────────────────────────────── */}
+        <div className="settings-section">
+          <div className="settings-label">Info</div>
           <div style={{ fontSize: 10, color: "var(--text-dim)", lineHeight: 1.8 }}>
             Latency: <b style={{ color: "var(--text)" }}>{latencyMs.toFixed(1)} ms</b> ·
             Session: <b style={{ color: "var(--text)" }}>{sessionSizeMB.toFixed(1)} MB</b> ·
             Rate: <b style={{ color: "var(--text)" }}>44100 Hz</b>
           </div>
+        </div>
 
-          {/* ── Reset ─────────────────────────────────────────── */}
-          <div style={{ ...S.section, marginTop: 24 }}>Danger Zone</div>
+        {/* ── Reset ─────────────────────────────────────────── */}
+        <div className="settings-section" style={{ marginTop: 8 }}>
+          <div className="settings-label">Danger Zone</div>
           <button
             onClick={() => {
               if (window.confirm("Reset everything? This will delete all sessions, samples, settings, and reload the app. This cannot be undone.")) {
@@ -288,11 +303,11 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
           >
             Reset Everything
           </button>
-          <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 3, textAlign: "center" }}>
+          <div className="settings-privacy">
             Deletes all sessions, samples, kits, and settings
           </div>
-
         </div>
+
       </div>
     </div>
   );
