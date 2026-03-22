@@ -45,6 +45,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [isPinned, setIsPinned] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
+  const [lowSignalAlert, setLowSignalAlert] = useState(false);
+  const lowSignalCounter = useRef(0);
   const [masterRec, setMasterRec] = useState(false);
   const [masterRecTime, setMasterRecTime] = useState(0);
   const masterRecStart = useRef(0);
@@ -77,21 +79,44 @@ export function Layout({ state, command, engine }: LayoutProps) {
     }
   };
 
-  // Poll mic input level for LED indicator (looper bar)
+  // Ref to padEngine for use in rAF poll (padEngine declared later via useMemo)
+  const padEngineRef = useRef<{ slots: { status: string }[] } | null>(null);
+
+  // Poll mic input level + global low signal detection
   useEffect(() => {
     if (!engine) return;
     let raf = 0;
+    let frame = 0;
     const poll = () => {
-      setMicLevel(engine.getInputLevel());
+      const level = engine.getInputLevel();
+      setMicLevel(level);
+
+      // Global low signal detection — checks all recording sources
+      frame++;
+      if (frame % 60 === 0 && engine.hasMic) {
+        const isAnythingRecording =
+          state.tracks.some(t => t.status === "recording" || t.status === "overdubbing") ||
+          padEngineRef.current?.slots.some(s => s.status === "recording") ||
+          false;
+
+        if (isAnythingRecording && level < 0.02) {
+          lowSignalCounter.current++;
+          if (lowSignalCounter.current >= 2) setLowSignalAlert(true);
+        } else {
+          lowSignalCounter.current = 0;
+          if (!isAnythingRecording || level >= 0.02) setLowSignalAlert(false);
+        }
+      }
+
       raf = requestAnimationFrame(poll);
     };
     raf = requestAnimationFrame(poll);
     return () => cancelAnimationFrame(raf);
-  }, [engine]);
+  }, [engine, state.tracks]);
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.16.4";
+    const APP_VERSION = "0.16.5";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -116,6 +141,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
     pe.countInBeats = parseInt(localStorage.getItem("mloop-count-in") || "4");
     return pe;
   }, [engine]);
+  // Keep ref in sync for rAF poll (declared before padEngine due to hook ordering)
+  padEngineRef.current = padEngine;
 
   // Load 8 default drum samples into pads on first init
   useEffect(() => {
@@ -240,7 +267,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.16.4</span>
+          <span className="title-version">0.16.5</span>
         </div>
 
         {/* View toggle */}
@@ -341,6 +368,17 @@ export function Layout({ state, command, engine }: LayoutProps) {
           background: "var(--preview)", color: "#000", cursor: "pointer",
         }}>
           New version available — tap to update
+        </div>
+      )}
+
+      {/* Global low signal alert — visible in both PAD and LOOPER views */}
+      {lowSignalAlert && (
+        <div onClick={() => setLowSignalAlert(false)} style={{
+          padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+          color: "#000", background: "#f0883e", textAlign: "center",
+          animation: "pulse 1.5s ease-in-out infinite",
+        }}>
+          ⚠ No signal detected — increase MIC gain
         </div>
       )}
 

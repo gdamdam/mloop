@@ -204,8 +204,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
   const [dragOverPad, setDragOverPad] = useState<number | null>(null);
   const [countIn, setCountIn] = useState(0);
   const [playingPads, setPlayingPads] = useState<Set<number>>(new Set());
-  const [lowSignalHint, setLowSignalHint] = useState(false);
-  const lowSignalCounter = useRef(0);
+  // Low signal detection moved to Layout.tsx (global alert for all recorders)
   const [, forceUpdate] = useState(0);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
@@ -220,44 +219,18 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
     sync();
   }, [padEngine]);
 
-  // Input level meter + low signal detection + auto-gain
+  // Input level meter for waveform display
   useEffect(() => {
     if (!engine) return;
     let raf = 0;
-    let frame = 0;
     const update = () => {
-      const level = engine.getInputLevel();
-      setInputLevel(level);
-
-      // Check for low/no signal while recording
-      frame++;
-      const isRecording = padEngine?.slots.some(s => s.status === "recording");
-      if (frame % 60 === 0 && engine.hasMic && isRecording) {
-        if (level < 0.02) {
-          lowSignalCounter.current++;
-          // Show after 2 consecutive low readings (~2 seconds of recording)
-          if (lowSignalCounter.current >= 2 && !lowSignalHint) {
-            setLowSignalHint(true);
-          }
-        } else {
-          lowSignalCounter.current = 0;
-          if (lowSignalHint) setLowSignalHint(false);
-        }
-      } else if (!isRecording) {
-        lowSignalCounter.current = 0;
-        if (lowSignalHint) setLowSignalHint(false);
-      }
-
-      // Auto-gain if enabled (runs always, not just while recording)
-      if (frame % 60 === 0 && engine.hasMic && localStorage.getItem("mloop-auto-gain") === "on") {
-        engine.autoGain(0.3);
-      }
+      setInputLevel(engine.getInputLevel());
 
       raf = requestAnimationFrame(update);
     };
     update();
     return () => cancelAnimationFrame(raf);
-  }, [engine, lowSignalHint]);
+  }, [engine]);
 
   // Roll state — hold >300ms triggers roll at 1/16 rate
   const rollSlotRef = useRef<number | null>(null);
@@ -472,17 +445,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               transition: "width 0.05s",
             }} />
           </div>
-          {/* Low signal hint — inside INPUT div */}
-          {lowSignalHint && (
-            <div onClick={() => setLowSignalHint(false)} style={{
-              padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
-              color: "#000", background: "#f0883e", textAlign: "center",
-              borderRadius: 6, margin: "4px 0",
-              animation: "pulse 1.5s ease-in-out infinite",
-            }}>
-              ⚠ No signal detected — increase MIC gain in Looper view
-            </div>
-          )}
+          {/* Low signal alert moved to Layout.tsx — global for all recorders */}
         </div>
 
         {/* 4x4 Pad Grid */}
