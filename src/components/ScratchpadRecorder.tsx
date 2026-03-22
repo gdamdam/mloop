@@ -20,6 +20,9 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
   const [buffer, setBuffer] = useState<Float32Array | null>(null);
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(1);
+  const [playing, setPlaying] = useState(false);
+  const [looping, setLooping] = useState(false);
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const recorderRef = useRef<Recorder | null>(null);
   // For resample/dub: MediaStreamDestination to capture master output
@@ -120,6 +123,36 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
     return buffer.slice(start, end);
   }, [buffer, trimStart, trimEnd]);
 
+  /** Play the trimmed buffer preview. */
+  const playPreview = useCallback(() => {
+    if (!engine || !buffer) return;
+    // Stop any existing playback
+    if (sourceNodeRef.current) {
+      try { sourceNodeRef.current.stop(); sourceNodeRef.current.disconnect(); } catch { /* ok */ }
+    }
+    const trimmed = getTrimmedBuffer();
+    if (!trimmed || trimmed.length === 0) return;
+    const audioBuf = engine.ctx.createBuffer(1, trimmed.length, engine.ctx.sampleRate);
+    audioBuf.copyToChannel(new Float32Array(trimmed), 0);
+    const src = engine.ctx.createBufferSource();
+    src.buffer = audioBuf;
+    src.loop = looping;
+    src.connect(engine.getMasterNode());
+    src.onended = () => { if (!looping) setPlaying(false); };
+    src.start();
+    sourceNodeRef.current = src;
+    setPlaying(true);
+  }, [engine, buffer, looping, getTrimmedBuffer]);
+
+  /** Stop preview playback. */
+  const stopPreview = useCallback(() => {
+    if (sourceNodeRef.current) {
+      try { sourceNodeRef.current.stop(); sourceNodeRef.current.disconnect(); } catch { /* ok */ }
+      sourceNodeRef.current = null;
+    }
+    setPlaying(false);
+  }, []);
+
   // Draw waveform
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -217,12 +250,28 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
         {/* Auto-trim + duration */}
         {buffer && (
           <>
+            <button onClick={playing ? stopPreview : playPreview} style={{
+              fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
+              background: playing ? "var(--playing)" : "var(--bg-cell)",
+              color: playing ? "#000" : "var(--text)",
+              border: "none", cursor: "pointer",
+            }}>
+              {playing ? "■" : "▶"}
+            </button>
+            <button onClick={() => { setLooping(!looping); if (playing) { stopPreview(); } }} style={{
+              fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
+              background: looping ? "var(--preview)" : "var(--bg-cell)",
+              color: looping ? "#000" : "var(--text-dim)",
+              border: "none", cursor: "pointer",
+            }}>
+              ↻
+            </button>
             <button onClick={autoTrim} style={{
               fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
               background: "var(--bg-cell)", color: "var(--text-dim)",
               border: "none", cursor: "pointer",
             }}>
-              Auto-Trim
+              Trim
             </button>
             <span style={{ fontSize: 8, color: "var(--text-dim)", marginLeft: "auto" }}>
               {trimmedDur.toFixed(1)}s

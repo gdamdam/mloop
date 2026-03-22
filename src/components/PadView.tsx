@@ -87,9 +87,12 @@ function InputWaveform({ analyser, isRecording }: { analyser: AnalyserNode | nul
         ctx.scale(dpr, dpr);
       }
 
-      // Fade previous frame instead of clearing — creates decay trail
-      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      // Fade previous frame — use theme bg for proper light/dark support
+      const bgColor = getComputedStyle(document.documentElement).getPropertyValue("--bg-cell").trim() || "#21262d";
+      ctx.fillStyle = bgColor;
+      ctx.globalAlpha = 0.3;
       ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = 1;
 
       const dataLen = analyser.fftSize;
       const data = new Uint8Array(dataLen);
