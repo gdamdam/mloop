@@ -354,7 +354,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               <span style={{ fontSize: 7, color: "var(--text-dim)", marginLeft: 6 }}>MIC</span>
               <input
                 type="range" className="volume-slider"
-                min={0} max={20} step={0.1}
+                min={0} max={50} step={0.5}
                 defaultValue={1}
                 onChange={(e) => {
                   if (engine) engine.setMicGain(parseFloat(e.target.value));
@@ -363,7 +363,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
                 title="Mic gain (0–5x)"
               />
               <span style={{ fontSize: 7, color: "var(--preview)", fontWeight: 700, minWidth: 20 }}>
-                {engine ? `${Math.round(engine.getInputNode().gain.value * 5)}%` : "5%"}
+                {engine ? `${Math.round(engine.getInputNode().gain.value * 2)}%` : "2%"}
               </span>
             </div>
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>

@@ -332,8 +332,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
                 : !engine?.hasMic ? "var(--text-dim)"
                 : (engine?.getInputLevel() ?? 0) > 0.02 ? "#66ff99" : "#f0883e",
             }} />
-            <HeaderSlider label="MIC" min={0} max={20} step={0.1} initial={1}
-              format={(v) => `${Math.round(v * 5)}%`}
+            <HeaderSlider label="MIC" min={0} max={50} step={0.5} initial={1}
+              format={(v) => `${Math.round(v * 2)}%`}
               onChange={(v) => { if (engine) engine.setMicGain(v); }}
             />
             <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
@@ -341,7 +341,12 @@ export function Layout({ state, command, engine }: LayoutProps) {
             <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
             {/* Analog needle VU meter — fixed width */}
             <div style={{ width: 70, height: 36, flexShrink: 0 }}>
-              <NeedleMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
+              <NeedleMeter getAnalyser={() => {
+                if (!engine) return null;
+                // Show input level when idle, output level when playing
+                const isPlaying = state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing");
+                return isPlaying ? engine.getAnalyser() : engine.getInputAnalyser();
+              }} />
             </div>
           </div>
           <div className="tracks-row">
