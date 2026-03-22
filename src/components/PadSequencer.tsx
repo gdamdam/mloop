@@ -4,7 +4,7 @@
  * Supports drag-and-drop from pads onto steps.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { PadSlot } from "../engine/PadEngine";
 import type { PadEngine } from "../engine/PadEngine";
 
@@ -15,6 +15,8 @@ interface PadSequencerProps {
   bpm: number;
   onTrigger: (slotIds: number[]) => void;
   padEngine: PadEngine | null;
+  /** Ref filled with a function to record a pad hit at the current step. */
+  recordHitRef?: React.MutableRefObject<((padId: number) => void) | null>;
 }
 
 /** Generate a random believable drum pattern. */
@@ -42,16 +44,38 @@ function generateRandomPattern(numSteps: number, loadedIds: number[]): boolean[]
   return grid;
 }
 
-export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: PadSequencerProps) {
+export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, recordHitRef }: PadSequencerProps) {
   void _onTrigger;
   const [numSteps, setNumSteps] = useState(16);
   const [grid, setGrid] = useState<boolean[][]>(() =>
     Array.from({ length: 64 }, () => Array(16).fill(false))
   );
   const [playing, setPlaying] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [dragOverCell, setDragOverCell] = useState<{ step: number; slot: number } | null>(null);
   const [mutedRows, setMutedRows] = useState<Set<number>>(new Set());
+  const currentStepRef = useRef(-1);
+
+  // Real-time step recording — when recording + playing, pad hits write to grid
+  const recordingRef = useRef(false);
+  recordingRef.current = recording;
+
+  const recordHit = useCallback((padId: number) => {
+    if (!recordingRef.current || currentStepRef.current < 0) return;
+    const step = currentStepRef.current;
+    setGrid(prev => {
+      const next = prev.map(row => [...row]);
+      next[step][padId] = true; // overdub — always add, never remove
+      return next;
+    });
+  }, []);
+
+  // Expose recordHit to parent via ref
+  useEffect(() => {
+    if (recordHitRef) recordHitRef.current = recordHit;
+    return () => { if (recordHitRef) recordHitRef.current = null; };
+  }, [recordHitRef, recordHit]);
 
   const loadedSlots = slots.filter(s => s.status === "loaded");
 
@@ -127,7 +151,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: P
   useEffect(() => {
     if (!padEngine) return;
     // eslint-disable-next-line react-hooks/immutability -- padEngine is an external class instance, not React state
-    padEngine.onStepChange = (step) => setCurrentStep(step);
+    padEngine.onStepChange = (step) => { setCurrentStep(step); currentStepRef.current = step; };
     return () => { padEngine.onStepChange = null; };
   }, [padEngine]);
 
@@ -171,6 +195,19 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: P
           }}
         >
           {playing ? "■" : "▶"}
+        </button>
+        <button
+          onClick={() => { if (!playing) { setPlaying(true); } setRecording(!recording); }}
+          style={{
+            width: 32, height: 32, borderRadius: "50%", fontSize: 9, fontWeight: 700,
+            background: recording ? "var(--record)" : "var(--bg-cell)",
+            color: recording ? "#fff" : "var(--text-dim)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            animation: recording ? "pulse 1s ease-in-out infinite" : "none",
+          }}
+          title="Real-time step recording — play pads to record into grid"
+        >
+          ●
         </button>
         <span style={{ fontSize: 9, color: "var(--text-dim)", letterSpacing: 1 }}>SEQUENCER</span>
         {/* Step count selector */}
