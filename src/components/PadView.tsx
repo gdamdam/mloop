@@ -229,29 +229,28 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
       const level = engine.getInputLevel();
       setInputLevel(level);
 
-      // Check for low signal only while recording (not idle)
+      // Check for low/no signal while recording
       frame++;
       const isRecording = padEngine?.slots.some(s => s.status === "recording");
       if (frame % 60 === 0 && engine.hasMic && isRecording) {
-        if (level > 0.001 && level < 0.02) {
+        if (level < 0.02) {
           lowSignalCounter.current++;
-          // Show hint after 3 consecutive low readings (~3 seconds of recording)
-          if (lowSignalCounter.current >= 3 && !lowSignalHint) {
+          // Show after 2 consecutive low readings (~2 seconds of recording)
+          if (lowSignalCounter.current >= 2 && !lowSignalHint) {
             setLowSignalHint(true);
           }
         } else {
           lowSignalCounter.current = 0;
-          if (level >= 0.02) setLowSignalHint(false);
+          if (lowSignalHint) setLowSignalHint(false);
         }
       } else if (!isRecording) {
-        // Reset when not recording
         lowSignalCounter.current = 0;
         if (lowSignalHint) setLowSignalHint(false);
+      }
 
-        // Auto-gain if enabled
-        if (localStorage.getItem("mloop-auto-gain") === "on") {
-          engine.autoGain(0.3);
-        }
+      // Auto-gain if enabled (runs always, not just while recording)
+      if (frame % 60 === 0 && engine.hasMic && localStorage.getItem("mloop-auto-gain") === "on") {
+        engine.autoGain(0.3);
       }
 
       raf = requestAnimationFrame(update);
@@ -476,10 +475,12 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
           {/* Low signal hint — inside INPUT div */}
           {lowSignalHint && (
             <div onClick={() => setLowSignalHint(false)} style={{
-              padding: "2px 8px", fontSize: 9, cursor: "pointer",
-              color: "var(--overdub)", textAlign: "center",
+              padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              color: "#000", background: "#f0883e", textAlign: "center",
+              borderRadius: 6, margin: "4px 0",
+              animation: "pulse 1.5s ease-in-out infinite",
             }}>
-              ⚠ Low signal — increase MIC gain ✕
+              ⚠ No signal detected — increase MIC gain in Looper view
             </div>
           )}
         </div>
