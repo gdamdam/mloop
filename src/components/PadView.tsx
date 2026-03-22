@@ -259,6 +259,21 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
                 transition: "background 0.15s, box-shadow 0.15s",
               }} />
               <span>{recordingSlot !== null ? `REC → PAD ${recordingSlot + 1}` : "INPUT"}</span>
+              {/* Mic gain control */}
+              <span style={{ fontSize: 7, color: "var(--text-dim)", marginLeft: 6 }}>MIC</span>
+              <input
+                type="range" className="volume-slider"
+                min={0} max={5} step={0.1}
+                defaultValue={1}
+                onChange={(e) => {
+                  if (engine) engine.getInputNode().gain.value = parseFloat(e.target.value);
+                }}
+                style={{ width: 40 }}
+                title="Mic gain (0–5x)"
+              />
+              <span style={{ fontSize: 7, color: "var(--preview)", fontWeight: 700, minWidth: 20 }}>
+                {engine ? `${engine.getInputNode().gain.value.toFixed(1)}x` : "1.0x"}
+              </span>
             </div>
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
               {/* Built-in kit presets */}
