@@ -43,7 +43,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.13.1";
+    const APP_VERSION = "0.13.2";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -192,7 +192,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.13.1</span>
+          <span className="title-version">0.13.2</span>
         </div>
 
         {/* View toggle */}
@@ -309,6 +309,36 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {/* ── View content ─────────────────────────────────────────────── */}
       {viewMode === "tracks" ? (
         <div className="looper-layout">
+          {/* Looper control bar */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "6px 16px", background: "var(--bg-panel)",
+            borderBottom: "1px solid var(--border)",
+          }}>
+            <button
+              onClick={handleMainPlayStop}
+              style={{
+                width: 32, height: 32, borderRadius: "50%", fontSize: 14, flexShrink: 0,
+                background: anyRecording ? "var(--record)"
+                  : state.tracks.some(t => t.status === "playing") ? "var(--playing)"
+                  : "var(--bg-cell)",
+                color: anyRecording || state.tracks.some(t => t.status === "playing") ? "#000" : "var(--text)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: "none", cursor: "pointer",
+                boxShadow: anyRecording ? "0 0 10px var(--record)"
+                  : state.tracks.some(t => t.status === "playing") ? "0 0 8px var(--playing)" : "none",
+              }}
+            >
+              {anyRecording || state.tracks.some(t => t.status === "playing") ? "■" : "▶"}
+            </button>
+            <span style={{ fontSize: 7, color: "var(--text-dim)" }}>MIC</span>
+            <input type="range" className="volume-slider" min={0} max={5} step={0.1} defaultValue={1}
+              onChange={(e) => { if (engine) engine.getInputNode().gain.value = parseFloat(e.target.value); }}
+              style={{ width: 50 }} title="Mic gain" />
+            <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
+              style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
+            <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
+          </div>
           <div className="tracks-row">
             {state.tracks.map((track) => (
               <TrackStrip key={track.id} track={track} command={command} engine={engine} padEngine={padEngine} />
