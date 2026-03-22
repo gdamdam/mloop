@@ -3,10 +3,9 @@
  *
  * Simulates analog tape decay by degrading the actual signal each pass:
  * - Cumulative treble loss (tape head gap loss — most important)
- * - Tape saturation (soft clipping, warm compression)
+ * - Tape saturation (soft clipping, warm compression — volume neutral)
  * - Wow/flutter (slow pitch drift across the buffer)
  * - Print-through (faint ghost echo from adjacent tape layers)
- * - Gentle volume loss per generation
  * - Subtle hiss (only at higher intensities)
  *
  * The signal itself deteriorates — it doesn't just add noise on top.
@@ -27,20 +26,12 @@ export class DestructionEngine {
     if (this.amount <= 0) return;
     this.cycleCount++;
 
-    // Intensity ramps over 5 cycles for gradual onset
     const intensity = this.amount * Math.min(this.cycleCount / 5, 1);
     const len = buffer.length;
 
-    // Measure RMS before processing — we'll match it after to prevent volume growth
-    let rmsBefore = 0;
-    for (let i = 0; i < len; i++) rmsBefore += buffer[i] * buffer[i];
-    rmsBefore = Math.sqrt(rmsBefore / len);
-
     // 1. Treble loss — progressive low-pass, the core of tape decay.
-    //    Each pass through tape heads loses high frequencies.
-    //    Multiple passes with moderate cutoff = natural cumulative roll-off.
-    const cutoff = 0.15 + (1 - intensity) * 0.75; // 0.9 (subtle) → 0.15 (heavy muffling)
-    const passes = 1 + Math.floor(intensity * 3); // 1–4 filter passes
+    const cutoff = 0.15 + (1 - intensity) * 0.75;
+    const passes = 1 + Math.floor(intensity * 3);
     for (let p = 0; p < passes; p++) {
       let prev = buffer[0];
       for (let i = 1; i < len; i++) {
@@ -49,22 +40,22 @@ export class DestructionEngine {
       }
     }
 
-    // 2. Tape saturation — soft clipping that compresses peaks.
-    //    Uses tanh which maps [-1,1] → [-1,1] without volume change.
-    if (intensity > 0.05) {
-      const drive = 1 + intensity * 1.5;
+    // 2. Tape saturation — soft clipping without volume change.
+    //    Apply tanh to samples above a threshold, leave quiet parts alone.
+    //    This compresses peaks (warmth) without amplifying anything.
+    if (intensity > 0.1) {
       for (let i = 0; i < len; i++) {
-        buffer[i] = Math.tanh(buffer[i] * drive) / Math.tanh(drive);
+        const s = buffer[i];
+        // Only saturate — never make louder than input
+        buffer[i] = Math.tanh(s);
       }
     }
 
     // 3. Wow/flutter — slow pitch drift across the buffer.
-    //    Real tape has mechanical speed variation from the motor/capstan.
-    //    We simulate by reading from slightly shifted positions.
     if (intensity > 0.1) {
       const copy = new Float32Array(buffer);
-      const wowFreq = 0.5 + Math.random() * 1.5; // Hz-range wobble
-      const wowDepth = intensity * 8; // max ±8 samples drift
+      const wowFreq = 0.5 + Math.random() * 1.5;
+      const wowDepth = intensity * 8;
       const wowPhase = Math.random() * Math.PI * 2;
       for (let i = 0; i < len; i++) {
         const offset = Math.sin(wowPhase + (i / len) * Math.PI * 2 * wowFreq) * wowDepth;
@@ -72,23 +63,21 @@ export class DestructionEngine {
         const idx0 = Math.floor(srcIdx);
         const frac = srcIdx - idx0;
         if (idx0 >= 0 && idx0 < len - 1) {
-          // Linear interpolation for smooth pitch shift
           buffer[i] = copy[idx0] * (1 - frac) + copy[idx0 + 1] * frac;
         }
       }
     }
 
-    // 4. Print-through — faint ghost echo from adjacent tape layers.
-    //    Mix in a delayed copy rather than adding — prevents volume buildup.
+    // 4. Print-through — blend (not add) a delayed copy.
     if (intensity > 0.3) {
       const echoSamples = Math.floor(len * 0.03);
-      const echoMix = intensity * 0.03; // very subtle blend
+      const echoMix = intensity * 0.03;
       for (let i = echoSamples; i < len; i++) {
         buffer[i] = buffer[i] * (1 - echoMix) + buffer[i - echoSamples] * echoMix;
       }
     }
 
-    // 5. Subtle tape hiss — only at higher intensities, very low level
+    // 5. Subtle tape hiss — only at higher intensities
     if (intensity > 0.4) {
       const hissLevel = (intensity - 0.4) * 0.008;
       for (let i = 0; i < len; i++) {
@@ -96,16 +85,10 @@ export class DestructionEngine {
       }
     }
 
-    // 6. RMS matching — scale output to match original loudness.
-    //    Guarantees volume never grows regardless of what effects do.
-    let rmsAfter = 0;
-    for (let i = 0; i < len; i++) rmsAfter += buffer[i] * buffer[i];
-    rmsAfter = Math.sqrt(rmsAfter / len);
-    if (rmsAfter > 0.0001 && rmsBefore > 0.0001) {
-      const scale = rmsBefore / rmsAfter;
-      for (let i = 0; i < len; i++) {
-        buffer[i] *= scale;
-      }
+    // 6. Clamp — hard limit, no sample above ±1
+    for (let i = 0; i < len; i++) {
+      if (buffer[i] > 1) buffer[i] = 1;
+      else if (buffer[i] < -1) buffer[i] = -1;
     }
   }
 
