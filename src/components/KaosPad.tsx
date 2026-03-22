@@ -297,7 +297,9 @@ export function KaosPad({ engine }: KaosPadProps) {
   }, [engine]);
 
   return (
-    <div style={{ padding: "0 8px 8px" }}>
+    <div className="kaos-split">
+      {/* Left: XY pad */}
+      <div className="kaos-pad-col">
       {/* XY Target selectors */}
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -355,9 +357,11 @@ export function KaosPad({ engine }: KaosPadProps) {
           {XY_TARGETS.find(t => t.id === yTarget)?.label} →
         </span>
       </div>
+      </div>
 
-      {/* Effects rack — mpump KAOS style */}
-      <div style={{ marginTop: 8 }}>
+      {/* Right: Effects chain */}
+      <div className="kaos-fx-col">
+      <div>
         <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 4, letterSpacing: 1 }}>
           EFFECTS <span style={{ opacity: 0.5, fontStyle: "italic" }}>tap on/off · hold to edit</span>
         </div>
@@ -510,6 +514,7 @@ export function KaosPad({ engine }: KaosPadProps) {
           onClose={() => setShowChainEditor(false)}
         />
       )}
+      </div>
     </div>
   );
 }
