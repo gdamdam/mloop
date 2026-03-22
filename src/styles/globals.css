@@ -758,6 +758,7 @@ input[type="range"] {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
+  width: 340px;
   max-width: 90vw;
   max-height: 85vh;
   overflow-y: auto;
