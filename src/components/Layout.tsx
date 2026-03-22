@@ -12,6 +12,7 @@ import { ShortcutOverlay } from "./ShortcutOverlay";
 import { MidiMapper } from "./MidiMapper";
 import { HelpModal } from "./HelpModal";
 import { AboutModal } from "./AboutModal";
+import { PrivacyModal } from "./PrivacyModal";
 import { Tutorial } from "./Tutorial";
 import { SettingsPanel } from "./SettingsPanel";
 import { AppFooter } from "./AppFooter";
@@ -40,6 +41,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [showMidi, setShowMidi] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem("mloop-tutorial-seen") !== "true");
   const [showHamburger, setShowHamburger] = useState(false);
@@ -118,7 +120,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "1.0.0-pre.11";
+    const APP_VERSION = "1.0.0-pre.12";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -299,7 +301,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× credits">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">1.0.0-pre.11</span>
+          <span className="title-version">1.0.0-pre.12</span>
         </div>
 
         {/* View toggle */}
@@ -519,7 +521,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
       )}
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
-      <AppFooter onShowHelp={() => setShowHelp(true)} onShowCredits={() => setShowAbout(true)} />
+      <AppFooter onShowHelp={() => setShowHelp(true)} onShowCredits={() => setShowAbout(true)} onShowPrivacy={() => setShowPrivacy(true)} />
 
       {/* ── Modals ────────────────────────────────────────────────────── */}
       {showSessions && (
@@ -535,6 +537,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {showMidi && midiRef.current && <MidiMapper controller={midiRef.current} onClose={() => setShowMidi(false)} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} onShowTutorial={() => { setShowHelp(false); setShowTutorial(true); }} onShowCredits={() => { setShowHelp(false); setShowAbout(true); }} />}
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} getAnalyser={() => engine?.getAnalyser() ?? null} />}
+      {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
       {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
       {showSettings && (
         <SettingsPanel
