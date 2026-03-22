@@ -67,6 +67,52 @@ export class PadEngine {
     }
   }
 
+  // ── Undo (1 level) ──────────────────────────────────────────────────
+  private undoSlots: { name: string; buffer: Float32Array<ArrayBuffer> | null; status: string; volume: number; pan: number; pitch: number; playMode: string; trimStart: number; trimEnd: number; loopBeats: number; muteGroup: number }[] | null = null;
+  private undoGrid: boolean[][] | null = null;
+
+  /** Save current pad + grid state before a mutation. */
+  saveUndo(): void {
+    this.undoSlots = this.slots.map(s => ({
+      name: s.name, buffer: s.buffer ? new Float32Array(s.buffer) as Float32Array<ArrayBuffer> : null,
+      status: s.status, volume: s.volume, pan: s.pan, pitch: s.pitch,
+      playMode: s.playMode, trimStart: s.trimStart, trimEnd: s.trimEnd,
+      loopBeats: s.loopBeats, muteGroup: s.muteGroup,
+    }));
+    this.undoGrid = this.seqGrid.map(row => [...row]);
+  }
+
+  /** Restore previous state. Returns true if there was something to undo. */
+  undo(): boolean {
+    if (!this.undoSlots) return false;
+    for (let i = 0; i < 16; i++) {
+      const snap = this.undoSlots[i];
+      const slot = this.slots[i];
+      slot.name = snap.name;
+      slot.buffer = snap.buffer;
+      slot.status = snap.buffer ? "loaded" : "empty";
+      slot.volume = snap.volume; slot.pan = snap.pan; slot.pitch = snap.pitch;
+      slot.playMode = snap.playMode as "one" | "gate" | "loop";
+      slot.trimStart = snap.trimStart; slot.trimEnd = snap.trimEnd;
+      slot.loopBeats = snap.loopBeats; slot.muteGroup = snap.muteGroup;
+      // Rebuild AudioBuffer from Float32Array
+      if (snap.buffer) {
+        const ab = this.ctx.createBuffer(1, snap.buffer.length, this.ctx.sampleRate);
+        ab.copyToChannel(snap.buffer, 0);
+        slot.audioBuffer = ab;
+      } else {
+        slot.audioBuffer = null;
+      }
+    }
+    if (this.undoGrid) this.seqGrid = this.undoGrid.map(row => [...row]);
+    this.undoSlots = null;
+    this.undoGrid = null;
+    this.onStateChange?.();
+    return true;
+  }
+
+  get hasUndo(): boolean { return this.undoSlots !== null; }
+
   /** Play a metronome click (for count-in). */
   private playClick(when: number, isDownbeat: boolean): void {
     const osc = this.ctx.createOscillator();
@@ -338,6 +384,7 @@ export class PadEngine {
 
   /** Clear a pad slot — stops playback and removes the sample. */
   clear(slotId: number): void {
+    this.saveUndo();
     this.stopSlot(slotId);
     const slot = this.slots[slotId];
     if (slot) {
@@ -369,6 +416,7 @@ export class PadEngine {
 
   /** Import raw audio data into a pad slot (e.g., from file or session restore). */
   importBuffer(slotId: number, data: Float32Array, name?: string): void {
+    this.saveUndo();
     const slot = this.slots[slotId];
     if (!slot) return;
     slot.name = name || `Pad ${slotId + 1}`;
