@@ -190,6 +190,7 @@ const SECTIONS = [
       "**Logo click**: 1× = random theme, 2× = toggle beat pulse, 3× = help",
       "Logo pulses with the beat when audio is playing",
       "**⛶** — fullscreen mode",
+      "**Companion app**: <a href='https://mpump.live' target='_blank'>mpump</a> — drum machine & synth sequencer. Sync via Link Bridge.",
     ],
   },
 ];
