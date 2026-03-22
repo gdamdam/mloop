@@ -30,7 +30,7 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
       opacity: 0.7,
       lineHeight: 1.8,
     }}>
-      <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.34</span>
+      <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.35</span>
       {" · "}
       <VisitCounter />
       {" · "}
