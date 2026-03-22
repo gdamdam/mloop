@@ -77,9 +77,9 @@ export class DestructionEngine {
       }
     }
 
-    // 5. Subtle tape hiss — only at higher intensities
-    if (intensity > 0.4) {
-      const hissLevel = (intensity - 0.4) * 0.008;
+    // 5. Subtle tape hiss — barely audible, only at high intensity
+    if (intensity > 0.6) {
+      const hissLevel = (intensity - 0.6) * 0.002;
       for (let i = 0; i < len; i++) {
         buffer[i] += (Math.random() * 2 - 1) * hissLevel;
       }
