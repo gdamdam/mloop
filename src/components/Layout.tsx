@@ -13,6 +13,7 @@ import { MidiMapper } from "./MidiMapper";
 import { HelpModal } from "./HelpModal";
 import { AboutModal } from "./AboutModal";
 import { PrivacyModal } from "./PrivacyModal";
+import { MegaKaos } from "./MegaKaos";
 import { Tutorial } from "./Tutorial";
 import { SettingsPanel } from "./SettingsPanel";
 import { AppFooter } from "./AppFooter";
@@ -42,6 +43,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showMegaKaos, setShowMegaKaos] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem("mloop-tutorial-seen") !== "true");
   const [showHamburger, setShowHamburger] = useState(false);
@@ -120,7 +122,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "1.0.0-pre.14";
+    const APP_VERSION = "1.0.0-pre.15";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -284,6 +286,9 @@ export function Layout({ state, command, engine }: LayoutProps) {
       } else if (count === 2) {
         // Toggle logo pulse (beat-reactive animation)
         setLogoPulse(p => !p);
+      } else if (count >= 5) {
+        // Easter egg — fullscreen KAOS
+        setShowMegaKaos(true);
       } else if (count >= 3) {
         // Show credits
         setShowAbout(true);
@@ -299,9 +304,9 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="header">
         <div className="title">
-          <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× credits">{LOGO}</pre>
+          <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× credits · 5× ???">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">1.0.0-pre.14</span>
+          <span className="title-version">1.0.0-pre.15</span>
         </div>
 
         {/* View toggle */}
@@ -538,6 +543,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} onShowTutorial={() => { setShowHelp(false); setShowTutorial(true); }} onShowCredits={() => { setShowHelp(false); setShowAbout(true); }} />}
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} getAnalyser={() => engine?.getAnalyser() ?? null} />}
       {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
+      {showMegaKaos && <MegaKaos onClose={() => setShowMegaKaos(false)} getAnalyser={() => engine?.getAnalyser() ?? null} />}
       {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
       {showSettings && (
         <SettingsPanel
