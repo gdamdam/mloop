@@ -46,7 +46,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.13.7";
+    const APP_VERSION = "0.13.8";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -195,7 +195,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.13.7</span>
+          <span className="title-version">0.13.8</span>
         </div>
 
         {/* View toggle */}
@@ -441,7 +441,6 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
       <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>{"\u25D1"}</button>
       <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">{"\u26F6"}</button>
-      <button className="header-btn" onClick={() => command({ type: "share_link" })} title="Share settings link">{"\u2934"}</button>
       <button className="header-btn" onClick={() => { command({ type: "pin_session" }); setIsPinned(true); }}
         style={isPinned ? { background: "var(--preview)", color: "#000" } : undefined}
         title={isPinned ? "Session pinned \u2014 click to update" : "Pin session (auto-loads on next visit)"}>{"\u2605"}</button>
