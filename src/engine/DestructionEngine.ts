@@ -45,14 +45,11 @@ export class DestructionEngine {
     }
 
     // 2. Tape saturation — soft clipping that compresses peaks.
-    //    Tape naturally compresses loud signals, adding warmth not harshness.
-    //    Drive into soft clip, then compensate gain to maintain volume.
+    //    Uses tanh which maps [-1,1] → [-1,1] without volume change.
     if (intensity > 0.05) {
-      const drive = 1 + intensity * 1.5; // gentle 1x–2.5x overdrive
-      const compensation = 1 / (drive * 0.7); // bring level back down
+      const drive = 1 + intensity * 1.5;
       for (let i = 0; i < len; i++) {
-        const x = buffer[i] * drive;
-        buffer[i] = (x / (1 + Math.abs(x))) * compensation;
+        buffer[i] = Math.tanh(buffer[i] * drive) / Math.tanh(drive);
       }
     }
 
