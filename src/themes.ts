@@ -79,11 +79,11 @@ export function applyPalette(p: PaletteDef): void {
 
 /**
  * Load the saved palette ID from localStorage.
- * Falls back to time-of-day default: "minimal" during the day, "midnight" at night.
+ * Falls back to time-of-day default: "sand" during the day, "forest" at night.
  */
 export function loadPaletteId(): PaletteId {
   const stored = localStorage.getItem("mloop-palette");
   if (stored && PALETTES.find(p => p.id === stored)) return stored as PaletteId;
   const hour = new Date().getHours();
-  return (hour >= 6 && hour < 18) ? "cream" : "midnight";
+  return (hour >= 6 && hour < 18) ? "sand" : "forest";
 }
