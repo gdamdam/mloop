@@ -25,10 +25,13 @@ export function useLinkBridge(
 
   // Use refs for callbacks so the effect doesn't re-subscribe when they change
   const onPlayRef = useRef(onLinkPlay);
-  onPlayRef.current = onLinkPlay;
   const onStopRef = useRef(onLinkStop);
-  onStopRef.current = onLinkStop;
   const commandRef = useRef(command);
+  // eslint-disable-next-line react-hooks/refs
+  onPlayRef.current = onLinkPlay;
+  // eslint-disable-next-line react-hooks/refs
+  onStopRef.current = onLinkStop;
+  // eslint-disable-next-line react-hooks/refs
   commandRef.current = command;
 
   // Subscribe to Link state updates — single subscription, refs avoid stale closures
@@ -55,7 +58,7 @@ export function useLinkBridge(
       }
     });
     return unsub;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — refs keep values current
+  }, []);
 
   // Auto-detect on mount, or enable/disable based on setting
   useEffect(() => {
