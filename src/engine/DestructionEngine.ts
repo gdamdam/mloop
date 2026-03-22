@@ -77,31 +77,35 @@ export class DestructionEngine {
     }
 
     // 4. Print-through — faint ghost echo from adjacent tape layers.
-    //    On real tape, signal bleeds through to neighboring layers on the reel.
-    if (intensity > 0.2) {
-      const echoSamples = Math.floor(len * 0.03); // ~3% of loop length
-      const echoLevel = intensity * 0.06; // very subtle
+    //    Mix in a delayed copy rather than adding — prevents volume buildup.
+    if (intensity > 0.3) {
+      const echoSamples = Math.floor(len * 0.03);
+      const echoMix = intensity * 0.03; // very subtle blend
       for (let i = echoSamples; i < len; i++) {
-        buffer[i] += buffer[i - echoSamples] * echoLevel;
+        buffer[i] = buffer[i] * (1 - echoMix) + buffer[i - echoSamples] * echoMix;
       }
     }
 
-    // 5. No volume change — saturation preserves loudness naturally.
-    //    The soft clipping compresses peaks rather than cutting them,
-    //    so the signal stays at roughly the same perceived volume.
-
-    // 6. Subtle tape hiss — only at higher intensities, very low level
+    // 5. Subtle tape hiss — only at higher intensities, very low level
     if (intensity > 0.4) {
-      const hissLevel = (intensity - 0.4) * 0.01;
+      const hissLevel = (intensity - 0.4) * 0.008;
       for (let i = 0; i < len; i++) {
         buffer[i] += (Math.random() * 2 - 1) * hissLevel;
       }
     }
 
-    // Clamp to prevent overflow
+    // 6. Peak limiter — prevent any volume growth over cycles.
+    //    Measure peak and scale down if above original level.
+    let peak = 0;
     for (let i = 0; i < len; i++) {
-      if (buffer[i] > 1) buffer[i] = 1;
-      else if (buffer[i] < -1) buffer[i] = -1;
+      const abs = Math.abs(buffer[i]);
+      if (abs > peak) peak = abs;
+    }
+    if (peak > 0.95) {
+      const scale = 0.95 / peak;
+      for (let i = 0; i < len; i++) {
+        buffer[i] *= scale;
+      }
     }
   }
 
