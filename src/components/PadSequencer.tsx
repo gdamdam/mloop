@@ -231,7 +231,16 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         >
           ●
         </button>
-        <span style={{ fontSize: 9, color: "var(--text-dim)", letterSpacing: 1 }}>SEQUENCER</span>
+        <span style={{ fontSize: 9, color: "var(--text-dim)", letterSpacing: 1 }}>SEQ</span>
+        {/* Swing — inline with transport */}
+        <span style={{ fontSize: 7, color: "var(--text-dim)", marginLeft: 4 }}>Sw</span>
+        <input type="range" className="volume-slider" min={0} max={1} step={0.05}
+          value={padEngine?.getSeqSwing() ?? 0}
+          onChange={(e) => padEngine?.setSeqSwing(parseFloat(e.target.value))}
+          style={{ width: 40 }} />
+        <span style={{ fontSize: 7, color: "var(--text-dim)", minWidth: 14 }}>
+          {Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%
+        </span>
         {/* Step count selector */}
         <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
           {STEP_OPTIONS.map(n => (
@@ -295,18 +304,6 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         >
           RND
         </button>
-      </div>
-
-      {/* Swing slider — compact inline */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
-        <span style={{ fontSize: 7, color: "var(--text-dim)" }}>Swing</span>
-        <input type="range" className="volume-slider" min={0} max={1} step={0.05}
-          value={padEngine?.getSeqSwing() ?? 0}
-          onChange={(e) => padEngine?.setSeqSwing(parseFloat(e.target.value))}
-          style={{ width: 60 }} />
-        <span style={{ fontSize: 7, color: "var(--text-dim)", minWidth: 16 }}>
-          {Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%
-        </span>
       </div>
 
       {/* Step indicators — click/shift+click/drag to select steps for CLR */}
