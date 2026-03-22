@@ -34,9 +34,11 @@ function dbToAngle(db: number): number {
 
 interface NeedleMeterProps {
   getAnalyser: () => AnalyserNode | null;
+  /** Accent goes green only when a track is playing */
+  isPlaying?: boolean;
 }
 
-export function NeedleMeter({ getAnalyser }: NeedleMeterProps) {
+export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
   const ms = useRef({
@@ -92,9 +94,8 @@ export function NeedleMeter({ getAnalyser }: NeedleMeterProps) {
         s.smoothedRms *= 0.95;
       }
 
-      // Refresh accent color periodically
-      // Color: light gray when idle, green (#66ff99) when signal detected
-      s.accent = s.smoothedRms > 0.01 ? "#66ff99" : "#999";
+      // Green only when tracks are playing; gray otherwise
+      s.accent = isPlaying ? "#66ff99" : "#999";
 
       const db = toDB(s.smoothedRms);
       const targetAngle = dbToAngle(db);
