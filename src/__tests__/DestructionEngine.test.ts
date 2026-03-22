@@ -66,7 +66,8 @@ describe("DestructionEngine", () => {
   });
 
   it("progressive degradation increases with more cycles", () => {
-    // Compare the amount of change after 1 cycle vs 20 cycles
+    // Compare the amount of change after 1 cycle vs 5 cycles
+    // Engine ramps intensity over 5 cycles (Math.min(cycleCount/5, 1))
     const engine1 = new DestructionEngine();
     engine1.amount = 1.0;
     const buf1 = new Float32Array(50);
@@ -77,20 +78,20 @@ describe("DestructionEngine", () => {
     let diff1 = 0;
     for (let i = 0; i < 50; i++) diff1 += Math.abs(buf1[i] - orig1[i]);
 
-    const engine20 = new DestructionEngine();
-    engine20.amount = 1.0;
-    const buf20 = new Float32Array(50);
-    for (let i = 0; i < 50; i++) buf20[i] = Math.sin((2 * Math.PI * i) / 50) * 0.5;
-    // Run 19 cycles to build up cycleCount, then measure the 20th
-    for (let c = 0; c < 19; c++) engine20.degrade(buf20);
-    const before20 = Float32Array.from(buf20);
-    engine20.degrade(buf20);
+    const engine5 = new DestructionEngine();
+    engine5.amount = 1.0;
+    const buf5 = new Float32Array(50);
+    for (let i = 0; i < 50; i++) buf5[i] = Math.sin((2 * Math.PI * i) / 50) * 0.5;
+    // Run 4 cycles to build up cycleCount, then measure the 5th
+    for (let c = 0; c < 4; c++) engine5.degrade(buf5);
+    const before5 = Float32Array.from(buf5);
+    engine5.degrade(buf5);
 
-    let diff20 = 0;
-    for (let i = 0; i < 50; i++) diff20 += Math.abs(buf20[i] - before20[i]);
+    let diff5 = 0;
+    for (let i = 0; i < 50; i++) diff5 += Math.abs(buf5[i] - before5[i]);
 
-    // The 20th cycle should cause more change than the 1st due to intensity ramp
-    expect(diff20).toBeGreaterThan(diff1);
+    // The 5th cycle should cause more change than the 1st due to intensity ramp
+    expect(diff5).toBeGreaterThan(diff1);
   });
 
   it("reset clears cycleCount", () => {
