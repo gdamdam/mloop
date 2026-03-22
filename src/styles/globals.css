@@ -207,6 +207,41 @@ input[type="range"] {
   min-width: 28px;
 }
 
+/* ── Mobile hamburger menu ─────────────────────────────────────────── */
+
+/* Desktop: show inline buttons, hide hamburger */
+.header-buttons-desktop { display: flex !important; }
+.header-hamburger-wrap { display: none !important; }
+.header-overflow-menu { display: none; }
+
+@media (max-width: 600px) {
+  .header-buttons-desktop { display: none !important; }
+  .header-hamburger-wrap { display: flex !important; }
+  .header-overflow-menu {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 100%;
+    right: 8px;
+    left: 8px;
+    z-index: 50;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: fadeIn 0.12s ease-out;
+  }
+  .header-overflow-menu .header-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+}
+
 .tracks {
   display: flex;
   flex-direction: column;

@@ -10,6 +10,7 @@ const SECTIONS = [
       "Switch modes with the **PAD | LOOPER** toggle in the header",
       "7 built-in drum kits — select from the **Kit** dropdown in PAD view",
       "Default **4-on-the-floor** pattern loads automatically on first visit",
+      "First-time visitors see a **tutorial walkthrough** — reopen it from the button below",
     ],
   },
   {
@@ -91,6 +92,19 @@ const SECTIONS = [
     ],
   },
   {
+    title: "Scratchpad Recorder",
+    items: [
+      "Dedicated recorder strip above the sequencer in PAD mode",
+      "**MIC** — record from microphone input",
+      "**RESAMPLE** — capture the master output (what you hear)",
+      "**DUB** — record mic + master output combined",
+      "Preview, auto-trim silence, then **drag** the recording onto any pad",
+      "Great for sampling on the fly or capturing sequencer output",
+      "**Count-in recording** — configurable count-in beats before recording starts",
+      "**Mic gain** slider — adjust input level in the looper control bar",
+    ],
+  },
+  {
     title: "Looper Controls",
     items: [
       "**●** Record — start/stop recording on a track",
@@ -103,6 +117,18 @@ const SECTIONS = [
       "**→PAD** — copy track recording to an empty pad slot",
       "**DECAY** slider — progressive tape degradation per loop cycle",
       "**Sound DNA** — spectral fingerprint glyph shows loop character",
+      "**Tape reel animation** — spinning reels visualize playback/recording state",
+    ],
+  },
+  {
+    title: "Mic & Recording",
+    items: [
+      "**Mic LED colors**: green = mic ready, red = recording, orange = overdubbing, dim = mic unavailable",
+      "**Auto-trim** — automatically removes leading/trailing silence from recordings",
+      "**Count-in** — configurable beat count before recording starts (Settings)",
+      "**Mic gain** — adjustable input level (MIC slider in looper control bar)",
+      "**Latency compensation** — auto-trims based on measured input latency",
+      "**Recording limits** — configurable max time per track and max session size (Settings)",
     ],
   },
   {
@@ -165,9 +191,10 @@ const SECTIONS = [
 
 interface HelpModalProps {
   onClose: () => void;
+  onShowTutorial?: () => void;
 }
 
-export function HelpModal({ onClose }: HelpModalProps) {
+export function HelpModal({ onClose, onShowTutorial }: HelpModalProps) {
   const [expanded, setExpanded] = useState<number | null>(0);
 
   return (
@@ -201,6 +228,22 @@ export function HelpModal({ onClose }: HelpModalProps) {
               )}
             </div>
           ))}
+
+          {/* Show Tutorial button */}
+          {onShowTutorial && (
+            <div style={{ padding: "16px 0 4px", textAlign: "center" }}>
+              <button
+                onClick={onShowTutorial}
+                style={{
+                  fontSize: 12, fontWeight: 700, padding: "10px 24px",
+                  borderRadius: 8, background: "var(--preview)", color: "#000",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Show Tutorial
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -11,6 +11,7 @@ import { SessionManager } from "./SessionManager";
 import { ShortcutOverlay } from "./ShortcutOverlay";
 import { MidiMapper } from "./MidiMapper";
 import { HelpModal } from "./HelpModal";
+import { Tutorial } from "./Tutorial";
 import { SettingsPanel } from "./SettingsPanel";
 import { AppFooter } from "./AppFooter";
 import { VuMeter } from "./VuMeter";
@@ -37,13 +38,15 @@ export function Layout({ state, command, engine }: LayoutProps) {
   const [showMidi, setShowMidi] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem("mloop-tutorial-seen") !== "true");
+  const [showHamburger, setShowHamburger] = useState(false);
   const [palette, setPalette] = useState<PaletteId>(loadPaletteId);
   const [isPinned, setIsPinned] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.13.4";
+    const APP_VERSION = "0.13.5";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -192,7 +195,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.13.4</span>
+          <span className="title-version">0.13.5</span>
         </div>
 
         {/* View toggle */}
@@ -238,51 +241,40 @@ export function Layout({ state, command, engine }: LayoutProps) {
           <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button className="header-btn"
-            onClick={() => command({ type: "set_timing_mode", mode: state.timingMode === "free" ? "quantized" : "free" })}
-            style={state.timingMode === "quantized" ? { background: "var(--preview)", color: "#000" } : undefined}
-          >
-            {state.timingMode === "free" ? "FREE" : "QNT"}
-          </button>
-          <button className="header-btn"
-            onClick={() => {
-              const modes: Array<"free" | "sync" | "lock"> = ["free", "sync", "lock"];
-              const next = modes[(modes.indexOf(state.syncMode) + 1) % modes.length];
-              command({ type: "set_sync_mode", mode: next });
-            }}
-            style={state.syncMode !== "free" ? { background: "var(--preview)", color: "#000" } : undefined}
-            title={`Sync: ${state.syncMode.toUpperCase()}`}
-          >
-            {state.syncMode === "free" ? "⊘" : state.syncMode === "sync" ? "⟳" : "🔒"}
-          </button>
-          <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--preview)", minWidth: 28, textAlign: "center" }}>{state.bpm}</span>
-          <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
-          <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
-          <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
-            style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
-          <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
-          <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
-          <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>◑</button>
-          <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">⛶</button>
-          <button className="header-btn" onClick={() => command({ type: "share_link" })} title="Share settings link">⤴</button>
-          <button className="header-btn" onClick={() => { command({ type: "pin_session" }); setIsPinned(true); }}
-            style={isPinned ? { background: "var(--preview)", color: "#000" } : undefined}
-            title={isPinned ? "Session pinned — click to update" : "Pin session (auto-loads on next visit)"}>★</button>
-          <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">↓</button>
-          {MidiController.isSupported() && (
-            <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
-          )}
-          <button className="header-btn" onClick={() => setLinkEnabled(!linkEnabled)}
-            style={linkState.connected ? { background: "var(--playing)", color: "#000" } : linkEnabled ? { background: "var(--preview)", color: "#000" } : undefined}
-            title={linkState.connected ? `Link: ${linkState.peers} peers · ${Math.round(linkState.tempo)} BPM` : linkEnabled ? "Link: connecting..." : "Link Bridge (sync with mpump)"}
-          >
-            {linkState.connected ? `L${linkState.peers}` : "L"}
-          </button>
-          <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">?</button>
-          <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">⚙</button>
+        {/* Desktop: all buttons inline */}
+        <div className="header-buttons-desktop" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <HeaderOverflowButtons
+            state={state} command={command} isPinned={isPinned} setIsPinned={setIsPinned}
+            isDark={isDark} toggleDarkLight={toggleDarkLight} toggleFullscreen={toggleFullscreen}
+            linkEnabled={linkEnabled} setLinkEnabled={setLinkEnabled} linkState={linkState}
+            setShowSessions={setShowSessions} setShowMidi={setShowMidi}
+            setShowOverlay={setShowOverlay} setShowSettings={setShowSettings}
+          />
         </div>
+
+        {/* Mobile: hamburger button */}
+        <div className="header-hamburger-wrap" style={{ position: "relative" }}>
+          <button className="header-btn header-hamburger-btn" onClick={() => setShowHamburger(!showHamburger)}
+            style={{ fontSize: 16, fontWeight: 700 }}>
+            {showHamburger ? "✕" : "≡"}
+          </button>
+        </div>
+
+        {/* Mobile overflow dropdown */}
+        {showHamburger && (
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setShowHamburger(false)} />
+            <div className="header-overflow-menu" onClick={() => setShowHamburger(false)}>
+              <HeaderOverflowButtons
+                state={state} command={command} isPinned={isPinned} setIsPinned={setIsPinned}
+                isDark={isDark} toggleDarkLight={toggleDarkLight} toggleFullscreen={toggleFullscreen}
+                linkEnabled={linkEnabled} setLinkEnabled={setLinkEnabled} linkState={linkState}
+                setShowSessions={setShowSessions} setShowMidi={setShowMidi}
+                setShowOverlay={setShowOverlay} setShowSettings={setShowSettings}
+              />
+            </div>
+          </>
+        )}
       </header>
 
       {/* Mic unavailable notice */}
@@ -366,7 +358,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
       )}
       {showOverlay && <ShortcutOverlay onClose={() => setShowOverlay(false)} />}
       {showMidi && midiRef.current && <MidiMapper controller={midiRef.current} onClose={() => setShowMidi(false)} />}
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} onShowTutorial={() => { setShowHelp(false); setShowTutorial(true); }} />}
+      {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
       {showSettings && (
         <SettingsPanel
           palette={palette}
@@ -407,5 +400,63 @@ function HeaderSlider({ label, min, max, step, initial, format, onChange }: {
         {format(value)}
       </span>
     </div>
+  );
+}
+
+/** Shared overflow buttons used in both desktop inline and mobile dropdown. */
+function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, toggleDarkLight, toggleFullscreen, linkEnabled, setLinkEnabled, linkState, setShowSessions, setShowMidi, setShowOverlay, setShowSettings }: {
+  state: EngineState; command: (cmd: LoopCommand) => void;
+  isPinned: boolean; setIsPinned: (v: boolean) => void;
+  isDark: boolean; toggleDarkLight: () => void; toggleFullscreen: () => void;
+  linkEnabled: boolean; setLinkEnabled: (v: boolean) => void; linkState: { connected: boolean; peers: number; tempo: number };
+  setShowSessions: (v: boolean) => void; setShowMidi: (v: boolean) => void;
+  setShowOverlay: (v: boolean) => void; setShowSettings: (v: boolean) => void;
+}) {
+  return (
+    <>
+      <button className="header-btn"
+        onClick={() => command({ type: "set_timing_mode", mode: state.timingMode === "free" ? "quantized" : "free" })}
+        style={state.timingMode === "quantized" ? { background: "var(--preview)", color: "#000" } : undefined}
+      >
+        {state.timingMode === "free" ? "FREE" : "QNT"}
+      </button>
+      <button className="header-btn"
+        onClick={() => {
+          const modes: Array<"free" | "sync" | "lock"> = ["free", "sync", "lock"];
+          const next = modes[(modes.indexOf(state.syncMode) + 1) % modes.length];
+          command({ type: "set_sync_mode", mode: next });
+        }}
+        style={state.syncMode !== "free" ? { background: "var(--preview)", color: "#000" } : undefined}
+        title={`Sync: ${state.syncMode.toUpperCase()}`}
+      >
+        {state.syncMode === "free" ? "\u2298" : state.syncMode === "sync" ? "\u27F3" : "\uD83D\uDD12"}
+      </button>
+      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
+      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--preview)", minWidth: 28, textAlign: "center" }}>{state.bpm}</span>
+      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
+      <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
+      <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
+        style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">{"\u2669"}</button>
+      <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
+      <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
+      <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>{"\u25D1"}</button>
+      <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">{"\u26F6"}</button>
+      <button className="header-btn" onClick={() => command({ type: "share_link" })} title="Share settings link">{"\u2934"}</button>
+      <button className="header-btn" onClick={() => { command({ type: "pin_session" }); setIsPinned(true); }}
+        style={isPinned ? { background: "var(--preview)", color: "#000" } : undefined}
+        title={isPinned ? "Session pinned \u2014 click to update" : "Pin session (auto-loads on next visit)"}>{"\u2605"}</button>
+      <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">{"\u2193"}</button>
+      {MidiController.isSupported() && (
+        <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
+      )}
+      <button className="header-btn" onClick={() => setLinkEnabled(!linkEnabled)}
+        style={linkState.connected ? { background: "var(--playing)", color: "#000" } : linkEnabled ? { background: "var(--preview)", color: "#000" } : undefined}
+        title={linkState.connected ? `Link: ${linkState.peers} peers \u00B7 ${Math.round(linkState.tempo)} BPM` : linkEnabled ? "Link: connecting..." : "Link Bridge (sync with mpump)"}
+      >
+        {linkState.connected ? `L${linkState.peers}` : "L"}
+      </button>
+      <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">?</button>
+      <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">{"\u2699"}</button>
+    </>
   );
 }
