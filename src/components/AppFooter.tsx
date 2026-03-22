@@ -12,7 +12,7 @@ export function AppFooter({ onShowHelp }: AppFooterProps) {
       opacity: 0.5,
       lineHeight: 1.8,
     }}>
-      <span>v0.14.3</span>
+      <span>v0.14.4</span>
       {" · "}
       <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener"
         style={{ color: "var(--text-dim)", textDecoration: "none" }}>

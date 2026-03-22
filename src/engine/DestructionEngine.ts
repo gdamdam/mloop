@@ -25,34 +25,38 @@ export class DestructionEngine {
     if (this.amount <= 0) return;
     this.cycleCount++;
 
-    // Intensity ramps up over 20 cycles so the first few loops are subtle
-    const intensity = this.amount * Math.min(this.cycleCount / 20, 1);
+    // Intensity ramps up over 10 cycles for faster audible effect
+    const intensity = this.amount * Math.min(this.cycleCount / 10, 1);
     const len = buffer.length;
 
+    // Pass 1: Bitcrush — reduce bit depth (most audible degradation)
+    const bits = 16 - intensity * 12; // down to ~4 bits at full intensity
+    if (bits < 15) {
+      const steps = Math.pow(2, Math.max(2, bits));
+      for (let i = 0; i < len; i++) {
+        buffer[i] = Math.round(buffer[i] * steps) / steps;
+      }
+    }
+
+    // Pass 2: Lowpass — dull the highs (separate pass avoids feedback issues)
+    const cutoff = Math.max(0.3, 1 - intensity * 0.6); // 1.0→0.3 = very dull
+    let prev = buffer[0];
+    for (let i = 1; i < len; i++) {
+      buffer[i] = prev * (1 - cutoff) + buffer[i] * cutoff;
+      prev = buffer[i];
+    }
+
+    // Pass 3: Noise floor — tape hiss
+    const noiseLevel = intensity * 0.04;
     for (let i = 0; i < len; i++) {
-      let sample = buffer[i];
+      buffer[i] += (Math.random() * 2 - 1) * noiseLevel;
+      buffer[i] = Math.max(-1, Math.min(1, buffer[i]));
+    }
 
-      // Bitcrush: reduce effective bit depth progressively.
-      // At max intensity after 20 cycles, reduces to ~6 bits (heavy aliasing).
-      const bits = 16 - intensity * 10;
-      if (bits < 16) {
-        const steps = Math.pow(2, bits);
-        sample = Math.round(sample * steps) / steps;
-      }
-
-      // Noise floor: add quiet random noise that grows with each cycle,
-      // simulating tape hiss or degraded analog circuits
-      const noiseLevel = intensity * 0.02;
-      sample += (Math.random() * 2 - 1) * noiseLevel;
-
-      // High-frequency roll-off: simple 1-pole lowpass (y[n] = a*x[n] + (1-a)*y[n-1]).
-      // Progressively dulls the sound like worn tape or a dirty playback head.
-      if (i > 0) {
-        const cutoff = 1 - intensity * 0.3; // 1.0 = transparent, 0.7 = very dull
-        sample = buffer[i - 1] * (1 - cutoff) + sample * cutoff;
-      }
-
-      buffer[i] = Math.max(-1, Math.min(1, sample));
+    // Pass 4: Slight volume reduction per cycle (simulates signal loss)
+    const volumeLoss = 1 - intensity * 0.03;
+    for (let i = 0; i < len; i++) {
+      buffer[i] *= volumeLoss;
     }
   }
 
