@@ -35,6 +35,7 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
   const [playing, setPlaying] = useState(false);
   const [looping, setLooping] = useState(false);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const playStartRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const recorderRef = useRef<Recorder | null>(null);
   // For resample/dub: MediaStreamDestination to capture master output
@@ -155,6 +156,7 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
     src.onended = () => { if (!looping) setPlaying(false); };
     src.start();
     sourceNodeRef.current = src;
+    playStartRef.current = performance.now();
     setPlaying(true);
   }, [engine, buffer, looping, getTrimmedBuffer]);
 
@@ -183,6 +185,8 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
 
     const preview = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
 
+    const color = playing ? "#66ff99" : preview;
+
     if (!buffer || buffer.length === 0) {
       ctx.strokeStyle = preview + "44";
       ctx.lineWidth = 1;
@@ -198,7 +202,12 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
     ctx.fillRect(0, 0, trimStart * w, h);
     ctx.fillRect(trimEnd * w, 0, (1 - trimEnd) * w, h);
 
-    // Waveform
+    // Filled waveform shape (matches looper WaveformDisplay)
+    ctx.fillStyle = color + "40";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, halfH);
     for (let x = 0; x < w; x++) {
       const idx = Math.floor((x / w) * buffer.length);
       let max = 0;
@@ -206,13 +215,33 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
         const v = Math.abs(buffer[idx + j]);
         if (v > max) max = v;
       }
-      const barH = max * halfH * 0.9;
-      const inSel = x / w >= trimStart && x / w <= trimEnd;
-      ctx.fillStyle = preview;
-      ctx.globalAlpha = inSel ? 0.7 : 0.15;
-      ctx.fillRect(x, halfH - barH, 1, barH * 2);
+      ctx.lineTo(x, halfH - max * halfH * 0.9);
     }
-    ctx.globalAlpha = 1;
+    for (let x = w - 1; x >= 0; x--) {
+      const idx = Math.floor((x / w) * buffer.length);
+      let max = 0;
+      for (let j = 0; j < step && idx + j < buffer.length; j++) {
+        const v = Math.abs(buffer[idx + j]);
+        if (v > max) max = v;
+      }
+      ctx.lineTo(x, halfH + max * halfH * 0.9);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Playhead when playing
+    if (playing && buffer.length > 0) {
+      const dur = buffer.length / 44100;
+      const elapsed = (performance.now() - playStartRef.current) / 1000;
+      const pos = (elapsed % dur) / dur;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pos * w, 0);
+      ctx.lineTo(pos * w, h);
+      ctx.stroke();
+    }
 
     // Trim handles
     ctx.strokeStyle = "#66ff99"; ctx.lineWidth = 2;
