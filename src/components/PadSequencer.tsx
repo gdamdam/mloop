@@ -103,14 +103,15 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine }: P
     }
   }, []);
 
-  // Load initial grid from engine (e.g. default pattern set in Layout)
+  // Load initial grid from engine (e.g. default pattern set in Layout).
+  // Re-reads when slots change — catches async default pattern loaded after samples.
   useEffect(() => {
     if (!padEngine) return;
     const engineGrid = (padEngine as unknown as { seqGrid: boolean[][] }).seqGrid;
     if (engineGrid && engineGrid.some(row => row.some(Boolean))) {
       setGrid(engineGrid.map(row => [...row]));
     }
-  }, [padEngine]);
+  }, [padEngine, slots]);
 
   // Sync grid/bpm/steps to PadEngine, applying mutes
   useEffect(() => {
