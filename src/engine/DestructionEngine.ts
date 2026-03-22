@@ -1,85 +1,112 @@
 /**
- * DestructionEngine — progressively degrades a loop buffer on each repeat.
+ * DestructionEngine — progressive tape-style degradation per loop cycle.
  *
- * Simulates the organic decay of analog media (tape, vinyl) by applying
- * cumulative per-cycle effects:
- * - Bit depth reduction (lo-fi digital crunch)
- * - Noise floor rise (hiss / static)
- * - High-frequency roll-off (simulates worn tape heads)
+ * Simulates analog tape decay by degrading the actual signal each pass:
+ * - Cumulative treble loss (tape head gap loss — most important)
+ * - Tape saturation (soft clipping, warm compression)
+ * - Wow/flutter (slow pitch drift across the buffer)
+ * - Print-through (faint ghost echo from adjacent tape layers)
+ * - Gentle volume loss per generation
+ * - Subtle hiss (only at higher intensities)
  *
- * Degradation ramps up over 20 cycles for a gradual transformation:
- * amount=0 → pristine digital, amount=1 → cassette-from-hell after ~20 loops.
+ * The signal itself deteriorates — it doesn't just add noise on top.
+ * amount=0 → pristine, amount=1 → nth-generation cassette copy.
  */
 
 export class DestructionEngine {
   /** Degradation intensity per cycle (0–1). 0 = off. */
   amount = 0;
-  /** Number of cycles the buffer has been degraded — drives cumulative decay. */
+  /** Number of cycles the buffer has been degraded. */
   cycleCount = 0;
 
   /**
-   * Apply one cycle of degradation to a buffer (in-place mutation).
-   * Called by LoopTrack at each loop boundary when destruction is active.
+   * Apply one cycle of tape-style degradation (in-place mutation).
+   * Called by LoopTrack at each loop boundary.
    */
   degrade(buffer: Float32Array): void {
     if (this.amount <= 0) return;
     this.cycleCount++;
 
-    // Intensity ramps up over 5 cycles for fast audible change
+    // Intensity ramps over 5 cycles for gradual onset
     const intensity = this.amount * Math.min(this.cycleCount / 5, 1);
     const len = buffer.length;
 
-    // Pass 1: Bitcrush — aggressive sample degradation
-    const bits = 16 - intensity * 14; // down to ~2 bits at full intensity
-    if (bits < 14) {
-      const steps = Math.pow(2, Math.max(2, bits));
-      for (let i = 0; i < len; i++) {
-        buffer[i] = Math.round(buffer[i] * steps) / steps;
-      }
-    }
-
-    // Pass 2: Lowpass — heavy muffling, apply twice for stronger effect
-    const cutoff = Math.max(0.08, 1 - intensity * 0.9);
-    for (let pass = 0; pass < 2; pass++) {
+    // 1. Treble loss — progressive low-pass, the core of tape decay.
+    //    Each pass through tape heads loses high frequencies.
+    //    Multiple passes with moderate cutoff = natural cumulative roll-off.
+    const cutoff = 0.15 + (1 - intensity) * 0.75; // 0.9 (subtle) → 0.15 (heavy muffling)
+    const passes = 1 + Math.floor(intensity * 3); // 1–4 filter passes
+    for (let p = 0; p < passes; p++) {
       let prev = buffer[0];
       for (let i = 1; i < len; i++) {
-        buffer[i] = prev * (1 - cutoff) + buffer[i] * cutoff;
+        buffer[i] = prev + cutoff * (buffer[i] - prev);
         prev = buffer[i];
       }
     }
 
-    // Pass 3: Wow/flutter — pitch wobble
-    if (intensity > 0.1) {
-      const wobbleDepth = Math.floor(intensity * 5);
-      for (let i = wobbleDepth; i < len - wobbleDepth; i++) {
-        const offset = Math.floor(Math.sin(i * 0.001) * wobbleDepth);
-        buffer[i] = buffer[i + offset] * 0.6 + buffer[i] * 0.4;
-      }
-    }
-
-    // Pass 4: Sample dropout — random samples zeroed out
-    if (intensity > 0.3) {
-      const dropRate = intensity * 0.02;
+    // 2. Tape saturation — soft clipping that compresses peaks.
+    //    Tape naturally compresses loud signals, adding warmth not harshness.
+    if (intensity > 0.05) {
+      const drive = 1 + intensity * 3; // 1x–4x overdrive into soft clip
       for (let i = 0; i < len; i++) {
-        if (Math.random() < dropRate) buffer[i] = 0;
+        const x = buffer[i] * drive;
+        // Hyperbolic tangent approximation — smooth saturation curve
+        buffer[i] = x / (1 + Math.abs(x));
       }
     }
 
-    // Pass 5: Noise floor — tape hiss
-    const noiseLevel = intensity * 0.02;
-    for (let i = 0; i < len; i++) {
-      buffer[i] += (Math.random() * 2 - 1) * noiseLevel;
-      buffer[i] = Math.max(-1, Math.min(1, buffer[i]));
+    // 3. Wow/flutter — slow pitch drift across the buffer.
+    //    Real tape has mechanical speed variation from the motor/capstan.
+    //    We simulate by reading from slightly shifted positions.
+    if (intensity > 0.1) {
+      const copy = new Float32Array(buffer);
+      const wowFreq = 0.5 + Math.random() * 1.5; // Hz-range wobble
+      const wowDepth = intensity * 8; // max ±8 samples drift
+      const wowPhase = Math.random() * Math.PI * 2;
+      for (let i = 0; i < len; i++) {
+        const offset = Math.sin(wowPhase + (i / len) * Math.PI * 2 * wowFreq) * wowDepth;
+        const srcIdx = i + offset;
+        const idx0 = Math.floor(srcIdx);
+        const frac = srcIdx - idx0;
+        if (idx0 >= 0 && idx0 < len - 1) {
+          // Linear interpolation for smooth pitch shift
+          buffer[i] = copy[idx0] * (1 - frac) + copy[idx0 + 1] * frac;
+        }
+      }
     }
 
-    // Pass 6: Volume reduction (signal loss)
-    const volumeLoss = 1 - intensity * 0.08;
+    // 4. Print-through — faint ghost echo from adjacent tape layers.
+    //    On real tape, signal bleeds through to neighboring layers on the reel.
+    if (intensity > 0.2) {
+      const echoSamples = Math.floor(len * 0.03); // ~3% of loop length
+      const echoLevel = intensity * 0.06; // very subtle
+      for (let i = echoSamples; i < len; i++) {
+        buffer[i] += buffer[i - echoSamples] * echoLevel;
+      }
+    }
+
+    // 5. Volume loss — each generation slightly quieter (signal degradation)
+    const volumeDecay = 1 - intensity * 0.05;
     for (let i = 0; i < len; i++) {
-      buffer[i] *= volumeLoss;
+      buffer[i] *= volumeDecay;
+    }
+
+    // 6. Subtle tape hiss — only at higher intensities, very low level
+    if (intensity > 0.4) {
+      const hissLevel = (intensity - 0.4) * 0.01;
+      for (let i = 0; i < len; i++) {
+        buffer[i] += (Math.random() * 2 - 1) * hissLevel;
+      }
+    }
+
+    // Clamp to prevent overflow
+    for (let i = 0; i < len; i++) {
+      if (buffer[i] > 1) buffer[i] = 1;
+      else if (buffer[i] < -1) buffer[i] = -1;
     }
   }
 
-  /** Reset degradation state (e.g., after recording a new layer or clearing track). */
+  /** Reset degradation state. */
   reset(): void {
     this.cycleCount = 0;
   }
