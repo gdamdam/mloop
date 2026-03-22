@@ -636,14 +636,14 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       {MidiController.isSupported() && (
         <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
       )}
-      {(linkEnabled || linkState.connected) && (
-        <button className="header-btn" onClick={() => setLinkEnabled(!linkEnabled)}
-          style={linkState.connected ? { background: "var(--playing)", color: "#000" } : { background: "var(--preview)", color: "#000" }}
-          title={linkState.connected ? `Link: ${linkState.peers} peers \u00B7 ${Math.round(linkState.tempo)} BPM` : "Link: connecting..."}
-        >
-          {linkState.connected ? `L${linkState.peers}` : "L"}
-        </button>
-      )}
+      <button className="header-btn" onClick={() => setLinkEnabled(!linkEnabled)}
+        style={linkState.connected ? { background: "var(--playing)", color: "#000" }
+          : linkEnabled ? { background: "var(--preview)", color: "#000" } : undefined}
+        title={linkState.connected ? `Link: ${linkState.peers} peers \u00B7 ${Math.round(linkState.tempo)} BPM`
+          : linkEnabled ? "Link: connecting..." : "Link Bridge (sync with mpump)"}
+      >
+        {linkState.connected ? `L${linkState.peers}` : "L"}
+      </button>
       <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">?</button>
       <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">{"\u2699"}</button>
     </>
