@@ -115,7 +115,7 @@ export function StartGate({ onStart }: StartGateProps) {
         </div>
       )}
 
-      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.45</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.46</span>
     </div>
   );
 }
