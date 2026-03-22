@@ -233,14 +233,11 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         </button>
         <span style={{ fontSize: 9, color: "var(--text-dim)", letterSpacing: 1 }}>SEQ</span>
         {/* Swing — inline with transport */}
-        <span style={{ fontSize: 7, color: "var(--text-dim)", marginLeft: 4 }}>Sw</span>
-        <input type="range" className="volume-slider" min={0} max={1} step={0.05}
+        <input type="range" min={0} max={1} step={0.05}
           value={padEngine?.getSeqSwing() ?? 0}
           onChange={(e) => padEngine?.setSeqSwing(parseFloat(e.target.value))}
-          style={{ width: 40 }} />
-        <span style={{ fontSize: 7, color: "var(--text-dim)", minWidth: 14 }}>
-          {Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%
-        </span>
+          title={`Swing ${Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%`}
+          style={{ width: 28, height: 8, accentColor: "var(--preview)", cursor: "pointer", marginLeft: 4 }} />
         {/* Step count selector */}
         <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
           {STEP_OPTIONS.map(n => (
@@ -307,10 +304,24 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
       </div>
 
       {/* Step indicators — click/shift+click/drag to select steps for CLR */}
-      <div style={{ display: "flex", gap: 1, paddingLeft: 20, marginBottom: 4 }}
+      <div style={{ display: "flex", gap: 1, paddingLeft: 20, marginBottom: 4, touchAction: "none", userSelect: "none" }}
         title="Click to select steps · Shift+click for range · Drag to select · CLR clears selected"
         onPointerUp={() => { draggingSelect.current = false; }}
         onPointerLeave={() => { draggingSelect.current = false; }}
+        onPointerMove={(e) => {
+          if (!draggingSelect.current || selectAnchor === null) return;
+          // Find which step the pointer is over
+          const container = e.currentTarget;
+          const rect = container.getBoundingClientRect();
+          const x = e.clientX - rect.left - 20; // account for paddingLeft
+          const stepWidth = (rect.width - 20) / numSteps;
+          const step = Math.max(0, Math.min(numSteps - 1, Math.floor(x / stepWidth)));
+          const from = Math.min(selectAnchor, step);
+          const to = Math.max(selectAnchor, step);
+          const range = new Set<number>();
+          for (let s = from; s <= to; s++) range.add(s);
+          setSelectedSteps(range);
+        }}
       >
         {Array.from({ length: numSteps }, (_, i) => (
           <div
@@ -318,6 +329,8 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => handleStepDrop(e, i)}
             onPointerDown={(e) => {
+              e.preventDefault();
+              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
               draggingSelect.current = true;
               if (e.shiftKey && selectAnchor !== null) {
                 const from = Math.min(selectAnchor, i);
@@ -332,15 +345,6 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
                   if (next.has(i)) next.delete(i); else next.add(i);
                   return next;
                 });
-              }
-            }}
-            onPointerEnter={() => {
-              if (draggingSelect.current && selectAnchor !== null) {
-                const from = Math.min(selectAnchor, i);
-                const to = Math.max(selectAnchor, i);
-                const range = new Set<number>();
-                for (let s = from; s <= to; s++) range.add(s);
-                setSelectedSteps(range);
               }
             }}
             title={`Step ${i + 1}`}
