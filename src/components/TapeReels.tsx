@@ -47,10 +47,11 @@ function Reel({ size, spokeColor, spinning, speed, direction }: {
 
 export function TapeReels({ status }: TapeReelsProps) {
   const spinning = status === "playing" || status === "recording" || status === "overdubbing";
+  // Idle: muted white visible on both dark and light backgrounds
   const color = status === "recording" ? "var(--record)"
-    : status === "overdubbing" ? "var(--overdub)"
-    : status === "playing" ? "var(--playing)"
-    : "var(--text-dim)";
+    : status === "overdubbing" ? "var(--record)"
+    : status === "playing" ? "#66ff99"
+    : "var(--text-muted, #888)";
   const speed = status === "recording" ? "2s" : "1.2s";
   const reelSize = 36;
 

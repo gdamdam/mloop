@@ -45,9 +45,14 @@ export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
     smoothedRms: 0,
     needleAngle: ARC_START,
     buf: null as Uint8Array<ArrayBuffer> | null,
-    accent: "#b388ff",
+    accent: "#999",
     accentFrame: 0,
+    isPlaying: false,
   });
+  // Keep refs in sync without triggering effect re-runs
+  ms.current.isPlaying = isPlaying ?? false;
+  const getAnalyserRef = useRef(getAnalyser);
+  getAnalyserRef.current = getAnalyser;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -68,7 +73,7 @@ export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
 
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
-      const analyser = getAnalyser();
+      const analyser = getAnalyserRef.current();
       const rect = canvas.getBoundingClientRect();
       const w = rect.width;
       const h = rect.height;
@@ -95,7 +100,7 @@ export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
       }
 
       // Green only when tracks are playing; gray otherwise
-      s.accent = isPlaying ? "#66ff99" : "#999";
+      s.accent = s.isPlaying ? "#66ff99" : "#999";
 
       const db = toDB(s.smoothedRms);
       const targetAngle = dbToAngle(db);
@@ -154,7 +159,7 @@ export function NeedleMeter({ getAnalyser, isPlaying }: NeedleMeterProps) {
 
     draw();
     return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
-  }, [getAnalyser]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — refs keep values current
 
   return (
     <canvas ref={canvasRef} style={{
