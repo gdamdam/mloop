@@ -1,4 +1,4 @@
-mpump — Browser-based drum machine, synth sequencer and MIDI controller.
+mloop — Browser-based loop station & MPC-style sampler.
 Copyright (C) 2024-2026 gdamdam (https://github.com/gdamdam)
 
 This software is licensed under the GNU General Public License v3.0
@@ -26,7 +26,7 @@ All copies, modified versions, and derivative works of this software
 must retain the following attribution in a user-visible location
 (e.g., splash screen, about page, settings, or documentation):
 
-    "Based on mpump by gdamdam — https://github.com/gdamdam/mpump"
+    "Based on mloop by gdamdam — https://github.com/gdamdam/mloop"
 
 Removing, obscuring, or failing to include this attribution notice
 in a derivative work is a violation of this license.
