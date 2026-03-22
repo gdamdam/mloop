@@ -12,7 +12,7 @@ import {
   loadLimits, saveLimits, TIME_OPTIONS, SIZE_OPTIONS,
   type RecordingLimits,
 } from "../utils/recordingLimits";
-import { PAD_LAYOUTS, loadPadLayout, savePadLayout, type PadLayoutId } from "../utils/kitManager";
+// Pad layout removed from settings — drag to rearrange instead
 
 const VELOCITY_KEY = "mloop-velocity";
 const LOCK_BARS_KEY = "mloop-lock-bars";
@@ -65,7 +65,6 @@ interface SettingsPanelProps {
 export function SettingsPanel({ palette, onPaletteChange, onClose, command, latencyMs, sessionSizeMB, engine }: SettingsPanelProps) {
   const [limits, setLimits] = useState<RecordingLimits>(loadLimits);
   const [, forceUpdate] = useState(0);
-  const [layout, setLayout] = useState<PadLayoutId>(loadPadLayout);
   const [velocity, setVelocity] = useState(loadVelocity);
   const [lockBars, setLockBars] = useState<LockBars>(loadLockBars);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -236,18 +235,6 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
                   if (engine) engine.lockBars = bars;
                 }} style={S.opt(lockBars === bars)}>
                   {bars} bar{bars > 1 ? "s" : ""}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ padding: "5px 0" }}>
-            <span style={S.label}>Pad layout</span>
-            <div style={S.optRow}>
-              {PAD_LAYOUTS.map(l => (
-                <button key={l.id} onClick={() => { setLayout(l.id); savePadLayout(l.id); }}
-                  style={S.opt(layout === l.id)} title={l.description}>
-                  {l.name}
                 </button>
               ))}
             </div>

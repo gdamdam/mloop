@@ -792,6 +792,9 @@ input[type="range"] {
   color: #ffcc00;
   letter-spacing: 0;
   line-height: 1.2;
+  text-transform: none;
+  font-family: "Courier New", "Courier", monospace;
+  white-space: pre;
 }
 
 .about-sep {
