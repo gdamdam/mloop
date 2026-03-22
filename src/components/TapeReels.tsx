@@ -60,7 +60,7 @@ export function TapeReels({ status }: TapeReelsProps) {
       opacity: status === "empty" ? 0.3 : 1,
     }}>
       {/* Left reel (supply) */}
-      <Reel size={reelSize} spokeColor={color} spinning={spinning} speed={speed} direction="cw" />
+      <Reel size={reelSize} spokeColor={color} spinning={spinning} speed={speed} direction="ccw" />
       {/* Tape path indicator (thin line between reels) */}
       <div style={{
         width: 8, height: 2, background: color,

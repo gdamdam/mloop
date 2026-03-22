@@ -46,7 +46,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.13.8";
+    const APP_VERSION = "0.13.9";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -195,7 +195,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.13.8</span>
+          <span className="title-version">0.13.9</span>
         </div>
 
         {/* View toggle */}
@@ -441,19 +441,24 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
       <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>{"\u25D1"}</button>
       <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">{"\u26F6"}</button>
-      <button className="header-btn" onClick={() => { command({ type: "pin_session" }); setIsPinned(true); }}
+      <button className="header-btn" onClick={() => {
+        const name = prompt(isPinned ? "Update pinned session name:" : "Name for pinned session:", "My Session");
+        if (name) { command({ type: "pin_session" }); setIsPinned(true); localStorage.setItem("mloop-pin-name", name); }
+      }}
         style={isPinned ? { background: "var(--preview)", color: "#000" } : undefined}
-        title={isPinned ? "Session pinned \u2014 click to update" : "Pin session (auto-loads on next visit)"}>{"\u2605"}</button>
+        title={isPinned ? `Pinned: ${localStorage.getItem("mloop-pin-name") || "session"} — click to update` : "Pin session (auto-loads on next visit)"}>{"\u2605"}</button>
       <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">{"\u2193"}</button>
       {MidiController.isSupported() && (
         <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
       )}
-      <button className="header-btn" onClick={() => setLinkEnabled(!linkEnabled)}
-        style={linkState.connected ? { background: "var(--playing)", color: "#000" } : linkEnabled ? { background: "var(--preview)", color: "#000" } : undefined}
-        title={linkState.connected ? `Link: ${linkState.peers} peers \u00B7 ${Math.round(linkState.tempo)} BPM` : linkEnabled ? "Link: connecting..." : "Link Bridge (sync with mpump)"}
-      >
-        {linkState.connected ? `L${linkState.peers}` : "L"}
-      </button>
+      {(linkEnabled || linkState.connected) && (
+        <button className="header-btn" onClick={() => setLinkEnabled(!linkEnabled)}
+          style={linkState.connected ? { background: "var(--playing)", color: "#000" } : { background: "var(--preview)", color: "#000" }}
+          title={linkState.connected ? `Link: ${linkState.peers} peers \u00B7 ${Math.round(linkState.tempo)} BPM` : "Link: connecting..."}
+        >
+          {linkState.connected ? `L${linkState.peers}` : "L"}
+        </button>
+      )}
       <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">?</button>
       <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">{"\u2699"}</button>
     </>
