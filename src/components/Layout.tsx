@@ -60,7 +60,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.15.6";
+    const APP_VERSION = "0.15.7";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -209,7 +209,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.15.6</span>
+          <span className="title-version">0.15.7</span>
         </div>
 
         {/* View toggle */}
@@ -354,12 +354,14 @@ export function Layout({ state, command, engine }: LayoutProps) {
             <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
             {/* Analog needle VU meter — fixed width */}
             <div style={{ width: 70, height: 36, flexShrink: 0 }}>
-              <NeedleMeter getAnalyser={() => {
-                if (!engine) return null;
-                // Show input level when idle, output level when playing
-                const isPlaying = state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing");
-                return isPlaying ? engine.getAnalyser() : engine.getInputAnalyser();
-              }} />
+              <NeedleMeter
+                isPlaying={state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing")}
+                getAnalyser={() => {
+                  if (!engine) return null;
+                  // Show input level when idle, output level when playing
+                  const isPlaying = state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing");
+                  return isPlaying ? engine.getAnalyser() : engine.getInputAnalyser();
+                }} />
             </div>
           </div>
           <div className="tracks-row">
