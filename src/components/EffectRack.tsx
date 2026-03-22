@@ -76,6 +76,7 @@ export function EffectRack({ effects, onToggle, onSetParams }: EffectRackProps) 
                 fontSize: 9,
                 fontWeight: 700,
                 letterSpacing: 0.5,
+                position: "relative",
                 background: isOn ? "var(--preview)" : "var(--bg-cell)",
                 color: isOn ? "var(--bg)" : "var(--text-dim)",
                 boxShadow: isOn ? "0 0 8px rgba(88,166,255,0.4)" : "none",
@@ -83,6 +84,10 @@ export function EffectRack({ effects, onToggle, onSetParams }: EffectRackProps) 
               }}
             >
               {label}
+              <span style={{
+                position: "absolute", top: 2, right: 3,
+                fontSize: 7, opacity: 0.4,
+              }}>⚙</span>
             </button>
           );
         })}
