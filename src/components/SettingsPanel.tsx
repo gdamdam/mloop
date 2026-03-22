@@ -256,7 +256,9 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
           {/* ── Link Bridge ───────────────────────────────────── */}
           <div style={S.section}>Link Bridge</div>
           <div style={{ fontSize: 10, color: "var(--text-dim)", lineHeight: 1.5 }}>
-            Sync with mpump via localhost:19876. Enable with the LINK button in the header.
+            Sync BPM and play/stop with <a href="https://mpump.live" target="_blank" rel="noopener" style={{ color: "var(--preview)" }}>mpump</a> via Link Bridge.
+            Enable with the <b style={{ color: "var(--text)" }}>L</b> button in the header.
+            Both apps must be on the same computer with Link Bridge running.
           </div>
 
           {/* ── Info ──────────────────────────────────────────── */}

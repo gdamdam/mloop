@@ -49,6 +49,9 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
         {" · "}
         Built with Claude Code
         {" · "}
+        <a href="https://mpump.live" target="_blank" rel="noopener"
+          style={{ color: "var(--text-dim)", textDecoration: "none" }}>Try mpump →</a>
+        {" · "}
         <span style={{ cursor: "pointer", textDecoration: "underline dotted" }} onClick={onShowPrivacy}>No cookies · No personal data</span>
         {Recorder.isFallback && (
           <span> · <span title="AudioWorklet unavailable — using ScriptProcessorNode (slightly lower recording quality)" style={{ color: "#f0883e" }}>
