@@ -25,10 +25,10 @@ export function StartGate({ onStart }: StartGateProps) {
   return (
     <div className="start-gate">
       <pre className="start-gate-title">{LOGO}</pre>
-      <span style={{ fontSize: 10, color: "var(--text-dim)" }}>v1.0.0-pre.9</span>
       <p className="start-gate-sub">
         Loop Station &amp; Sampler<br />
-        Record, loop, sample, perform — all in your browser.
+        Record, loop, sample, perform<br />
+        all in your browser.
       </p>
       <button
         className="start-btn"
@@ -42,6 +42,10 @@ export function StartGate({ onStart }: StartGateProps) {
           {error}
         </p>
       )}
+      <div style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.5, marginTop: 12 }}>
+        Works offline — save this page to play anywhere, no internet needed.
+      </div>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.10</span>
     </div>
   );
 }
