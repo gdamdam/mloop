@@ -323,19 +323,19 @@ export function AboutModal({ onClose, getAnalyser }: Props) {
       }
       ctx.globalAlpha = 1;
 
-      // Floating tape reels
-      const reelInterval = level > 0.3 ? 40 : 80;
+      // Floating tape reels — more frequent, bigger, faster
+      const reelInterval = level > 0.3 ? 20 : 45;
       if (frame % reelInterval === 0) {
         const color = REEL_COLORS[Math.floor(Math.random() * REEL_COLORS.length)];
-        const size = 16 + Math.random() * 24 + level * 15;
+        const size = 24 + Math.random() * 36 + level * 20;
         const fromLeft = Math.random() > 0.5;
         reelFloats.push({
           x: fromLeft ? -size : w + size, y: Math.random() * h,
-          vx: (fromLeft ? 1 : -1) * (0.4 + Math.random() * 1 + level * 1.5),
-          vy: (Math.random() - 0.5) * 0.3, size, color,
-          spinSpeed: 0.03 + Math.random() * 0.04,
+          vx: (fromLeft ? 1 : -1) * (1 + Math.random() * 2 + level * 2),
+          vy: (Math.random() - 0.5) * 0.5, size, color,
+          spinSpeed: 0.04 + Math.random() * 0.06,
           rotation: Math.random() * Math.PI * 2,
-          alpha: 0.3 + Math.random() * 0.3,
+          alpha: 0.5 + Math.random() * 0.4,
         });
       }
       for (let r = reelFloats.length - 1; r >= 0; r--) {
