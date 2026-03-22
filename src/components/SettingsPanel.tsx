@@ -246,6 +246,25 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
             </div>
           </div>
 
+          {/* Auto-gain */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Auto-gain (auto-adjust mic level)</span>
+              <button onClick={() => {
+                const on = localStorage.getItem("mloop-auto-gain") !== "on";
+                localStorage.setItem("mloop-auto-gain", on ? "on" : "off");
+                forceUpdate(n => n + 1);
+              }} style={{
+                padding: "4px 12px", borderRadius: 6, fontSize: 10, fontWeight: 700,
+                background: localStorage.getItem("mloop-auto-gain") === "on" ? "var(--preview)" : "var(--bg-cell)",
+                color: localStorage.getItem("mloop-auto-gain") === "on" ? "#000" : "var(--text-dim)",
+                cursor: "pointer",
+              }}>
+                {localStorage.getItem("mloop-auto-gain") === "on" ? "ON" : "OFF"}
+              </button>
+            </div>
+          </div>
+
           {/* Roll/repeat on hold */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>

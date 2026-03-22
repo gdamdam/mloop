@@ -361,6 +361,20 @@ export class AudioEngine {
     return max;
   }
 
+  /**
+   * Auto-gain: adjusts mic gain to keep signal near target level.
+   * Call periodically (e.g. every 500ms). Gentle adjustment to avoid pumping.
+   */
+  autoGain(targetLevel = 0.3): void {
+    const level = this.getInputLevel();
+    if (level < 0.001) return; // no signal at all, don't adjust
+    const currentGain = this.inputGain.gain.value;
+    const ratio = targetLevel / Math.max(level, 0.01);
+    // Gentle adjustment: move 10% toward ideal gain, clamp 0.1–10
+    const newGain = Math.max(0.1, Math.min(10, currentGain + (currentGain * ratio - currentGain) * 0.1));
+    this.inputGain.gain.value = newGain;
+  }
+
   /** Enable/disable live mic monitoring through speakers. */
   setMonitor(on: boolean): void {
     this.monitorGain.gain.value = on ? 1 : 0;
