@@ -15,17 +15,13 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Unregister all service workers and clear caches to fix Firefox issues.
-      // SW will be re-enabled in a future version once Firefox compat is confirmed.
+      // Register service worker for offline support (PWA).
+      // The SW uses network-first strategy and excludes recorder-worklet.js
+      // to avoid Firefox AudioWorklet caching issues.
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          regs.forEach(function(r) { r.unregister(); });
+        window.addEventListener("load", function() {
+          navigator.serviceWorker.register("./sw.js").catch(function() {});
         });
-        if ("caches" in window) {
-          caches.keys().then(function(names) {
-            names.forEach(function(n) { caches.delete(n); });
-          });
-        }
       }
     </script>
   </body>

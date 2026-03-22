@@ -1,16 +1,19 @@
-// mloop service worker — network-first with cache fallback
-const CACHE_NAME = "mloop-v3";
+// mloop service worker — network-first with versioned cache fallback.
+// The cache version is bumped via the deploy process (version.json check).
+const CACHE_NAME = "mloop-v5";
+
+// Files to pre-cache on install
+const PRECACHE = ["./index.html", "./manifest.json", "./favicon.svg"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(["./index.html", "./manifest.json", "./favicon.svg", "./recorder-worklet.js"])
-    )
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE))
   );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
+  // Delete old caches
   e.waitUntil(
     caches.keys().then((names) =>
       Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
@@ -20,11 +23,22 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  // Only handle same-origin GET requests
   if (e.request.method !== "GET") return;
   if (!e.request.url.startsWith(self.location.origin)) return;
 
-  // Navigation requests (page loads) — network first, fallback to cached index.html
+  // Never cache the AudioWorklet file — Firefox has issues with cached worklets
+  if (e.request.url.includes("recorder-worklet.js")) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // Never cache version.json — must always be fresh for update detection
+  if (e.request.url.includes("version.json")) {
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    return;
+  }
+
+  // Navigation requests — network first, fallback to cached index.html
   if (e.request.mode === "navigate") {
     e.respondWith(
       fetch(e.request)
