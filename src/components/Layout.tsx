@@ -636,7 +636,14 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       {MidiController.isSupported() && (
         <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
       )}
-      <button className="header-btn" onClick={() => setLinkEnabled(!linkEnabled)}
+      <button className="header-btn" onClick={() => {
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        if (isSafari && location.protocol === "https:") {
+          alert("Link Bridge requires Chrome or Firefox.\nSafari blocks local connections from HTTPS pages.");
+          return;
+        }
+        setLinkEnabled(!linkEnabled);
+      }}
         style={linkState.connected ? { background: "var(--playing)", color: "#000" }
           : linkEnabled ? { background: "var(--preview)", color: "#000" } : undefined}
         title={linkState.connected ? `Link: ${linkState.peers} peers \u00B7 ${Math.round(linkState.tempo)} BPM`
