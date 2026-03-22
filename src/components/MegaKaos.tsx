@@ -334,7 +334,9 @@ export function MegaKaos({ getAnalyser, onClose }: Props) {
       }
 
       // Floating credits
-      if (frame - lastCreditFrame > 40 && nextCreditIdx < CREDITS.length) {
+      // Loop credits — restart when all lines have been spawned
+      if (nextCreditIdx >= CREDITS.length) { nextCreditIdx = 0; }
+      if (frame - lastCreditFrame > 40) {
         lastCreditFrame = frame;
         const text = CREDITS[nextCreditIdx++];
         if (text.trim()) {
