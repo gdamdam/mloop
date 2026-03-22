@@ -77,11 +77,17 @@ export class DestructionEngine {
       }
     }
 
-    // 5. Subtle tape hiss — barely audible, only at high intensity
-    if (intensity > 0.6) {
-      const hissLevel = (intensity - 0.6) * 0.002;
+    // 5. Tape hiss — high-frequency biased noise (like real magnetic tape).
+    //    Generate white noise then high-pass it so it sits above the music.
+    if (intensity > 0.3) {
+      const hissLevel = (intensity - 0.3) * 0.005;
+      let prevNoise = 0;
       for (let i = 0; i < len; i++) {
-        buffer[i] += (Math.random() * 2 - 1) * hissLevel;
+        const white = (Math.random() * 2 - 1) * hissLevel;
+        // Simple high-pass: subtract previous sample to remove low frequencies
+        const hpNoise = white - prevNoise;
+        prevNoise = white * 0.98; // decay for HP character
+        buffer[i] += hpNoise;
       }
     }
 
