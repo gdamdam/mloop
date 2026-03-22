@@ -358,7 +358,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
                 {engine ? `${Math.round(engine.getInputNode().gain.value * 2)}%` : "2%"}
               </span>
             </div>
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               {/* Built-in kit presets */}
               <select
                 onChange={async (e) => {
