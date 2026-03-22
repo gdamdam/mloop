@@ -298,15 +298,63 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
       </div>
 
       {/* Swing slider */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, maxWidth: 200 }}>
         <span style={{ fontSize: 8, color: "var(--text-dim)", width: 28 }}>Swing</span>
         <input type="range" className="volume-slider" min={0} max={1} step={0.05}
           value={padEngine?.getSeqSwing() ?? 0}
           onChange={(e) => padEngine?.setSeqSwing(parseFloat(e.target.value))}
-          style={{ flex: 1 }} />
+          style={{ flex: 1, maxWidth: 120 }} />
         <span style={{ fontSize: 8, color: "var(--text-dim)", width: 20 }}>
           {Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%
         </span>
+      </div>
+
+      {/* Step indicators — click/shift+click/drag to select */}
+      <div style={{ display: "flex", gap: 1, paddingLeft: 20, marginBottom: 4 }}
+        onPointerUp={() => { draggingSelect.current = false; }}
+        onPointerLeave={() => { draggingSelect.current = false; }}
+      >
+        {Array.from({ length: numSteps }, (_, i) => (
+          <div
+            key={i}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleStepDrop(e, i)}
+            onPointerDown={(e) => {
+              draggingSelect.current = true;
+              if (e.shiftKey && selectAnchor !== null) {
+                const from = Math.min(selectAnchor, i);
+                const to = Math.max(selectAnchor, i);
+                const range = new Set<number>();
+                for (let s = from; s <= to; s++) range.add(s);
+                setSelectedSteps(range);
+              } else {
+                setSelectAnchor(i);
+                setSelectedSteps(prev => {
+                  const next = new Set(prev);
+                  if (next.has(i)) next.delete(i); else next.add(i);
+                  return next;
+                });
+              }
+            }}
+            onPointerEnter={() => {
+              if (draggingSelect.current && selectAnchor !== null) {
+                const from = Math.min(selectAnchor, i);
+                const to = Math.max(selectAnchor, i);
+                const range = new Set<number>();
+                for (let s = from; s <= to; s++) range.add(s);
+                setSelectedSteps(range);
+              }
+            }}
+            style={{
+              flex: 1, height: 8, borderRadius: 2, cursor: "pointer",
+              background: selectedSteps.has(i) ? "var(--record)"
+                : i === currentStep ? "var(--preview)" : "var(--bg-cell)",
+              opacity: selectedSteps.has(i) ? 0.8 : i === currentStep ? 1 : 0.3,
+              boxShadow: i === currentStep ? "0 0 4px var(--preview)" : "none",
+              marginLeft: i % 4 === 0 && i > 0 ? 3 : 0,
+            }}
+          />
+        ))}
       </div>
 
       {/* Step grid */}
@@ -365,56 +413,6 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         ))}
       </div>
 
-      {/* Step indicators — click/shift+click/drag to select, drop targets */}
-      <div style={{ display: "flex", gap: 1, paddingLeft: 20 }}
-        onPointerUp={() => { draggingSelect.current = false; }}
-        onPointerLeave={() => { draggingSelect.current = false; }}
-      >
-        {Array.from({ length: numSteps }, (_, i) => (
-          <div
-            key={i}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => handleStepDrop(e, i)}
-            onPointerDown={(e) => {
-              draggingSelect.current = true;
-              if (e.shiftKey && selectAnchor !== null) {
-                // Shift+click: select range from anchor to here
-                const from = Math.min(selectAnchor, i);
-                const to = Math.max(selectAnchor, i);
-                const range = new Set<number>();
-                for (let s = from; s <= to; s++) range.add(s);
-                setSelectedSteps(range);
-              } else {
-                // Click: toggle single step, set anchor
-                setSelectAnchor(i);
-                setSelectedSteps(prev => {
-                  const next = new Set(prev);
-                  if (next.has(i)) next.delete(i); else next.add(i);
-                  return next;
-                });
-              }
-            }}
-            onPointerEnter={() => {
-              // Drag across to extend selection
-              if (draggingSelect.current && selectAnchor !== null) {
-                const from = Math.min(selectAnchor, i);
-                const to = Math.max(selectAnchor, i);
-                const range = new Set<number>();
-                for (let s = from; s <= to; s++) range.add(s);
-                setSelectedSteps(range);
-              }
-            }}
-            style={{
-              flex: 1, height: 8, borderRadius: 2, cursor: "pointer",
-              background: selectedSteps.has(i) ? "var(--record)"
-                : i === currentStep ? "var(--preview)" : "var(--bg-cell)",
-              opacity: selectedSteps.has(i) ? 0.8 : i === currentStep ? 1 : 0.3,
-              boxShadow: i === currentStep ? "0 0 4px var(--preview)" : "none",
-              marginLeft: i % 4 === 0 && i > 0 ? 3 : 0,
-            }}
-          />
-        ))}
-      </div>
     </div>
   );
 }
