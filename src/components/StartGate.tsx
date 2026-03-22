@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { PALETTES, applyPalette } from "../themes";
 
 // Same logo as the header — block-art style
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
@@ -23,7 +24,6 @@ interface StartGateProps {
 
 export function StartGate({ onStart }: StartGateProps) {
   const [starting, setStarting] = useState(false);
-  const [logoFlash, setLogoFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canInstall, setCanInstall] = useState(!!deferredPrompt);
   const flashTimer = useRef(0);
@@ -35,9 +35,17 @@ export function StartGate({ onStart }: StartGateProps) {
   }, []);
 
   const isIOS = /iPad|iPhone/.test(navigator.userAgent) && !("standalone" in navigator && (navigator as unknown as { standalone: boolean }).standalone);
+  const [logoKey, setLogoKey] = useState(0);
+
+  const handleLogoClick = () => {
+    // Random theme + flash animation
+    const randomPalette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+    applyPalette(randomPalette);
+    setLogoKey(k => k + 1); // re-mount to retrigger CSS animation
+  };
 
   const handleStart = () => {
-    setLogoFlash(true);
+    setLogoKey(k => k + 1);
     clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(async () => {
       setStarting(true);
@@ -47,14 +55,14 @@ export function StartGate({ onStart }: StartGateProps) {
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to start audio");
         setStarting(false);
-        setLogoFlash(false);
+        setLogoKey(k => k + 1);
       }
     }, 450);
   };
 
   return (
     <div className="start-gate">
-      <pre className={`start-gate-title ${logoFlash ? "logo-flash" : ""}`}>{LOGO}</pre>
+      <pre className="start-gate-title logo-flash" key={logoKey} onClick={handleLogoClick} style={{ cursor: "pointer" }}>{LOGO}</pre>
       <p className="start-gate-sub">
         Loop Station &amp; Sampler<br />
         Record, loop, sample, perform<br />
@@ -98,7 +106,7 @@ export function StartGate({ onStart }: StartGateProps) {
         </div>
       )}
 
-      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.38</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.39</span>
     </div>
   );
 }
