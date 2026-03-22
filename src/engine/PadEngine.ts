@@ -160,10 +160,23 @@ export class PadEngine {
       return;
     }
 
+    // Auto-trim silence: remove leading silence, cap trailing silence to 1s
+    const threshold = 0.01;
+    let firstSound = 0;
+    for (let i = 0; i < raw.length; i++) {
+      if (Math.abs(raw[i]) > threshold) { firstSound = i; break; }
+    }
+    let lastSound = raw.length - 1;
+    for (let i = raw.length - 1; i >= 0; i--) {
+      if (Math.abs(raw[i]) > threshold) { lastSound = i; break; }
+    }
+    const tailSamples = Math.min(this.ctx.sampleRate, raw.length - lastSound - 1);
+    const trimmed = raw.slice(firstSound, lastSound + tailSamples + 1);
+
     slot.name = `Rec ${slot.id + 1}`;
-    slot.buffer = raw;
-    const audioBuf = this.ctx.createBuffer(1, raw.length, this.ctx.sampleRate);
-    audioBuf.copyToChannel(new Float32Array(raw), 0);
+    slot.buffer = trimmed;
+    const audioBuf = this.ctx.createBuffer(1, trimmed.length, this.ctx.sampleRate);
+    audioBuf.copyToChannel(new Float32Array(trimmed), 0);
     slot.audioBuffer = audioBuf;
     slot.status = "loaded";
     this.onStateChange?.();
