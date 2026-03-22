@@ -116,7 +116,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "1.0.0-pre.4";
+    const APP_VERSION = "1.0.0-pre.5";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -232,6 +232,22 @@ export function Layout({ state, command, engine }: LayoutProps) {
     }
   }, [viewMode, padEngine, anyRecording, state.tracks, command]);
 
+  // Undo — PAD mode: restore pad/grid snapshot, LOOPER mode: undo last overdub
+  const handleUndo = useCallback(() => {
+    if (viewMode === "pads") {
+      if (padEngine?.undo()) forceRender(n => n + 1);
+    } else {
+      // Find the last track with layers to undo
+      const track = [...state.tracks].reverse().find(t => t.layers > 0);
+      if (track) command({ type: "track_undo", trackId: track.id });
+    }
+  }, [viewMode, padEngine, state.tracks, command]);
+  const [, forceRender] = useState(0);
+
+  const canUndo = viewMode === "pads"
+    ? (padEngine?.hasUndo ?? false)
+    : state.tracks.some(t => t.layers > 0);
+
   const [flashPad, setFlashPad] = useState<number | null>(null);
   const handlePadTrigger = useCallback((padId: number) => {
     padEngine?.play(padId);
@@ -281,7 +297,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">1.0.0-pre.4</span>
+          <span className="title-version">1.0.0-pre.5</span>
         </div>
 
         {/* View toggle */}
@@ -319,6 +335,22 @@ export function Layout({ state, command, engine }: LayoutProps) {
             </button>
           );
         })()}
+
+        {/* Undo — bright when available, dim when nothing to undo */}
+        <button
+          onClick={handleUndo}
+          className="header-btn"
+          style={{
+            fontSize: 10, fontWeight: 700, padding: "4px 8px",
+            opacity: canUndo ? 1 : 0.3,
+            color: canUndo ? "var(--preview)" : "var(--text-dim)",
+            cursor: canUndo ? "pointer" : "default",
+          }}
+          title="Undo last action"
+          disabled={!canUndo}
+        >
+          ↩
+        </button>
 
         {/* Master volume */}
         <HeaderSlider label="VOL" min={0} max={1} step={0.01} initial={1}
