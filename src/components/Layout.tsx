@@ -43,7 +43,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.12.8";
+    const APP_VERSION = "0.12.9";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -192,7 +192,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.12.8</span>
+          <span className="title-version">0.12.9</span>
         </div>
 
         {/* View toggle */}
@@ -227,36 +227,15 @@ export function Layout({ state, command, engine }: LayoutProps) {
           {anyRecording || state.tracks.some(t => t.status === "playing") ? "■" : "▶"}
         </button>
 
-        {/* Mic gain + Master volume */}
+        {/* Mic gain + Master volume with live value display */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <span style={{ fontSize: 7, color: "var(--text-dim)" }}>MIC</span>
-            <input
-              type="range" className="volume-slider"
-              min={0} max={5} step={0.1}
-              defaultValue={1}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                if (engine) engine.getInputNode().gain.value = v;
-              }}
-              style={{ width: 40 }}
-              title="Mic gain (0–5x boost)"
-            />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <span style={{ fontSize: 7, color: "var(--text-dim)" }}>VOL</span>
-            <input
-              type="range" className="volume-slider"
-              min={0} max={1} step={0.01}
-              defaultValue={1}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                if (engine) engine.getMasterNode().gain.value = v;
-              }}
-              style={{ width: 40 }}
-              title="Master volume"
-            />
-          </div>
+          <HeaderSlider label="MIC" min={0} max={5} step={0.1} initial={1}
+            format={(v) => `${v.toFixed(1)}x`}
+            onChange={(v) => { if (engine) engine.getInputNode().gain.value = v; }} />
+          <HeaderSlider label="VOL" min={0} max={1} step={0.01} initial={1}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={(v) => { if (engine) engine.getMasterNode().gain.value = v; }}
+          />
         </div>
 
         {/* VU meter — wraps to new line on mobile via CSS */}
@@ -377,6 +356,31 @@ export function Layout({ state, command, engine }: LayoutProps) {
           engine={engine}
         />
       )}
+    </div>
+  );
+}
+
+/** Compact header slider with live value display. Works on light and dark themes. */
+function HeaderSlider({ label, min, max, step, initial, format, onChange }: {
+  label: string; min: number; max: number; step: number; initial: number;
+  format: (v: number) => string; onChange: (v: number) => void;
+}) {
+  const [value, setValue] = useState(initial);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 3, position: "relative" }}>
+      <span style={{ fontSize: 7, color: "var(--text-dim)" }}>{label}</span>
+      <input
+        type="range" className="volume-slider"
+        min={min} max={max} step={step} value={value}
+        onChange={(e) => { const v = parseFloat(e.target.value); setValue(v); onChange(v); }}
+        style={{ width: 40 }}
+      />
+      <span style={{
+        fontSize: 8, fontWeight: 700, minWidth: 24,
+        color: "var(--preview)", textAlign: "center",
+      }}>
+        {format(value)}
+      </span>
     </div>
   );
 }
