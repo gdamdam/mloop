@@ -169,86 +169,100 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
     setPlaying(false);
   }, []);
 
-  // Draw waveform
+  // Draw waveform — uses rAF loop during playback for animated playhead
+  const rafRef = useRef(0);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, h);
 
-    const preview = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
+    const draw = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.scale(dpr, dpr);
+      }
+      ctx.clearRect(0, 0, w, h);
 
-    const color = playing ? "#66ff99" : preview;
+      const preview = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
+      const color = playing ? "#66ff99" : preview;
 
-    if (!buffer || buffer.length === 0) {
-      ctx.strokeStyle = preview + "44";
+      if (!buffer || buffer.length === 0) {
+        ctx.strokeStyle = preview + "44";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+        return;
+      }
+
+      const halfH = h / 2;
+      const step = Math.max(1, Math.floor(buffer.length / w));
+
+      // Dim outside trim
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(0, 0, trimStart * w, h);
+      ctx.fillRect(trimEnd * w, 0, (1 - trimEnd) * w, h);
+
+      // Filled waveform shape (same as looper WaveformDisplay)
+      ctx.fillStyle = color + "40";
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
-      return;
-    }
-
-    const halfH = h / 2;
-    const step = Math.max(1, Math.floor(buffer.length / w));
-
-    // Dim outside trim
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.fillRect(0, 0, trimStart * w, h);
-    ctx.fillRect(trimEnd * w, 0, (1 - trimEnd) * w, h);
-
-    // Filled waveform shape (matches looper WaveformDisplay)
-    ctx.fillStyle = color + "40";
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, halfH);
-    for (let x = 0; x < w; x++) {
-      const idx = Math.floor((x / w) * buffer.length);
-      let max = 0;
-      for (let j = 0; j < step && idx + j < buffer.length; j++) {
-        const v = Math.abs(buffer[idx + j]);
-        if (v > max) max = v;
-      }
-      ctx.lineTo(x, halfH - max * halfH * 0.9);
-    }
-    for (let x = w - 1; x >= 0; x--) {
-      const idx = Math.floor((x / w) * buffer.length);
-      let max = 0;
-      for (let j = 0; j < step && idx + j < buffer.length; j++) {
-        const v = Math.abs(buffer[idx + j]);
-        if (v > max) max = v;
-      }
-      ctx.lineTo(x, halfH + max * halfH * 0.9);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Playhead when playing
-    if (playing && buffer.length > 0) {
-      const dur = buffer.length / 44100;
-      const elapsed = (performance.now() - playStartRef.current) / 1000;
-      const pos = (elapsed % dur) / dur;
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(pos * w, 0);
-      ctx.lineTo(pos * w, h);
+      ctx.moveTo(0, halfH);
+      for (let x = 0; x < w; x++) {
+        const idx = Math.floor((x / w) * buffer.length);
+        let max = 0;
+        for (let j = 0; j < step && idx + j < buffer.length; j++) {
+          const v = Math.abs(buffer[idx + j]);
+          if (v > max) max = v;
+        }
+        ctx.lineTo(x, halfH - max * halfH * 0.9);
+      }
+      for (let x = w - 1; x >= 0; x--) {
+        const idx = Math.floor((x / w) * buffer.length);
+        let max = 0;
+        for (let j = 0; j < step && idx + j < buffer.length; j++) {
+          const v = Math.abs(buffer[idx + j]);
+          if (v > max) max = v;
+        }
+        ctx.lineTo(x, halfH + max * halfH * 0.9);
+      }
+      ctx.closePath();
+      ctx.fill();
       ctx.stroke();
-    }
 
-    // Trim handles
-    ctx.strokeStyle = "#66ff99"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(trimStart * w, 0); ctx.lineTo(trimStart * w, h); ctx.stroke();
-    ctx.strokeStyle = "#ff4444";
-    ctx.beginPath(); ctx.moveTo(trimEnd * w, 0); ctx.lineTo(trimEnd * w, h); ctx.stroke();
-  }, [buffer, trimStart, trimEnd]);
+      // White sweeping playhead (same as looper)
+      if (playing && buffer.length > 0) {
+        const dur = buffer.length / 44100;
+        const elapsed = (performance.now() - playStartRef.current) / 1000;
+        const pos = (elapsed % dur) / dur;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pos * w, 0);
+        ctx.lineTo(pos * w, h);
+        ctx.stroke();
+      }
+
+      // Trim handles
+      ctx.strokeStyle = "#66ff99"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(trimStart * w, 0); ctx.lineTo(trimStart * w, h); ctx.stroke();
+      ctx.strokeStyle = "#ff4444";
+      ctx.beginPath(); ctx.moveTo(trimEnd * w, 0); ctx.lineTo(trimEnd * w, h); ctx.stroke();
+
+      // Continue animation loop while playing
+      if (playing) {
+        rafRef.current = requestAnimationFrame(draw);
+      }
+    };
+
+    draw();
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [buffer, trimStart, trimEnd, playing]);
 
   // Trim handle drag
   const dragging = useRef<"start" | "end" | null>(null);
