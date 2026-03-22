@@ -22,6 +22,8 @@ export class LoopTrack {
   // Audio state — layers are the non-destructive overdub stack
   private layers: Float32Array[] = [];
   private mixedBuffer: AudioBuffer | null = null;
+  /** Persistent degraded audio data — carries cumulative tape decay forward. */
+  private degradedData: Float32Array | null = null;
   private sourceNode: AudioBufferSourceNode | null = null;
   private recorder: Recorder | null = null;
 
@@ -159,6 +161,7 @@ export class LoopTrack {
     trimmed.set(compensated.subarray(0, copyLen));
 
     this.layers.push(trimmed);
+    this.degradedData = null; // reset so destruction rebuilds from all layers
     this.rebuildMixedBuffer();
     this.startPlayback();
 
@@ -208,6 +211,7 @@ export class LoopTrack {
       const copyLen = Math.min(raw.length, this.loopLengthSamples);
       trimmed.set(raw.subarray(0, copyLen));
       this.layers.push(trimmed);
+      this.degradedData = null;
       this.rebuildMixedBuffer();
     }
 
@@ -319,31 +323,38 @@ export class LoopTrack {
   /**
    * Mix all layers into a single AudioBuffer for playback.
    * Applies: layer summation → clamp → destruction degradation → reverse.
+   * Destruction uses a persistent buffer so decay accumulates across cycles.
    */
   private rebuildMixedBuffer(): void {
     if (this.layers.length === 0) {
       this.mixedBuffer = null;
+      this.degradedData = null;
       return;
     }
 
     const len = this.loopLengthSamples;
-    const mixed = new Float32Array(len);
 
-    // Sum all layers (additive mixing)
-    for (const layer of this.layers) {
-      for (let i = 0; i < len; i++) {
-        mixed[i] += layer[i];
+    // If destruction is active, degrade the persistent buffer (cumulative)
+    if (this.destruction.amount > 0 && this.degradedData && this.degradedData.length === len) {
+      this.destruction.degrade(this.degradedData);
+    } else {
+      // First call or no destruction: build fresh from layers
+      const mixed = new Float32Array(len);
+      for (const layer of this.layers) {
+        for (let i = 0; i < len; i++) {
+          mixed[i] += layer[i];
+        }
       }
+      for (let i = 0; i < len; i++) {
+        if (mixed[i] > 1) mixed[i] = 1;
+        else if (mixed[i] < -1) mixed[i] = -1;
+      }
+      this.degradedData = mixed;
+      // Apply first degradation pass if active
+      this.destruction.degrade(this.degradedData);
     }
 
-    // Hard clamp to prevent digital clipping artifacts
-    for (let i = 0; i < len; i++) {
-      if (mixed[i] > 1) mixed[i] = 1;
-      else if (mixed[i] < -1) mixed[i] = -1;
-    }
-
-    // Apply destruction degradation (cumulative — gets worse each cycle)
-    this.destruction.degrade(mixed);
+    const mixed = this.degradedData;
 
     // Reverse the buffer in-place if reverse mode is active
     let finalData = mixed;
@@ -399,6 +410,7 @@ export class LoopTrack {
     this.clearAutoStopTimer();
     this.stopDestructionTimer();
     this.destruction.reset();
+    this.degradedData = null;
     this.stopSource();
     if (this.recorder) {
       this.recorder.stop();
@@ -432,6 +444,7 @@ export class LoopTrack {
       this.loopLengthSamples = data.length;
       this.layers.push(new Float32Array(data));
     }
+    this.degradedData = null;
 
     this.rebuildMixedBuffer();
     this.startPlayback();
