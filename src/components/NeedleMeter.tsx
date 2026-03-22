@@ -93,11 +93,8 @@ export function NeedleMeter({ getAnalyser }: NeedleMeterProps) {
       }
 
       // Refresh accent color periodically
-      s.accentFrame++;
-      if (s.accentFrame > 60) {
-        s.accentFrame = 0;
-        s.accent = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
-      }
+      // Color: light gray when idle, green (#66ff99) when signal detected
+      s.accent = s.smoothedRms > 0.01 ? "#66ff99" : "#999";
 
       const db = toDB(s.smoothedRms);
       const targetAngle = dbToAngle(db);
