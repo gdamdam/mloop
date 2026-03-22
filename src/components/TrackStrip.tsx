@@ -129,9 +129,9 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
               : { type: "track_play", trackId: id }
           )}
           disabled={layers === 0}
-          title="Play"
+          title={status === "playing" ? "Pause" : "Play"}
         >
-          ▶
+          {status === "playing" ? "❚❚" : "▶"}
         </button>
         <button
           className={`transport-btn ${status === "overdubbing" ? "active-overdub" : ""}`}
