@@ -354,10 +354,10 @@ export class LoopTrack {
       this.destruction.degrade(this.degradedData);
     }
 
-    const mixed = this.degradedData;
+    const mixed = this.degradedData!;
 
     // Reverse the buffer in-place if reverse mode is active
-    let finalData = mixed;
+    let finalData: Float32Array<ArrayBuffer> = mixed as Float32Array<ArrayBuffer>;
     if (this.isReversed) {
       finalData = new Float32Array(len);
       for (let i = 0; i < len; i++) {
