@@ -91,7 +91,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "0.16.1";
+    const APP_VERSION = "0.16.2";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -240,7 +240,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× help">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">0.16.1</span>
+          <span className="title-version">0.16.2</span>
         </div>
 
         {/* View toggle */}
@@ -389,7 +389,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
               onClick={handleMasterRec}
               title={masterRec ? "Stop master recording" : "Record master output"}
               style={{
-                fontSize: 9, fontWeight: 700, minWidth: masterRec ? 56 : 28,
+                fontSize: 10, fontWeight: 700, minWidth: masterRec ? 64 : 36,
+                padding: "4px 8px",
                 background: masterRec ? "var(--record)" : undefined,
                 color: masterRec ? "#000" : undefined,
                 animation: masterRec ? "pulse 1s ease-in-out infinite" : undefined,
@@ -397,7 +398,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
             >
               {masterRec
                 ? `■ ${Math.floor(masterRecTime / 60000)}:${String(Math.floor((masterRecTime / 1000) % 60)).padStart(2, "0")}`
-                : "⏺"}
+                : "REC"}
             </button>
             {/* Analog needle VU meter — fixed width */}
             <div style={{ width: 70, height: 36, flexShrink: 0 }}>
