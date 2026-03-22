@@ -53,7 +53,7 @@ export function StartGate({ onStart }: StartGateProps) {
       <div style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.5, marginTop: 12 }}>
         Works offline — save this page to play anywhere, no internet needed.
       </div>
-      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.15</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.16</span>
     </div>
   );
 }

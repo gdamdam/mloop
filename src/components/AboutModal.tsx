@@ -10,7 +10,7 @@ interface Props {
   getAnalyser?: () => AnalyserNode | null;
 }
 
-const APP_VERSION = "1.0.0-pre.15";
+const APP_VERSION = "1.0.0-pre.16";
 
 const LINES = [
   "",
@@ -196,8 +196,31 @@ export function AboutModal({ onClose, getAnalyser }: Props) {
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
+    const REEL_COLORS = [
+      "#ff0044", "#ff6600", "#ffcc00", "#00ff66", "#00ccff",
+      "#6600ff", "#ff00cc", "#00ffcc", "#b388ff", "#66ff99",
+    ];
+    type ReelFloat = { x: number; y: number; vx: number; vy: number; size: number; color: string; spinSpeed: number; rotation: number; alpha: number };
+    const reelFloats: ReelFloat[] = [];
+
     const buf = new Uint8Array(128);
     let frame = 0;
+
+    const drawReel = (cx: number, cy: number, r: number, color: string, rotation: number) => {
+      const hubR = r * 0.22, spoolR = r * 0.85, spokeW = r * 0.08;
+      ctx.beginPath(); ctx.arc(cx, cy, spoolR, 0, Math.PI * 2); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, spoolR * 0.7, 0, Math.PI * 2);
+      const prevAlpha = ctx.globalAlpha; ctx.globalAlpha = prevAlpha * 0.15; ctx.fillStyle = color; ctx.fill(); ctx.globalAlpha = prevAlpha;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(rotation);
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI * 2) / 3;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * (spoolR - 2), Math.sin(a) * (spoolR - 2));
+        ctx.strokeStyle = color; ctx.lineWidth = spokeW; ctx.lineCap = "round"; ctx.stroke();
+      }
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(cx, cy, hubR, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, hubR * 0.4, 0, Math.PI * 2); ctx.fillStyle = "#000"; ctx.fill();
+    };
 
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
@@ -299,6 +322,36 @@ export function AboutModal({ onClose, getAnalyser }: Props) {
         if (offRight || offLeft || offVert) rays.splice(r, 1);
       }
       ctx.globalAlpha = 1;
+
+      // Floating tape reels
+      const reelInterval = level > 0.3 ? 40 : 80;
+      if (frame % reelInterval === 0) {
+        const color = REEL_COLORS[Math.floor(Math.random() * REEL_COLORS.length)];
+        const size = 16 + Math.random() * 24 + level * 15;
+        const fromLeft = Math.random() > 0.5;
+        reelFloats.push({
+          x: fromLeft ? -size : w + size, y: Math.random() * h,
+          vx: (fromLeft ? 1 : -1) * (0.4 + Math.random() * 1 + level * 1.5),
+          vy: (Math.random() - 0.5) * 0.3, size, color,
+          spinSpeed: 0.03 + Math.random() * 0.04,
+          rotation: Math.random() * Math.PI * 2,
+          alpha: 0.3 + Math.random() * 0.3,
+        });
+      }
+      for (let r = reelFloats.length - 1; r >= 0; r--) {
+        const rf = reelFloats[r];
+        rf.x += rf.vx; rf.y += rf.vy + Math.sin(frame * 0.02 + r) * 0.2;
+        rf.rotation += rf.spinSpeed;
+        const gap = rf.size * 0.15;
+        ctx.globalAlpha = rf.alpha;
+        drawReel(rf.x - rf.size / 2 - gap, rf.y, rf.size / 2, rf.color, rf.rotation);
+        drawReel(rf.x + rf.size / 2 + gap, rf.y, rf.size / 2, rf.color, rf.rotation);
+        ctx.strokeStyle = rf.color; ctx.lineWidth = 1; ctx.globalAlpha = rf.alpha * 0.4;
+        ctx.beginPath(); ctx.moveTo(rf.x - rf.size / 2 - gap, rf.y + rf.size / 2 * 0.85);
+        ctx.lineTo(rf.x + rf.size / 2 + gap, rf.y + rf.size / 2 * 0.85); ctx.stroke();
+        ctx.globalAlpha = 1;
+        if (rf.x < -rf.size * 3 || rf.x > w + rf.size * 3) reelFloats.splice(r, 1);
+      }
 
       setScrollY(prev => prev + 0.6);
     };

@@ -187,6 +187,11 @@ export function MegaKaos({ getAnalyser, onClose }: Props) {
     type ReelFloat = { x: number; y: number; vx: number; vy: number; size: number; color: string; spinSpeed: number; rotation: number; alpha: number };
     const reels: ReelFloat[] = [];
 
+    // Rainbow laser rays
+    const RAINBOW = ["#ff0000", "#ff8800", "#ffff00", "#00ff00", "#0088ff", "#8800ff"];
+    type Ray = { x: number; y: number; speed: number; len: number; alpha: number; phase: number; pulseSpeed: number; dir: number; angle: number };
+    const rays: Ray[] = [];
+
     // Floating credits
     type CreditFloat = { text: string; x: number; y: number; vx: number; vy: number; phase: number; alpha: number };
     const floats: CreditFloat[] = [];
@@ -284,6 +289,48 @@ export function MegaKaos({ getAnalyser, onClose }: Props) {
         drawReelPair(ctx, reel.x, reel.y, reel.size, reel.color, reel.rotation, reel.alpha);
         // Remove when off screen
         if (reel.x < -reel.size * 3 || reel.x > w + reel.size * 3) reels.splice(r, 1);
+      }
+
+      // Rainbow laser rays
+      const rayInterval = level > 0.3 ? 15 : 30;
+      if (frame % rayInterval === 0) {
+        const baseY = Math.random() * h;
+        const spd = 1.5 + Math.random() * 3 + level * 4;
+        const len = 60 + Math.random() * 120;
+        const a = 0.25 + Math.random() * 0.3;
+        rays.push({ x: w + 20, y: baseY, speed: spd, len, alpha: a, phase: Math.random() * Math.PI * 2, pulseSpeed: 0.05 + Math.random() * 0.1, dir: -1, angle: 0 });
+        rays.push({ x: -len, y: h - baseY, speed: spd, len, alpha: a, phase: Math.random() * Math.PI * 2, pulseSpeed: 0.05 + Math.random() * 0.1, dir: 1, angle: 0 });
+      }
+      // Diagonal rays after 10s
+      if (frame > 600 && frame % (rayInterval * 2) === 0) {
+        const spd = 1.5 + Math.random() * 3 + level * 3;
+        const len = 60 + Math.random() * 120;
+        const a = 0.2 + Math.random() * 0.3;
+        const diagAngle = Math.PI / 6 + Math.random() * Math.PI / 6;
+        rays.push({ x: -len, y: Math.random() * h * 0.6, speed: spd, len, alpha: a, phase: Math.random() * Math.PI * 2, pulseSpeed: 0.04 + Math.random() * 0.08, dir: 1, angle: diagAngle });
+        rays.push({ x: w + 20, y: h - Math.random() * h * 0.6, speed: spd, len, alpha: a, phase: Math.random() * Math.PI * 2, pulseSpeed: 0.04 + Math.random() * 0.08, dir: -1, angle: -diagAngle });
+      }
+      for (let r = rays.length - 1; r >= 0; r--) {
+        const ray = rays[r];
+        ray.x += ray.speed * ray.dir;
+        ray.y += Math.sin(ray.angle) * ray.speed * ray.dir;
+        ray.phase += ray.pulseSpeed;
+        const twinkle = 0.5 + 0.5 * Math.sin(ray.phase);
+        const boost = 1 + level * 1.5;
+        ctx.save();
+        ctx.translate(ray.x, ray.y);
+        ctx.rotate(ray.angle * ray.dir);
+        for (let i = 0; i < RAINBOW.length; i++) {
+          ctx.fillStyle = RAINBOW[i];
+          ctx.globalAlpha = Math.min(0.8, ray.alpha * twinkle * boost);
+          ctx.fillRect(0, i * 2, ray.len, 2);
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+        const offRight = ray.dir > 0 && ray.x > w + ray.len;
+        const offLeft = ray.dir < 0 && ray.x + ray.len < -ray.len;
+        const offVert = ray.y < -ray.len * 2 || ray.y > h + ray.len * 2;
+        if (offRight || offLeft || offVert) rays.splice(r, 1);
       }
 
       // Floating credits
