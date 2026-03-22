@@ -26,38 +26,79 @@ interface PadViewProps {
   flashPad?: number | null;
 }
 
-function MiniWaveform({ buffer }: { buffer: Float32Array | null }) {
+/** Mini waveform with playhead animation when playing. */
+function MiniWaveform({ buffer, isPlaying }: { buffer: Float32Array | null; isPlaying?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef(0);
+  const startRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !buffer || buffer.length === 0) return;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = canvas.offsetWidth * dpr;
-    canvas.height = canvas.offsetHeight * dpr;
-    ctx.scale(dpr, dpr);
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
-    const halfH = h / 2;
-    const step = Math.max(1, Math.floor(buffer.length / w));
-    ctx.clearRect(0, 0, w, h);
+
     const preview = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
-    ctx.fillStyle = preview;
-    for (let x = 0; x < w; x++) {
-      const idx = Math.floor((x / w) * buffer.length);
-      let max = 0;
-      for (let j = 0; j < step && idx + j < buffer.length; j++) {
-        const v = Math.abs(buffer[idx + j]);
-        if (v > max) max = v;
+
+    const draw = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.scale(dpr, dpr);
       }
-      const barH = max * halfH * 0.9;
-      ctx.globalAlpha = 0.8;
-      ctx.fillRect(x, halfH - barH, 1, barH * 2);
+      ctx.clearRect(0, 0, w, h);
+
+      if (!buffer || buffer.length === 0) return;
+
+      const halfH = h / 2;
+      const step = Math.max(1, Math.floor(buffer.length / w));
+
+      // Draw waveform
+      ctx.fillStyle = preview;
+      for (let x = 0; x < w; x++) {
+        const idx = Math.floor((x / w) * buffer.length);
+        let max = 0;
+        for (let j = 0; j < step && idx + j < buffer.length; j++) {
+          const v = Math.abs(buffer[idx + j]);
+          if (v > max) max = v;
+        }
+        const barH = max * halfH * 0.9;
+        ctx.globalAlpha = 0.8;
+        ctx.fillRect(x, halfH - barH, 1, barH * 2);
+      }
+      ctx.globalAlpha = 1;
+
+      // Playhead when playing
+      if (isPlaying && buffer.length > 0) {
+        const dur = buffer.length / 44100;
+        const elapsed = (performance.now() - startRef.current) / 1000;
+        const pos = (elapsed % dur) / dur;
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pos * w, 0);
+        ctx.lineTo(pos * w, h);
+        ctx.stroke();
+      }
+
+      if (isPlaying) {
+        rafRef.current = requestAnimationFrame(draw);
+      }
+    };
+
+    if (isPlaying) {
+      startRef.current = performance.now();
+      draw();
+    } else {
+      cancelAnimationFrame(rafRef.current);
+      draw(); // static draw
     }
-    ctx.globalAlpha = 1;
-  }, [buffer]);
+
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [buffer, isPlaying]);
 
   return (
     <canvas ref={canvasRef} style={{
@@ -144,6 +185,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
   const [showSlicer, setShowSlicer] = useState(false);
   const [dragOverPad, setDragOverPad] = useState<number | null>(null);
   const [countIn, setCountIn] = useState(0);
+  const [playingPads, setPlayingPads] = useState<Set<number>>(new Set());
   const [, forceUpdate] = useState(0);
 
   // Sync with PadEngine passed from Layout (persists across view switches)
@@ -188,6 +230,12 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
     } else if (slot.status === "loaded") {
       pe.playAt(slotId, 0, velocity);
       rollSlotRef.current = slotId;
+      // Track playing state for playhead animation
+      setPlayingPads(prev => new Set(prev).add(slotId));
+      if (slot.playMode === "one") {
+        const dur = (slot.buffer?.length ?? 44100) / 44100 * 1000;
+        setTimeout(() => setPlayingPads(prev => { const n = new Set(prev); n.delete(slotId); return n; }), dur);
+      }
       // Roll only if enabled in settings (off by default)
       const rollEnabled = localStorage.getItem("mloop-roll") === "on";
       if (rollEnabled) {
@@ -395,7 +443,10 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
                   padEngine?.stopRoll();
                   setRollingPad(null);
                   const slot = padEngine?.slots[rollSlotRef.current];
-                  if (slot?.playMode === "gate") padEngine?.stopSlot(rollSlotRef.current);
+                  if (slot?.playMode === "gate") {
+                    padEngine?.stopSlot(rollSlotRef.current);
+                    setPlayingPads(prev => { const n = new Set(prev); n.delete(rollSlotRef.current!); return n; });
+                  }
                   rollSlotRef.current = null;
                 }
               }}
@@ -438,7 +489,7 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
                   : slot.status === "loaded" ? "0 0 8px color-mix(in srgb, var(--preview) 20%, transparent)" : "none",
               }}
             >
-              {slot.buffer && <MiniWaveform buffer={slot.buffer} />}
+              {slot.buffer && <MiniWaveform buffer={slot.buffer} isPlaying={playingPads.has(slot.id) || flashPad === slot.id} />}
 
               {/* Pad number */}
               <span style={{
