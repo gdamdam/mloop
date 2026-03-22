@@ -61,23 +61,15 @@ export function TapeReels({ status }: TapeReelsProps) {
       display: "flex", flexDirection: "column", alignItems: "center", gap: 0,
       opacity: status === "empty" ? 0.3 : 1,
     }}>
-      {/* Reels row with tape head in center */}
+      {/* Reels row */}
       <div style={{ display: "flex", alignItems: "center" }}>
         <Reel size={reelSize} spokeColor={color} spinning={spinning} speed={speed} direction="ccw" />
-        {/* Tape head block — glows when active */}
-        <div style={{
-          width: 8, height: 14, borderRadius: 2, margin: "0 -1px",
-          background: spinning ? color : "var(--bg-cell)",
-          border: `1px solid ${color}`,
-          opacity: spinning ? 0.9 : 0.3,
-          boxShadow: spinning ? `0 0 6px ${color}` : "none",
-          transition: "opacity 0.2s, box-shadow 0.2s",
-        }} />
+        <div style={{ width: 6 }} />
         <Reel size={reelSize} spokeColor={color} spinning={spinning} speed={speed} direction="ccw" />
       </div>
 
-      {/* Bottom return tape line */}
-      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+      {/* Bottom return tape line with head crossing it */}
+      <div style={{ display: "flex", alignItems: "center", width: "100%", position: "relative" }}>
         <div style={{ width: reelSize / 2 }} />
         <div style={{
           flex: 1, height: 1,
@@ -85,6 +77,17 @@ export function TapeReels({ status }: TapeReelsProps) {
           borderRadius: 1,
         }} />
         <div style={{ width: reelSize / 2 }} />
+        {/* Tape head — small block crossing the tape line */}
+        <div style={{
+          position: "absolute", left: "50%", top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 6, height: 8, borderRadius: 1,
+          background: spinning ? color : "var(--bg-cell)",
+          border: `1px solid ${color}`,
+          opacity: spinning ? 0.9 : 0.3,
+          boxShadow: spinning ? `0 0 4px ${color}` : "none",
+          transition: "opacity 0.2s, box-shadow 0.2s",
+        }} />
       </div>
     </div>
   );
