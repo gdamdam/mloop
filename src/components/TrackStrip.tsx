@@ -173,16 +173,17 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
         </button>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-        <span style={{ fontSize: 7, color: "var(--text-dim)" }}>VOL</span>
-        <input type="range" className="volume-slider" min={0} max={1} step={0.01} value={volume}
-          onChange={(e) => command({ type: "set_volume", trackId: id, volume: parseFloat(e.target.value) })}
-          style={{ flex: 1, maxWidth: 80 }} />
-        <span style={{ fontSize: 8, color: "var(--preview)", fontWeight: 700, minWidth: 24 }}>{Math.round(volume * 100)}%</span>
+      {/* VOL + DECAY side by side */}
+      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 3, flex: 1 }}>
+          <span style={{ fontSize: 7, color: "var(--text-dim)" }}>VOL</span>
+          <input type="range" className="volume-slider" min={0} max={1} step={0.01} value={volume}
+            onChange={(e) => command({ type: "set_volume", trackId: id, volume: parseFloat(e.target.value) })}
+            style={{ flex: 1 }} />
+          <span style={{ fontSize: 8, color: "var(--preview)", fontWeight: 700, minWidth: 24 }}>{Math.round(volume * 100)}%</span>
+        </div>
+        {layers > 0 && <DecaySlider engine={engine} trackId={id} />}
       </div>
-
-      {/* Destruction mode — progressive loop degradation */}
-      {layers > 0 && <DecaySlider engine={engine} trackId={id} />}
 
       <EffectRack
         trackId={id}
@@ -204,23 +205,18 @@ export function TrackStrip({ track, command, engine, padEngine }: TrackStripProp
 function DecaySlider({ engine, trackId }: { engine: AudioEngine | null; trackId: number }) {
   const [value, setValue] = useState(() => engine?.tracks[trackId]?.destruction.amount ?? 0);
   return (
-    <div className="volume-control" style={{ marginTop: 4 }}>
-      <span style={{ fontSize: 9, color: "var(--text-dim)", minWidth: 36 }}>DECAY</span>
-      <input
-        type="range"
-        className="volume-slider"
-        min={0}
-        max={1}
-        step={0.05}
-        value={value}
+    <div style={{ display: "flex", alignItems: "center", gap: 3, flex: 1 }}>
+      <span style={{ fontSize: 7, color: "var(--text-dim)" }}>DECAY</span>
+      <input type="range" className="volume-slider" min={0} max={1} step={0.05} value={value}
         onChange={(e) => {
           const v = parseFloat(e.target.value);
           setValue(v);
           const track = engine?.tracks[trackId];
           if (track) track.destruction.amount = v;
         }}
+        style={{ flex: 1 }}
       />
-      <span className="volume-label">{Math.round(value * 100)}%</span>
+      <span style={{ fontSize: 8, color: "var(--preview)", fontWeight: 700, minWidth: 24 }}>{Math.round(value * 100)}%</span>
     </div>
   );
 }
