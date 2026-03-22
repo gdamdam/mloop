@@ -1,6 +1,6 @@
 /**
- * SettingsPanel — theme picker, session export/import, recording limits.
- * All settings saved to localStorage for persistence across sessions.
+ * SettingsPanel — compact settings layout inspired by mpump.
+ * Toggle rows (label + ON/OFF), dropdowns, small option buttons.
  */
 
 import { useState, useEffect } from "react";
@@ -32,13 +32,33 @@ function saveLockBarsValue(bars: LockBars): void {
   localStorage.setItem(LOCK_BARS_KEY, String(bars));
 }
 
+// Reusable compact styles
+const S = {
+  section: { fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase" as const, letterSpacing: 1, margin: "16px 0 6px" },
+  row: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0" } as const,
+  label: { fontSize: 11, color: "var(--text-dim)" },
+  toggle: (on: boolean) => ({
+    padding: "3px 10px", borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: "pointer", border: "none",
+    background: on ? "var(--preview)" : "var(--bg-cell)", color: on ? "#000" : "var(--text-dim)",
+  }),
+  optRow: { display: "flex", gap: 3, marginTop: 4 } as const,
+  opt: (on: boolean) => ({
+    flex: 1, padding: "4px 2px", borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer", border: "none", textAlign: "center" as const,
+    background: on ? "var(--preview)" : "var(--bg-cell)", color: on ? "#000" : "var(--text-dim)",
+  }),
+  select: {
+    width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: 11,
+    background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer",
+  },
+};
+
 interface SettingsPanelProps {
   palette: PaletteId;
   onPaletteChange: (id: PaletteId) => void;
   onClose: () => void;
   command: (cmd: LoopCommand) => void;
-  latencyMs: number; // measured input latency for display
-  sessionSizeMB: number; // current session size estimate
+  latencyMs: number;
+  sessionSizeMB: number;
   engine?: { lockBars: number; switchDevice: (id: string) => Promise<void> } | null;
 }
 
@@ -48,8 +68,6 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
   const [layout, setLayout] = useState<PadLayoutId>(loadPadLayout);
   const [velocity, setVelocity] = useState(loadVelocity);
   const [lockBars, setLockBars] = useState<LockBars>(loadLockBars);
-
-  // Audio input device enumeration
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState(() => localStorage.getItem("mloop-audio-device") || "");
 
@@ -63,16 +81,22 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
     setSelectedDevice(deviceId);
     localStorage.setItem("mloop-audio-device", deviceId);
     if (engine) {
-      try { await engine.switchDevice(deviceId); } catch { /* ignore — device may be unavailable */ }
+      try { await engine.switchDevice(deviceId); } catch { /* device may be unavailable */ }
     }
   };
 
-  /** Update a single limit field and persist. */
   const updateLimit = (key: keyof RecordingLimits, value: number) => {
     const updated = { ...limits, [key]: value };
     setLimits(updated);
     saveLimits(updated);
   };
+
+  const lsToggle = (key: string) => {
+    const on = localStorage.getItem(key) !== "on";
+    localStorage.setItem(key, on ? "on" : "off");
+    forceUpdate(n => n + 1);
+  };
+  const lsOn = (key: string) => localStorage.getItem(key) === "on";
 
   return (
     <div className="sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -83,323 +107,199 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
         </div>
         <div className="sheet-body">
 
-          {/* ── Themes ──────────────────────────────────────────────── */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Theme
-          </div>
-
-          {/* Dark themes */}
-          <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 4 }}>DARK</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 12 }}>
+          {/* ── Theme ─────────────────────────────────────────── */}
+          <div style={S.section}>Theme</div>
+          <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 3 }}>DARK</div>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
             {PALETTES.filter(p => p.dark).map(p => (
               <button key={p.id} onClick={() => { onPaletteChange(p.id); applyPalette(p); }}
                 style={{
-                  padding: "10px 8px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+                  padding: "6px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600,
                   background: p.bg, color: p.text,
                   border: palette === p.id ? `2px solid ${p.preview}` : "2px solid transparent",
-                  boxShadow: palette === p.id ? `0 0 8px ${p.preview}40` : "none", cursor: "pointer",
+                  cursor: "pointer",
                 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: p.preview, display: "inline-block", marginRight: 4 }} />
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.preview, display: "inline-block", marginRight: 3 }} />
                 {p.name}
               </button>
             ))}
           </div>
-
-          {/* Light themes */}
-          <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 4 }}>LIGHT</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 16 }}>
+          <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 3 }}>LIGHT</div>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
             {PALETTES.filter(p => !p.dark).map(p => (
               <button key={p.id} onClick={() => { onPaletteChange(p.id); applyPalette(p); }}
                 style={{
-                  padding: "10px 8px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+                  padding: "6px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600,
                   background: p.bg, color: p.text,
                   border: palette === p.id ? `2px solid ${p.preview}` : `2px solid ${p.border}`,
-                  boxShadow: palette === p.id ? `0 0 8px ${p.preview}40` : "none", cursor: "pointer",
+                  cursor: "pointer",
                 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: p.preview, display: "inline-block", marginRight: 4 }} />
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.preview, display: "inline-block", marginRight: 3 }} />
                 {p.name}
               </button>
             ))}
           </div>
 
-          {/* ── Session export/import ───────────────────────────────── */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Session
-          </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            <button onClick={() => command({ type: "export_session_file" })}
-              style={{ flex: 1, padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 700, background: "var(--bg-cell)", color: "var(--text)" }}>
-              ⬇ Export Session
-            </button>
-            <button onClick={() => command({ type: "import_session_file" })}
-              style={{ flex: 1, padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 700, background: "var(--bg-cell)", color: "var(--text)" }}>
-              ⬆ Import Session
-            </button>
-          </div>
-
-          {/* ── Audio Input Device ──────────────────────────────────── */}
+          {/* ── Audio Input ───────────────────────────────────── */}
           {devices.length > 0 && (<>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-              Audio Input
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <select
-                value={selectedDevice}
-                onChange={(e) => handleDeviceChange(e.target.value)}
-                style={{
-                  width: "100%", padding: "8px 10px", borderRadius: 8, fontSize: 12,
-                  background: "var(--bg-cell)", color: "var(--text)",
-                  border: "1px solid var(--border)", cursor: "pointer",
-                }}
-              >
-                <option value="">Default</option>
-                {devices.map(d => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {d.label || `Input ${d.deviceId.slice(0, 8)}…`}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div style={S.section}>Audio Input</div>
+            <select value={selectedDevice} onChange={(e) => handleDeviceChange(e.target.value)} style={S.select}>
+              <option value="">Default</option>
+              {devices.map(d => (
+                <option key={d.deviceId} value={d.deviceId}>
+                  {d.label || `Input ${d.deviceId.slice(0, 8)}…`}
+                </option>
+              ))}
+            </select>
           </>)}
 
-          {/* ── Recording limits ────────────────────────────────────── */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Recording Limits
-          </div>
+          {/* ── Recording ─────────────────────────────────────── */}
+          <div style={S.section}>Recording</div>
 
-          {/* Max recording time */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4 }}>Max recording time per track/pad</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {TIME_OPTIONS.map(opt => (
-                <button key={opt.value} onClick={() => updateLimit("maxRecordingTimeSec", opt.value)}
-                  style={{
-                    flex: 1, padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                    background: limits.maxRecordingTimeSec === opt.value ? "var(--preview)" : "var(--bg-cell)",
-                    color: limits.maxRecordingTimeSec === opt.value ? "#000" : "var(--text-dim)",
-                    cursor: "pointer",
-                  }}>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Max session size */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4 }}>Max session size (all tracks + pads)</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {SIZE_OPTIONS.map(opt => (
-                <button key={opt.value} onClick={() => updateLimit("maxSessionSizeMB", opt.value)}
-                  style={{
-                    flex: 1, padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                    background: limits.maxSessionSizeMB === opt.value ? "var(--preview)" : "var(--bg-cell)",
-                    color: limits.maxSessionSizeMB === opt.value ? "#000" : "var(--text-dim)",
-                    cursor: "pointer",
-                  }}>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Link Bridge ────────────────────────────────────────── */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Link Bridge (mpump sync)
-          </div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
-            <button
-              onClick={() => command({ type: "toggle_metronome" })}
-              style={{
-                flex: 1, padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 700,
-                background: "var(--bg-cell)", color: "var(--text)",
-              }}
-            >
-              Link Bridge connects mloop to mpump for tempo sync via localhost:19876.
-              Enable in the header with the LINK button.
+          <div style={S.row}>
+            <span style={S.label}>Auto-gain</span>
+            <button onClick={() => lsToggle("mloop-auto-gain")} style={S.toggle(lsOn("mloop-auto-gain"))}>
+              {lsOn("mloop-auto-gain") ? "ON" : "OFF"}
             </button>
           </div>
 
-          {/* ── Pad layout ─────────────────────────────────────────── */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Pad Layout
-          </div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-            {PAD_LAYOUTS.map(l => (
-              <button
-                key={l.id}
-                onClick={() => { setLayout(l.id); savePadLayout(l.id); }}
-                style={{
-                  flex: 1, padding: "8px 6px", borderRadius: 8, fontSize: 10, fontWeight: 700,
-                  background: layout === l.id ? "var(--preview)" : "var(--bg-cell)",
-                  color: layout === l.id ? "#000" : "var(--text-dim)",
-                  cursor: "pointer", textAlign: "center",
-                }}
-                title={l.description}
-              >
-                {l.name}
-              </button>
-            ))}
-          </div>
-
-          {/* ── Pad Settings ────────────────────────────────────────── */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Pad Settings
-          </div>
-
-          {/* Velocity sensitivity */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Velocity sensitivity</span>
-            <button
-              onClick={() => {
-                const next = !velocity;
-                setVelocity(next);
-                saveVelocity(next);
-              }}
-              style={{
-                padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 700,
-                background: velocity ? "var(--preview)" : "var(--bg-cell)",
-                color: velocity ? "#000" : "var(--text-dim)",
-                cursor: "pointer",
-              }}
-            >
-              {velocity ? "ON" : "OFF"}
-            </button>
-          </div>
-
-          {/* Lock bars */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4 }}>Lock bars (LOCK sync mode window)</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {([1, 2, 4, 8] as const).map(bars => (
-                <button key={bars} onClick={() => {
-                  setLockBars(bars);
-                  saveLockBarsValue(bars);
-                  if (engine) engine.lockBars = bars;
-                }}
-                  style={{
-                    flex: 1, padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                    background: lockBars === bars ? "var(--preview)" : "var(--bg-cell)",
-                    color: lockBars === bars ? "#000" : "var(--text-dim)",
-                    cursor: "pointer",
-                  }}>
-                  {bars} bar{bars > 1 ? "s" : ""}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Auto-gain */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Auto-gain (auto-adjust mic level)</span>
-              <button onClick={() => {
-                const on = localStorage.getItem("mloop-auto-gain") !== "on";
-                localStorage.setItem("mloop-auto-gain", on ? "on" : "off");
-                forceUpdate(n => n + 1);
-              }} style={{
-                padding: "4px 12px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                background: localStorage.getItem("mloop-auto-gain") === "on" ? "var(--preview)" : "var(--bg-cell)",
-                color: localStorage.getItem("mloop-auto-gain") === "on" ? "#000" : "var(--text-dim)",
-                cursor: "pointer",
-              }}>
-                {localStorage.getItem("mloop-auto-gain") === "on" ? "ON" : "OFF"}
-              </button>
-            </div>
-          </div>
-
-          {/* Roll/repeat on hold */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Roll on hold (hold pad to repeat)</span>
-              <button onClick={() => {
-                const on = localStorage.getItem("mloop-roll") !== "on";
-                localStorage.setItem("mloop-roll", on ? "on" : "off");
-                forceUpdate(n => n + 1);
-              }} style={{
-                padding: "4px 12px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                background: localStorage.getItem("mloop-roll") === "on" ? "var(--preview)" : "var(--bg-cell)",
-                color: localStorage.getItem("mloop-roll") === "on" ? "#000" : "var(--text-dim)",
-                cursor: "pointer",
-              }}>
-                {localStorage.getItem("mloop-roll") === "on" ? "ON" : "OFF"}
-              </button>
-            </div>
-            {localStorage.getItem("mloop-roll") === "on" && (
-              <div style={{ display: "flex", gap: 4 }}>
-                {[{v: "8", l: "1/8"}, {v: "16", l: "1/16"}, {v: "32", l: "1/32"}, {v: "64", l: "1/64"}].map(r => (
-                  <button key={r.v} onClick={() => localStorage.setItem("mloop-roll-rate", r.v)}
-                    style={{
-                      flex: 1, padding: "4px", borderRadius: 4, fontSize: 9, fontWeight: 700,
-                      background: (localStorage.getItem("mloop-roll-rate") || "16") === r.v ? "var(--preview)" : "var(--bg-cell)",
-                      color: (localStorage.getItem("mloop-roll-rate") || "16") === r.v ? "#000" : "var(--text-dim)",
-                      cursor: "pointer",
-                    }}>
-                    {r.l}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Count-in before recording */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4 }}>Count-in before recording</div>
-            <div style={{ display: "flex", gap: 4 }}>
+          <div style={{ padding: "5px 0" }}>
+            <span style={S.label}>Count-in</span>
+            <div style={S.optRow}>
               {([0, 4, 8] as const).map(beats => (
-                <button key={beats} onClick={() => {
-                  localStorage.setItem("mloop-count-in", String(beats));
-                }}
-                  style={{
-                    flex: 1, padding: "6px 4px", borderRadius: 6, fontSize: 10, fontWeight: 700,
-                    background: parseInt(localStorage.getItem("mloop-count-in") || "4") === beats ? "var(--preview)" : "var(--bg-cell)",
-                    color: parseInt(localStorage.getItem("mloop-count-in") || "4") === beats ? "#000" : "var(--text-dim)",
-                    cursor: "pointer",
-                  }}>
+                <button key={beats} onClick={() => localStorage.setItem("mloop-count-in", String(beats))}
+                  style={S.opt(parseInt(localStorage.getItem("mloop-count-in") || "4") === beats)}>
                   {beats === 0 ? "Off" : beats === 4 ? "1 bar" : "2 bars"}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* ── Info ────────────────────────────────────────────────── */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Info
-          </div>
-          <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.8 }}>
-            <div>Input latency: <b style={{ color: "var(--text)" }}>{latencyMs.toFixed(1)} ms</b></div>
-            <div>Session size: <b style={{ color: "var(--text)" }}>{sessionSizeMB.toFixed(1)} MB</b></div>
-            <div>Sample rate: <b style={{ color: "var(--text)" }}>44100 Hz</b></div>
+          <div style={{ padding: "5px 0" }}>
+            <span style={S.label}>Max time per track</span>
+            <div style={S.optRow}>
+              {TIME_OPTIONS.map(opt => (
+                <button key={opt.value} onClick={() => updateLimit("maxRecordingTimeSec", opt.value)}
+                  style={S.opt(limits.maxRecordingTimeSec === opt.value)}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* ── Reset ──────────────────────────────────────────────── */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 1, marginTop: 24, marginBottom: 8 }}>
-            Danger Zone
+          <div style={{ padding: "5px 0" }}>
+            <span style={S.label}>Max session size</span>
+            <div style={S.optRow}>
+              {SIZE_OPTIONS.map(opt => (
+                <button key={opt.value} onClick={() => updateLimit("maxSessionSizeMB", opt.value)}
+                  style={S.opt(limits.maxSessionSizeMB === opt.value)}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* ── Pads ──────────────────────────────────────────── */}
+          <div style={S.section}>Pads</div>
+
+          <div style={S.row}>
+            <span style={S.label}>Velocity sensitivity</span>
+            <button onClick={() => { const n = !velocity; setVelocity(n); saveVelocity(n); }}
+              style={S.toggle(velocity)}>
+              {velocity ? "ON" : "OFF"}
+            </button>
+          </div>
+
+          <div style={S.row}>
+            <span style={S.label}>Roll on hold</span>
+            <button onClick={() => lsToggle("mloop-roll")} style={S.toggle(lsOn("mloop-roll"))}>
+              {lsOn("mloop-roll") ? "ON" : "OFF"}
+            </button>
+          </div>
+          {lsOn("mloop-roll") && (
+            <div style={S.optRow}>
+              {[{v: "8", l: "1/8"}, {v: "16", l: "1/16"}, {v: "32", l: "1/32"}, {v: "64", l: "1/64"}].map(r => (
+                <button key={r.v} onClick={() => localStorage.setItem("mloop-roll-rate", r.v)}
+                  style={S.opt((localStorage.getItem("mloop-roll-rate") || "16") === r.v)}>
+                  {r.l}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div style={{ padding: "5px 0" }}>
+            <span style={S.label}>Lock bars (LOCK sync)</span>
+            <div style={S.optRow}>
+              {([1, 2, 4, 8] as const).map(bars => (
+                <button key={bars} onClick={() => {
+                  setLockBars(bars); saveLockBarsValue(bars);
+                  if (engine) engine.lockBars = bars;
+                }} style={S.opt(lockBars === bars)}>
+                  {bars} bar{bars > 1 ? "s" : ""}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ padding: "5px 0" }}>
+            <span style={S.label}>Pad layout</span>
+            <div style={S.optRow}>
+              {PAD_LAYOUTS.map(l => (
+                <button key={l.id} onClick={() => { setLayout(l.id); savePadLayout(l.id); }}
+                  style={S.opt(layout === l.id)} title={l.description}>
+                  {l.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Session ───────────────────────────────────────── */}
+          <div style={S.section}>Session</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => command({ type: "export_session_file" })}
+              style={{ ...S.toggle(false), flex: 1, padding: "6px 4px", fontSize: 10 }}>
+              Export
+            </button>
+            <button onClick={() => command({ type: "import_session_file" })}
+              style={{ ...S.toggle(false), flex: 1, padding: "6px 4px", fontSize: 10 }}>
+              Import
+            </button>
+          </div>
+
+          {/* ── Link Bridge ───────────────────────────────────── */}
+          <div style={S.section}>Link Bridge</div>
+          <div style={{ fontSize: 10, color: "var(--text-dim)", lineHeight: 1.5 }}>
+            Sync with mpump via localhost:19876. Enable with the LINK button in the header.
+          </div>
+
+          {/* ── Info ──────────────────────────────────────────── */}
+          <div style={S.section}>Info</div>
+          <div style={{ fontSize: 10, color: "var(--text-dim)", lineHeight: 1.8 }}>
+            Latency: <b style={{ color: "var(--text)" }}>{latencyMs.toFixed(1)} ms</b> ·
+            Session: <b style={{ color: "var(--text)" }}>{sessionSizeMB.toFixed(1)} MB</b> ·
+            Rate: <b style={{ color: "var(--text)" }}>44100 Hz</b>
+          </div>
+
+          {/* ── Reset ─────────────────────────────────────────── */}
+          <div style={{ ...S.section, marginTop: 24 }}>Danger Zone</div>
           <button
             onClick={() => {
               if (window.confirm("Reset everything? This will delete all sessions, samples, settings, and reload the app. This cannot be undone.")) {
-                // Clear all storage
                 localStorage.clear();
-                // Clear IndexedDB databases
                 indexedDB.databases?.().then(dbs => {
-                  for (const db of dbs) {
-                    if (db.name) indexedDB.deleteDatabase(db.name);
-                  }
+                  for (const db of dbs) { if (db.name) indexedDB.deleteDatabase(db.name); }
                 }).catch(() => {});
-                // Reload the app
                 window.location.reload();
               }
             }}
             style={{
-              width: "100%", padding: 12, borderRadius: 8, fontSize: 12, fontWeight: 700,
-              background: "#ff4444", color: "#fff", cursor: "pointer",
-              border: "none",
+              width: "100%", padding: 8, borderRadius: 6, fontSize: 11, fontWeight: 700,
+              background: "#ff4444", color: "#fff", cursor: "pointer", border: "none",
             }}
           >
             Reset Everything
           </button>
-          <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 4, textAlign: "center" }}>
+          <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 3, textAlign: "center" }}>
             Deletes all sessions, samples, kits, and settings
           </div>
 
