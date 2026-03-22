@@ -323,7 +323,11 @@ export function useLoopEngine() {
               return p;
             });
             const mixed = mixBuffers(padded);
-            const wav = encodeWav(mixed, engine.ctx.sampleRate);
+            const wav = encodeWav(mixed, engine.ctx.sampleRate, {
+              title: "mloop mixdown",
+              software: "mloop — https://mloop.mpump.live",
+              date: new Date().toISOString().slice(0, 10),
+            });
             await saveFileAs(new Blob([wav], { type: "audio/wav" }), "mloop-mixdown.wav");
           }
           break;

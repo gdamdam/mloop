@@ -118,4 +118,26 @@ describe("encodeWav", () => {
     expect(view.getInt16(44, true)).toBe(32767);
     expect(view.getInt16(46, true)).toBe(-32768);
   });
+
+  it("includes LIST/INFO metadata when provided", () => {
+    const buf = new Float32Array(10);
+    const wav = encodeWav(buf, 44100, { title: "Test", software: "mloop" });
+    // File should be larger than without metadata (44 header + 20 data = 64)
+    expect(wav.byteLength).toBeGreaterThan(64);
+    // Should contain LIST and INFO markers
+    const bytes = new Uint8Array(wav);
+    const text = Array.from(bytes).map(b => String.fromCharCode(b)).join("");
+    expect(text).toContain("LIST");
+    expect(text).toContain("INFO");
+    expect(text).toContain("INAM"); // title tag
+    expect(text).toContain("Test");
+    expect(text).toContain("ISFT"); // software tag
+    expect(text).toContain("mloop");
+  });
+
+  it("still has correct RIFF size with metadata", () => {
+    const wav = encodeWav(new Float32Array(10), 44100, { title: "Hi" });
+    const view = new DataView(wav);
+    expect(view.getUint32(4, true)).toBe(wav.byteLength - 8);
+  });
 });

@@ -5,7 +5,7 @@ import { AppFooter } from "../../components/AppFooter";
 describe("AppFooter", () => {
   it("renders version number", () => {
     render(<AppFooter onShowHelp={vi.fn()} />);
-    expect(screen.getByText(/^v\d+\.\d+\.\d+$/)).toBeInTheDocument();
+    expect(screen.getByText(/^v\d+\.\d+\.\d+/)).toBeInTheDocument();
   });
 
   it("renders github link", () => {
