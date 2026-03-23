@@ -296,7 +296,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, height: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, height: "100%" }}>
       {/* Transport */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button
@@ -324,7 +324,6 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         >
           ●
         </button>
-        <span style={{ fontSize: 9, color: "var(--text-dim)", letterSpacing: 1 }}>SEQ</span>
         {/* Swing — inline */}
         <span style={{ fontSize: 7, color: "var(--text-dim)", marginLeft: 4 }}>Sw</span>
         <input type="range" className="volume-slider" min={0} max={1} step={0.05}
@@ -400,7 +399,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
       </div>
 
       {/* Step grid */}
-      <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+      <div style={{ flex: "1 1 0", overflow: "auto", minHeight: 0 }}>
         {loadedSlots.map((slot) => (
           <div key={slot.id} style={{ display: "flex", alignItems: "center", gap: 2, marginBottom: 2 }}>
             <button
