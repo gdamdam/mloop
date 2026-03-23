@@ -52,6 +52,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   );
   const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [swing, setSwing] = useState(0);
   const [currentStep, setCurrentStep] = useState(-1);
   const [dragOverCell, setDragOverCell] = useState<{ step: number; slot: number } | null>(null);
   const [mutedRows, setMutedRows] = useState<Set<number>>(new Set());
@@ -159,7 +160,12 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   useEffect(() => {
     if (!padEngine) return;
     // eslint-disable-next-line react-hooks/immutability -- padEngine is an external class instance, not React state
-    padEngine.onStepChange = (step) => { setCurrentStep(step); currentStepRef.current = step; };
+    padEngine.onStepChange = (step) => {
+      setCurrentStep(step); currentStepRef.current = step;
+      // Sync play state with engine (header button may have started/stopped it)
+      if (step >= 0) setPlaying(true);
+      else setPlaying(false);
+    };
     return () => { padEngine.onStepChange = null; };
   }, [padEngine]);
 
@@ -221,9 +227,9 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         {/* Swing — inline */}
         <span style={{ fontSize: 7, color: "var(--text-dim)", marginLeft: 4 }}>Sw</span>
         <input type="range" className="volume-slider" min={0} max={1} step={0.05}
-          value={padEngine?.getSeqSwing() ?? 0}
-          onChange={(e) => padEngine?.setSeqSwing(parseFloat(e.target.value))}
-          title={`Swing ${Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%`}
+          value={swing}
+          onChange={(e) => { const v = parseFloat(e.target.value); setSwing(v); padEngine?.setSeqSwing(v); }}
+          title={`Swing ${Math.round(swing * 100)}%`}
           style={{ width: 40, flex: "none" }} />
         {/* Swing — inline with transport */}
         {/* Step count selector */}
