@@ -34,6 +34,7 @@ export function PrivacyModal({ onClose }: Props) {
             <li><strong style={{ color: "var(--text)" }}>Local storage only</strong> — your sessions, samples, and settings are saved in your browser. Nothing is sent to any server</li>
             <li><strong style={{ color: "var(--text)" }}>Open source</strong> — all code is public at <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener" style={{ color: "var(--preview)" }}>github.com/gdamdam/mloop</a></li>
           </ul>
+          <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-dim)" }}>mloop is hosted on <a href="https://pages.github.com" target="_blank" rel="noopener" style={{ color: "var(--preview)" }}>GitHub Pages</a> — a free static hosting service by GitHub. No server, no backend, no database. Everything runs in your browser.</p>
           <p style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>Your music stays on your device. Always.</p>
         </div>
       </div>
