@@ -397,105 +397,6 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         >
           RND
         </button>
-        <button
-          onClick={handleSavePattern}
-          style={{ fontSize: 9, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
-          title="Save current pattern"
-        >
-          SAVE
-        </button>
-        <div ref={patternMenuRef} style={{ position: "relative" }}>
-          <button
-            onClick={() => { setPatternMenuOpen(p => !p); setRenamingIdx(null); }}
-            style={{
-              fontSize: 9, padding: "2px 6px", borderRadius: 4,
-              background: patternMenuOpen ? "var(--preview)" : "var(--bg-cell)",
-              color: patternMenuOpen ? "#000" : savedPatterns.length > 0 ? "var(--preview)" : "var(--text-dim)",
-            }}
-            title="Load saved pattern"
-          >
-            LOAD
-          </button>
-          {patternMenuOpen && (
-            <div style={{
-              position: "absolute", top: "100%", right: 0, marginTop: 4,
-              background: "var(--bg-panel)", border: "1px solid var(--border)",
-              borderRadius: 6, padding: 4, minWidth: 180, zIndex: 100,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-              maxHeight: 240, overflowY: "auto",
-            }}>
-              {savedPatterns.length === 0 ? (
-                <div style={{ fontSize: 9, color: "var(--text-dim)", padding: "6px 8px", textAlign: "center" }}>
-                  No saved patterns
-                </div>
-              ) : savedPatterns.map((p, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", gap: 4, padding: "3px 4px",
-                  borderRadius: 4, cursor: "pointer",
-                }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-cell)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                >
-                  {renamingIdx === i ? (
-                    <input
-                      autoFocus
-                      value={renameValue}
-                      onChange={e => setRenameValue(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter") handleRenamePattern(i, renameValue);
-                        if (e.key === "Escape") setRenamingIdx(null);
-                      }}
-                      onBlur={() => handleRenamePattern(i, renameValue)}
-                      style={{
-                        flex: 1, fontSize: 9, background: "var(--bg-cell)",
-                        color: "var(--text)", border: "1px solid var(--preview)",
-                        borderRadius: 3, padding: "2px 4px", outline: "none",
-                      }}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  ) : (
-                    <span
-                      onClick={() => handleLoadPattern(i)}
-                      style={{ flex: 1, fontSize: 9, color: "var(--text)", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                      title={`${p.name} (${p.steps} steps)`}
-                    >
-                      {p.name} <span style={{ color: "var(--text-dim)", fontSize: 7 }}>{p.steps}st</span>
-                    </span>
-                  )}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setRenamingIdx(i); setRenameValue(p.name); }}
-                    style={{ fontSize: 7, color: "var(--text-dim)", background: "none", border: "none", cursor: "pointer", padding: "1px 3px", flexShrink: 0 }}
-                    title="Rename"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDeletePattern(i); }}
-                    style={{ fontSize: 7, color: "var(--record)", background: "none", border: "none", cursor: "pointer", padding: "1px 3px", flexShrink: 0 }}
-                    title="Delete"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <input ref={midiInputRef} type="file" accept=".mid,.midi" style={{ display: "none" }} onChange={handleMidiImport} />
-        <button
-          onClick={() => midiInputRef.current?.click()}
-          style={{ fontSize: 9, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
-          title="Import MIDI file (.mid)"
-        >
-          ↓ MID
-        </button>
-        <button
-          onClick={handleMidiExport}
-          style={{ fontSize: 9, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
-          title="Export pattern as MIDI file"
-        >
-          ↑ MID
-        </button>
       </div>
 
       {/* Step grid */}
@@ -608,6 +509,63 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
           />
         ))}
       </div>
+      </div>
+
+      {/* Pattern save/load + MIDI — bottom right */}
+      <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4, flexShrink: 0 }}>
+        <button onClick={handleSavePattern}
+          style={{ fontSize: 8, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)", border: "1px solid var(--border)" }}
+          title="Save current pattern">+Save</button>
+        <div ref={patternMenuRef} style={{ position: "relative" }}>
+          <button onClick={() => { setPatternMenuOpen(p => !p); setRenamingIdx(null); }}
+            style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)",
+              background: patternMenuOpen ? "var(--preview)" : "var(--bg-cell)",
+              color: patternMenuOpen ? "#000" : savedPatterns.length > 0 ? "var(--preview)" : "var(--text-dim)" }}
+            title="Load saved pattern">
+            Patterns{savedPatterns.length > 0 ? ` (${savedPatterns.length})` : ""} ▾
+          </button>
+          {patternMenuOpen && (
+            <div style={{
+              position: "absolute", bottom: "100%", right: 0, marginBottom: 4,
+              background: "var(--bg-panel)", border: "1px solid var(--border)",
+              borderRadius: 6, padding: 4, minWidth: 160, maxWidth: 220, zIndex: 100,
+              boxShadow: "0 -4px 12px rgba(0,0,0,0.3)", maxHeight: 180, overflowY: "auto", fontSize: 9,
+            }}>
+              {savedPatterns.length === 0 ? (
+                <div style={{ color: "var(--text-dim)", padding: "6px 8px", textAlign: "center" }}>No saved patterns</div>
+              ) : savedPatterns.map((p, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 3, padding: "3px 4px", borderRadius: 3, cursor: "pointer" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-cell)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                  {renamingIdx === i ? (
+                    <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleRenamePattern(i, renameValue); if (e.key === "Escape") setRenamingIdx(null); }}
+                      onBlur={() => handleRenamePattern(i, renameValue)}
+                      onClick={e => e.stopPropagation()}
+                      style={{ flex: 1, fontSize: 9, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--preview)", borderRadius: 3, padding: "2px 4px", outline: "none" }} />
+                  ) : (
+                    <span onClick={() => handleLoadPattern(i)}
+                      style={{ flex: 1, color: "var(--text)", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      title={`${p.name} (${p.steps} steps)`}>
+                      {p.name} <span style={{ color: "var(--text-dim)", fontSize: 7 }}>{p.steps}st</span>
+                    </span>
+                  )}
+                  <button onClick={(e) => { e.stopPropagation(); setRenamingIdx(i); setRenameValue(p.name); }}
+                    style={{ fontSize: 7, color: "var(--text-dim)", background: "none", border: "none", cursor: "pointer", padding: "1px 2px", flexShrink: 0 }} title="Rename">✎</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDeletePattern(i); }}
+                    style={{ fontSize: 7, color: "var(--record)", background: "none", border: "none", cursor: "pointer", padding: "1px 2px", flexShrink: 0 }} title="Delete">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <input ref={midiInputRef} type="file" accept=".mid,.midi" style={{ display: "none" }} onChange={handleMidiImport} />
+        <button onClick={() => midiInputRef.current?.click()}
+          style={{ fontSize: 8, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)", border: "1px solid var(--border)" }}
+          title="Import MIDI file (.mid)">↓MID</button>
+        <button onClick={handleMidiExport}
+          style={{ fontSize: 8, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)", border: "1px solid var(--border)" }}
+          title="Export as MIDI file">↑MID</button>
       </div>
 
     </div>
