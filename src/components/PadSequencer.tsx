@@ -508,10 +508,8 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
           />
         ))}
       </div>
-      </div>
-
-      {/* Pattern save/load + MIDI — bottom right */}
-      <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4, flexShrink: 0 }}>
+      {/* Pattern save/load + MIDI — inside scrollable area */}
+      <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4 }}>
         <button onClick={handleSavePattern}
           style={{ fontSize: 8, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)", border: "1px solid var(--border)" }}
           title="Save current pattern">+Save</button>
@@ -565,6 +563,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         <button onClick={handleMidiExport}
           style={{ fontSize: 8, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)", border: "1px solid var(--border)" }}
           title="Export as MIDI file">↑MID</button>
+      </div>
       </div>
 
     </div>
