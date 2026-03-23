@@ -635,6 +635,7 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       <button className="header-btn"
         onClick={() => command({ type: "set_timing_mode", mode: state.timingMode === "free" ? "quantized" : "free" })}
         style={state.timingMode === "quantized" ? { background: "var(--preview)", color: "#000" } : undefined}
+        title={state.timingMode === "free" ? "Free timing — click for quantized (snap to bar)" : "Quantized — click for free timing"}
       >
         {state.timingMode === "free" ? "FREE" : "QNT"}
       </button>
@@ -645,7 +646,7 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
           command({ type: "set_sync_mode", mode: next });
         }}
         style={state.syncMode !== "free" ? { background: "var(--preview)", color: "#000" } : undefined}
-        title={`Sync: ${state.syncMode.toUpperCase()}`}
+        title={state.syncMode === "free" ? "Sync: FREE — tracks independent · Click to cycle" : state.syncMode === "sync" ? "Sync: SYNC — phase-locked · Click to cycle" : "Sync: LOCK — fixed time window · Click to cycle"}
       >
         {state.syncMode === "free" ? "\u2298" : state.syncMode === "sync" ? "\u27F3" : "\uD83D\uDD12"}
       </button>
