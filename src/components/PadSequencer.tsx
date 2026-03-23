@@ -9,6 +9,24 @@ import type { PadSlot } from "../engine/PadEngine";
 import type { PadEngine } from "../engine/PadEngine";
 
 const STEP_OPTIONS = [8, 16, 32, 64] as const;
+const PATTERNS_KEY = "mloop-seq-patterns";
+
+interface SavedPattern {
+  name: string;
+  steps: number;
+  grid: boolean[][];
+}
+
+function loadPatterns(): SavedPattern[] {
+  try {
+    const raw = localStorage.getItem(PATTERNS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function savePatterns(patterns: SavedPattern[]) {
+  localStorage.setItem(PATTERNS_KEY, JSON.stringify(patterns));
+}
 
 interface PadSequencerProps {
   slots: PadSlot[];
@@ -60,6 +78,11 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   const [selectedSteps, setSelectedSteps] = useState<Set<number>>(new Set());
   const [selectAnchor, setSelectAnchor] = useState<number | null>(null);
   const draggingSelect = useRef(false);
+  const [savedPatterns, setSavedPatterns] = useState<SavedPattern[]>(loadPatterns);
+  const [patternMenuOpen, setPatternMenuOpen] = useState(false);
+  const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const patternMenuRef = useRef<HTMLDivElement>(null);
   const currentStepRef = useRef(-1);
 
   // Real-time step recording — when recording + playing, pad hits write to grid
@@ -181,6 +204,61 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
     forceRender(n => n + 1);
   }, [padEngine]);
 
+  // Pattern library handlers
+  const handleSavePattern = useCallback(() => {
+    const name = prompt("Pattern name:");
+    if (!name?.trim()) return;
+    const pattern: SavedPattern = {
+      name: name.trim(),
+      steps: numSteps,
+      grid: grid.map(row => [...row]),
+    };
+    setSavedPatterns(prev => {
+      const next = [...prev, pattern];
+      savePatterns(next);
+      return next;
+    });
+  }, [grid, numSteps]);
+
+  const handleLoadPattern = useCallback((idx: number) => {
+    const p = savedPatterns[idx];
+    if (!p) return;
+    setGrid(p.grid.map(row => [...row]));
+    changeSteps(p.steps);
+    setPatternMenuOpen(false);
+  }, [savedPatterns, changeSteps]);
+
+  const handleDeletePattern = useCallback((idx: number) => {
+    setSavedPatterns(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      savePatterns(next);
+      return next;
+    });
+  }, []);
+
+  const handleRenamePattern = useCallback((idx: number, newName: string) => {
+    if (!newName.trim()) return;
+    setSavedPatterns(prev => {
+      const next = prev.map((p, i) => i === idx ? { ...p, name: newName.trim() } : p);
+      savePatterns(next);
+      return next;
+    });
+    setRenamingIdx(null);
+  }, []);
+
+  // Close pattern menu on outside click
+  useEffect(() => {
+    if (!patternMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (patternMenuRef.current && !patternMenuRef.current.contains(e.target as Node)) {
+        setPatternMenuOpen(false);
+        setRenamingIdx(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [patternMenuOpen]);
+
   if (loadedSlots.length === 0) {
     return (
       <div style={{
@@ -297,6 +375,90 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         >
           RND
         </button>
+        <button
+          onClick={handleSavePattern}
+          style={{ fontSize: 9, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
+          title="Save current pattern"
+        >
+          SAVE
+        </button>
+        <div ref={patternMenuRef} style={{ position: "relative" }}>
+          <button
+            onClick={() => { setPatternMenuOpen(p => !p); setRenamingIdx(null); }}
+            style={{
+              fontSize: 9, padding: "2px 6px", borderRadius: 4,
+              background: patternMenuOpen ? "var(--preview)" : "var(--bg-cell)",
+              color: patternMenuOpen ? "#000" : savedPatterns.length > 0 ? "var(--preview)" : "var(--text-dim)",
+            }}
+            title="Load saved pattern"
+          >
+            LOAD
+          </button>
+          {patternMenuOpen && (
+            <div style={{
+              position: "absolute", top: "100%", right: 0, marginTop: 4,
+              background: "var(--bg-panel)", border: "1px solid var(--border)",
+              borderRadius: 6, padding: 4, minWidth: 180, zIndex: 100,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+              maxHeight: 240, overflowY: "auto",
+            }}>
+              {savedPatterns.length === 0 ? (
+                <div style={{ fontSize: 9, color: "var(--text-dim)", padding: "6px 8px", textAlign: "center" }}>
+                  No saved patterns
+                </div>
+              ) : savedPatterns.map((p, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 4, padding: "3px 4px",
+                  borderRadius: 4, cursor: "pointer",
+                }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-cell)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                >
+                  {renamingIdx === i ? (
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") handleRenamePattern(i, renameValue);
+                        if (e.key === "Escape") setRenamingIdx(null);
+                      }}
+                      onBlur={() => handleRenamePattern(i, renameValue)}
+                      style={{
+                        flex: 1, fontSize: 9, background: "var(--bg-cell)",
+                        color: "var(--text)", border: "1px solid var(--preview)",
+                        borderRadius: 3, padding: "2px 4px", outline: "none",
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => handleLoadPattern(i)}
+                      style={{ flex: 1, fontSize: 9, color: "var(--text)", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      title={`${p.name} (${p.steps} steps)`}
+                    >
+                      {p.name} <span style={{ color: "var(--text-dim)", fontSize: 7 }}>{p.steps}st</span>
+                    </span>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setRenamingIdx(i); setRenameValue(p.name); }}
+                    style={{ fontSize: 7, color: "var(--text-dim)", background: "none", border: "none", cursor: "pointer", padding: "1px 3px", flexShrink: 0 }}
+                    title="Rename"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeletePattern(i); }}
+                    style={{ fontSize: 7, color: "var(--record)", background: "none", border: "none", cursor: "pointer", padding: "1px 3px", flexShrink: 0 }}
+                    title="Delete"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Step grid */}
