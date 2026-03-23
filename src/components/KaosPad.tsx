@@ -387,6 +387,7 @@ export function KaosPad({ engine }: KaosPadProps) {
                 onPointerDown={() => fxPointerDown(name)}
                 onPointerUp={fxPointerUp}
                 onPointerLeave={fxPointerUp}
+                title={`Toggle ${label} · Hold to edit`}
               >
                 {label}
                 {chainIdx >= 0 && (
@@ -436,6 +437,7 @@ export function KaosPad({ engine }: KaosPadProps) {
                 setGestureState("recording");
               }}
               style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }}
+              title="Record XY gesture"
             >
               ● REC GESTURE
             </button>
@@ -457,6 +459,7 @@ export function KaosPad({ engine }: KaosPadProps) {
                   setGestureState("playing");
                 }}
                 style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--preview)", color: "#000" }}
+                title="Play recorded gesture"
               >
                 ▶ PLAY GESTURE
               </button>
@@ -470,6 +473,7 @@ export function KaosPad({ engine }: KaosPadProps) {
               setGestureState("idle");
             }}
             style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--record)", color: "#fff", animation: "pulse 0.8s infinite" }}
+            title="Stop"
           >
             {/* eslint-disable-next-line react-hooks/refs -- gestureRef is a stable class instance */}
             ■ STOP REC ({gestureRef.current.points.length} pts)
@@ -482,6 +486,7 @@ export function KaosPad({ engine }: KaosPadProps) {
               setGestureState("idle");
             }}
             style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--playing)", color: "#000" }}
+            title="Stop"
           >
             ■ STOP GESTURE
           </button>
@@ -494,6 +499,7 @@ export function KaosPad({ engine }: KaosPadProps) {
               setGestureState("idle");
             }}
             style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--bg-cell)", color: "#f85149" }}
+            title="Clear gesture"
           >
             ✕ CLEAR
           </button>

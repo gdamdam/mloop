@@ -279,7 +279,9 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
         {/* Source toggle */}
         {(["mic", "resample", "dub"] as const).map(s => (
-          <button key={s} onClick={() => !recording && setSource(s)} style={{
+          <button key={s} onClick={() => !recording && setSource(s)}
+            title={s === "mic" ? "Record from microphone" : s === "resample" ? "Record master output" : "Record mic + output"}
+            style={{
             fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
             background: source === s ? "var(--preview)" : "var(--bg-cell)",
             color: source === s ? "#000" : "var(--text-dim)",
@@ -294,7 +296,9 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
         <div style={{ width: 1, height: 16, background: "var(--border)", margin: "0 2px" }} />
 
         {/* Record / Stop */}
-        <button onClick={recording ? stopRec : startRec} style={{
+        <button onClick={recording ? stopRec : startRec}
+          title={recording ? "Stop recording" : "Record"}
+          style={{
           fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4,
           background: recording ? "var(--record)" : "var(--bg-cell)",
           color: recording ? "#fff" : "var(--text)",
@@ -307,7 +311,9 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
         {/* Auto-trim + duration */}
         {buffer && (
           <>
-            <button onClick={playing ? stopPreview : playPreview} style={{
+            <button onClick={playing ? stopPreview : playPreview}
+              title="Preview"
+              style={{
               fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
               background: playing ? "var(--playing)" : "var(--bg-cell)",
               color: playing ? "#000" : "var(--text)",
@@ -315,7 +321,9 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
             }}>
               {playing ? "❚❚" : "▶"}
             </button>
-            <button onClick={() => { setLooping(!looping); if (playing) { stopPreview(); } }} style={{
+            <button onClick={() => { setLooping(!looping); if (playing) { stopPreview(); } }}
+              title="Toggle loop"
+              style={{
               fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
               background: looping ? "var(--preview)" : "var(--bg-cell)",
               color: looping ? "#000" : "var(--text-dim)",
@@ -323,7 +331,9 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
             }}>
               ↻
             </button>
-            <button onClick={autoTrim} style={{
+            <button onClick={autoTrim}
+              title="Auto-trim silence"
+              style={{
               fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
               background: "var(--bg-cell)", color: "var(--text-dim)",
               border: "none", cursor: "pointer",
