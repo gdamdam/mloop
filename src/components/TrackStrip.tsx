@@ -187,6 +187,7 @@ export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }:
           <span style={{ fontSize: 7, color: "var(--text-dim)" }}>VOL</span>
           <input type="range" className="volume-slider" min={0} max={1} step={0.01} value={volume}
             onChange={(e) => command({ type: "set_volume", trackId: id, volume: parseFloat(e.target.value) })}
+            title="Volume"
             style={{ flex: 1 }} />
           <span style={{ fontSize: 8, color: "var(--preview)", fontWeight: 700, minWidth: 24 }}>{Math.round(volume * 100)}%</span>
         </div>
@@ -223,6 +224,7 @@ function DecaySlider({ engine, trackId }: { engine: AudioEngine | null; trackId:
           // eslint-disable-next-line react-hooks/immutability -- engine tracks are external mutable objects
           if (track) track.destruction.amount = v;
         }}
+        title="Tape decay"
         style={{ flex: 1 }}
       />
       <span style={{ fontSize: 8, color: "var(--preview)", fontWeight: 700, minWidth: 24 }}>{Math.round(value * 100)}%</span>

@@ -122,7 +122,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "1.0.0-pre.48";
+    const APP_VERSION = "1.0.0-pre.49";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -337,13 +337,15 @@ export function Layout({ state, command, engine }: LayoutProps) {
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× credits · 5× ???">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">1.0.0-pre.48</span>
+          <span className="title-version">1.0.0-pre.49</span>
         </div>
 
         {/* View toggle */}
         <div style={{ display: "flex", gap: 2, background: "var(--bg-cell)", borderRadius: 6, padding: 2 }}>
           {(["pads", "tracks"] as const).map(m => (
-            <button key={m} onClick={() => setViewMode(m)} style={{
+            <button key={m} onClick={() => setViewMode(m)}
+              title={m === "pads" ? "Switch to PAD mode" : "Switch to LOOPER mode"}
+              style={{
               fontSize: 9, fontWeight: 700, padding: "4px 8px", borderRadius: 4,
               background: viewMode === m ? "var(--preview)" : "transparent",
               color: viewMode === m ? "#000" : "var(--text-dim)", letterSpacing: 0.5,
@@ -418,6 +420,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
         {/* Mobile: hamburger button */}
         <div className="header-hamburger-wrap" style={{ position: "relative" }}>
           <button className="header-btn header-hamburger-btn" onClick={() => setShowHamburger(!showHamburger)}
+            title="Menu"
             style={{ fontSize: 16, fontWeight: 700 }}>
             {showHamburger ? "✕" : "≡"}
           </button>
@@ -646,9 +649,9 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       >
         {state.syncMode === "free" ? "\u2298" : state.syncMode === "sync" ? "\u27F3" : "\uD83D\uDD12"}
       </button>
-      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })}>−</button>
+      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })} title="Decrease BPM">−</button>
       <span style={{ fontSize: 14, fontWeight: 700, color: "var(--preview)", minWidth: 28, textAlign: "center" }}>{state.bpm}</span>
-      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })}>+</button>
+      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })} title="Increase BPM">+</button>
       <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
       <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
         style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">{"\u2669"}</button>

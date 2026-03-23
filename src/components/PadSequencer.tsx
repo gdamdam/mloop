@@ -207,6 +207,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
             color: playing ? "#000" : "var(--text)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
+          title="Play / Stop sequencer"
         >
           {playing ? "■" : "▶"}
         </button>
@@ -238,6 +239,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
             <button
               key={n}
               onClick={() => changeSteps(n)}
+              title={`Set to ${n} steps`}
               style={{
                 fontSize: 8, fontWeight: 700, padding: "2px 5px", borderRadius: 3,
                 background: numSteps === n ? "var(--preview)" : "var(--bg-cell)",
