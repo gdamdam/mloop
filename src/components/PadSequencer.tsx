@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { PadSlot } from "../engine/PadEngine";
 import type { PadEngine } from "../engine/PadEngine";
+import { exportMidiDownload, importMidi } from "../utils/midi";
 
 const STEP_OPTIONS = [8, 16, 32, 64] as const;
 const PATTERNS_KEY = "mloop-seq-patterns";
@@ -83,6 +84,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const patternMenuRef = useRef<HTMLDivElement>(null);
+  const midiInputRef = useRef<HTMLInputElement>(null);
   const currentStepRef = useRef(-1);
 
   // Real-time step recording — when recording + playing, pad hits write to grid
@@ -258,6 +260,26 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [patternMenuOpen]);
+
+  // MIDI export: download current grid as .mid
+  const handleMidiExport = useCallback(() => {
+    exportMidiDownload(grid, numSteps, bpm);
+  }, [grid, numSteps, bpm]);
+
+  // MIDI import: parse .mid file and load into grid
+  const handleMidiImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await importMidi(file);
+      setGrid(result.grid);
+      changeSteps(result.numSteps);
+    } catch (err) {
+      console.error("MIDI import failed:", err);
+    }
+    // Reset input so the same file can be re-imported
+    e.target.value = "";
+  }, [changeSteps]);
 
   if (loadedSlots.length === 0) {
     return (
@@ -459,6 +481,21 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
             </div>
           )}
         </div>
+        <input ref={midiInputRef} type="file" accept=".mid,.midi" style={{ display: "none" }} onChange={handleMidiImport} />
+        <button
+          onClick={() => midiInputRef.current?.click()}
+          style={{ fontSize: 9, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
+          title="Import MIDI file (.mid)"
+        >
+          ↓ MID
+        </button>
+        <button
+          onClick={handleMidiExport}
+          style={{ fontSize: 9, color: "var(--text-dim)", padding: "2px 6px", borderRadius: 4, background: "var(--bg-cell)" }}
+          title="Export pattern as MIDI file"
+        >
+          ↑ MID
+        </button>
       </div>
 
       {/* Step grid */}
