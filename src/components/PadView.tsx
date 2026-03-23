@@ -11,9 +11,11 @@ import { PadSequencer } from "./PadSequencer";
 import { SampleEditor } from "./SampleEditor";
 import { SAMPLE_PRESETS } from "../engine/BuiltInSamples";
 import {
-  loadSavedKits, saveKit, exportKit, importKit, padsToKit, kitToPads,
+  exportKit, importKit, padsToKit, kitToPads,
+  loadUserKits, addUserKit, deleteUserKit, renameUserKit, padsToUserKit, userKitToPads,
   // PAD_LAYOUTS removed — drag to rearrange instead
 } from "../utils/kitManager";
+import type { UserKit } from "../utils/kitManager";
 import { SoundBrowser } from "./SoundBrowser";
 import { PadDetail } from "./PadDetail";
 import type { PlayMode } from "./PadDetail";
@@ -196,7 +198,12 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
   const [recordingSlot, setRecordingSlot] = useState<number | null>(null);
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
-  const [savedKits, setSavedKits] = useState(loadSavedKits);
+  // User kit library (multi-save with rename/delete)
+  const [userKits, setUserKits] = useState<UserKit[]>(loadUserKits);
+  const [kitsMenuOpen, setKitsMenuOpen] = useState(false);
+  const [kitRenamingIdx, setKitRenamingIdx] = useState<number | null>(null);
+  const [kitRenameValue, setKitRenameValue] = useState("");
+  const kitsMenuRef = useRef<HTMLDivElement>(null);
   // Pad layout removed — drag pads to rearrange
   const [browsingPad, setBrowsingPad] = useState<number | null>(null);
   const [selectedPad, setSelectedPad] = useState<number | null>(null);
@@ -254,6 +261,19 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
     update();
     return () => cancelAnimationFrame(raf);
   }, [engine]);
+
+  // Close kits menu on outside click
+  useEffect(() => {
+    if (!kitsMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (kitsMenuRef.current && !kitsMenuRef.current.contains(e.target as Node)) {
+        setKitsMenuOpen(false);
+        setKitRenamingIdx(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [kitsMenuOpen]);
 
   // Roll state — hold >300ms triggers roll at 1/16 rate
   const rollSlotRef = useRef<number | null>(null);
@@ -372,18 +392,12 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               <select
                 onChange={async (e) => {
                   if (!padEngine) return;
-                  const val = e.target.value;
+                  const idx = parseInt(e.target.value);
+                  if (isNaN(idx)) return;
                   for (let i = 0; i < 16; i++) padEngine.clear(i);
-                  if (val.startsWith("s")) {
-                    const kit = savedKits[parseInt(val.slice(1))];
-                    if (kit) kitToPads(kit, (id, buf) => padEngine.importBuffer(id, buf), (id) => padEngine.clear(id));
-                  } else {
-                    const idx = parseInt(val);
-                    if (isNaN(idx)) return;
-                    const samples = await SAMPLE_PRESETS[idx].generate();
-                    for (let i = 0; i < samples.length && i < 16; i++) {
-                      padEngine.importBuffer(i, samples[i].buffer, samples[i].name);
-                    }
+                  const samples = await SAMPLE_PRESETS[idx].generate();
+                  for (let i = 0; i < samples.length && i < 16; i++) {
+                    padEngine.importBuffer(i, samples[i].buffer, samples[i].name);
                   }
                 }}
                 defaultValue=""
@@ -391,20 +405,101 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               >
                 <option value="" disabled>Kit</option>
                 {SAMPLE_PRESETS.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
-                {savedKits.length > 0 && <option disabled>──────</option>}
-                {savedKits.map((k, i) => <option key={`saved-${k.name}`} value={`s${i}`}>{k.name}</option>)}
               </select>
-              {/* Save current kit */}
+              {/* +Save current kit to user library */}
               <button onClick={() => {
                 if (!padEngine) return;
                 const name = prompt("Kit name:");
-                if (!name) return;
-                const kit = padsToKit(name, padEngine.slots);
-                saveKit(kit);
-                setSavedKits(loadSavedKits());
+                if (!name?.trim()) return;
+                const kit = padsToUserKit(name.trim(), padEngine.slots);
+                setUserKits(addUserKit(kit));
               }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Save current pads as kit">
-                Save
+                +Save
               </button>
+              {/* Kits dropdown — load/rename/delete saved kits */}
+              <div ref={kitsMenuRef} style={{ position: "relative" }}>
+                <button
+                  onClick={() => { setKitsMenuOpen(p => !p); setKitRenamingIdx(null); }}
+                  style={{
+                    fontSize: 11, padding: "5px 10px", borderRadius: 6,
+                    background: kitsMenuOpen ? "var(--preview)" : "var(--bg-cell)",
+                    color: kitsMenuOpen ? "#000" : userKits.length > 0 ? "var(--preview)" : "var(--text-dim)",
+                  }}
+                  title="Load saved kit"
+                >
+                  Kits ▾
+                </button>
+                {kitsMenuOpen && (
+                  <div style={{
+                    position: "absolute", top: "100%", right: 0, marginTop: 4,
+                    background: "var(--bg-panel)", border: "1px solid var(--border)",
+                    borderRadius: 6, padding: 4, minWidth: 200, zIndex: 100,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+                    maxHeight: 280, overflowY: "auto",
+                  }}>
+                    {userKits.length === 0 ? (
+                      <div style={{ fontSize: 10, color: "var(--text-dim)", padding: "8px 8px", textAlign: "center" }}>
+                        No saved kits
+                      </div>
+                    ) : userKits.map((k, i) => (
+                      <div key={i} style={{
+                        display: "flex", alignItems: "center", gap: 4, padding: "4px 6px",
+                        borderRadius: 4, cursor: "pointer",
+                      }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-cell)"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        {kitRenamingIdx === i ? (
+                          <input
+                            autoFocus
+                            value={kitRenameValue}
+                            onChange={e => setKitRenameValue(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && kitRenameValue.trim()) { setUserKits(renameUserKit(i, kitRenameValue.trim())); setKitRenamingIdx(null); }
+                              if (e.key === "Escape") setKitRenamingIdx(null);
+                            }}
+                            onBlur={() => { if (kitRenameValue.trim()) setUserKits(renameUserKit(i, kitRenameValue.trim())); setKitRenamingIdx(null); }}
+                            style={{
+                              flex: 1, fontSize: 10, background: "var(--bg-cell)",
+                              color: "var(--text)", border: "1px solid var(--preview)",
+                              borderRadius: 3, padding: "2px 4px", outline: "none",
+                            }}
+                            onClick={e => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span
+                            onClick={() => {
+                              if (!padEngine) return;
+                              for (let j = 0; j < 16; j++) padEngine.clear(j);
+                              userKitToPads(k, padEngine);
+                              setKitsMenuOpen(false);
+                              forceUpdate(n => n + 1);
+                            }}
+                            style={{ flex: 1, fontSize: 10, color: "var(--text)", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                            title={`${k.name} (${k.slots.filter(s => s.buffer !== null).length} sounds)`}
+                          >
+                            {k.name} <span style={{ color: "var(--text-dim)", fontSize: 8 }}>{k.slots.filter(s => s.buffer !== null).length}snd</span>
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setKitRenamingIdx(i); setKitRenameValue(k.name); }}
+                          style={{ fontSize: 8, color: "var(--text-dim)", background: "none", border: "none", cursor: "pointer", padding: "1px 3px", flexShrink: 0 }}
+                          title="Rename"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setUserKits(deleteUserKit(i)); }}
+                          style={{ fontSize: 8, color: "var(--record)", background: "none", border: "none", cursor: "pointer", padding: "1px 3px", flexShrink: 0 }}
+                          title="Delete"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {/* Export kit */}
               <button onClick={() => {
                 if (!padEngine) return;
