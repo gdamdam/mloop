@@ -32,7 +32,7 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
     }}>
       <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.49</span>
       {" · "}
-      <span>© 2026 gdamdam</span>
+      <span>© 2026</span>
       {" · "}
       <VisitCounter />
       {" · "}
@@ -51,7 +51,7 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
         {" · "}
         Built with Claude Code
         {" · "}
-        <a href="https://mpump.live" target="_blank" rel="noopener"
+        <a href="https://mpump.live/app.html" target="_blank" rel="noopener"
           style={{ color: "var(--preview)", textDecoration: "none", fontWeight: 700 }}>Try mpump →</a>
         {" · "}
         <span style={{ cursor: "pointer", textDecoration: "underline dotted" }} onClick={onShowPrivacy}>No cookies · No personal data</span>
