@@ -424,6 +424,8 @@ input[type="range"] {
 }
 
 .volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
   flex: 1;
   height: 4px;
   background: var(--bg-cell);
