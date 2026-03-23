@@ -35,13 +35,21 @@ export function StartGate({ onStart }: StartGateProps) {
   }, []);
 
   const isIOS = /iPad|iPhone/.test(navigator.userAgent) && !("standalone" in navigator && (navigator as unknown as { standalone: boolean }).standalone);
-  const [logoKey, setLogoKey] = useState(0);
+  const logoRef = useRef<HTMLPreElement>(null);
   const logoClickCount = useRef(0);
   const logoClickTimer = useRef(0);
 
+  const flashLogo = () => {
+    const el = logoRef.current;
+    if (!el) return;
+    el.classList.remove("logo-flash");
+    void el.offsetWidth; // force reflow to restart animation
+    el.classList.add("logo-flash");
+  };
+
   const handleLogoClick = () => {
     logoClickCount.current++;
-    setLogoKey(k => k + 1); // flash animation on every click
+    flashLogo();
     clearTimeout(logoClickTimer.current);
     logoClickTimer.current = window.setTimeout(() => {
       if (logoClickCount.current >= 2) {
@@ -54,7 +62,7 @@ export function StartGate({ onStart }: StartGateProps) {
   };
 
   const handleStart = () => {
-    setLogoKey(k => k + 1);
+    flashLogo();
     clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(async () => {
       setStarting(true);
@@ -64,14 +72,14 @@ export function StartGate({ onStart }: StartGateProps) {
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to start audio");
         setStarting(false);
-        setLogoKey(k => k + 1);
+        flashLogo();
       }
     }, 450);
   };
 
   return (
     <div className="start-gate">
-      <pre className="start-gate-title logo-flash" key={logoKey} onClick={handleLogoClick} style={{ cursor: "pointer" }}>{LOGO}</pre>
+      <pre ref={logoRef} className="start-gate-title" onClick={handleLogoClick} style={{ cursor: "pointer" }}>{LOGO}</pre>
       <p className="start-gate-sub">
         Loop Station &amp; Sampler<br />
         Record, loop, sample, perform<br />
@@ -115,7 +123,7 @@ export function StartGate({ onStart }: StartGateProps) {
         </div>
       )}
 
-      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.49</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.50</span>
     </div>
   );
 }
