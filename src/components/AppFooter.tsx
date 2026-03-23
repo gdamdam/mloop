@@ -32,6 +32,8 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
     }}>
       <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.49</span>
       {" · "}
+      <span>© 2026 gdamdam</span>
+      {" · "}
       <VisitCounter />
       {" · "}
       <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener"
