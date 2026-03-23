@@ -326,6 +326,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
                 const isActive = grid[step][slot.id];
                 const isCurrent = step === currentStep;
                 const isDragOver = dragOverCell?.step === step && dragOverCell?.slot === slot.id;
+                const isSelected = selectedSteps.has(step);
                 return (
                   <button
                     key={step}
@@ -338,11 +339,13 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
                       background: isDragOver ? "var(--preview)"
                         : isActive && isCurrent ? "var(--preview)"
                         : isActive ? "var(--preview)"
-                        : isCurrent ? "var(--preview)" : "var(--bg-cell)",
+                        : isCurrent ? "var(--preview)"
+                        : isSelected ? "var(--record)" : "var(--bg-cell)",
                       opacity: isDragOver ? 0.6
                         : isActive && isCurrent ? 1
                         : isActive ? 0.7
-                        : isCurrent ? 0.35 : 0.4,
+                        : isCurrent ? 0.35
+                        : isSelected ? 0.2 : 0.4,
                       border: "none", cursor: "pointer",
                       boxShadow: isCurrent ? "0 0 6px var(--preview)" : "none",
                       marginLeft: step % 4 === 0 && step > 0 ? 3 : 0,
