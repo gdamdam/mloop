@@ -135,20 +135,6 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   }, []);
 
   // Handle drop on just a step column (no specific row)
-  const handleStepDrop = useCallback((e: React.DragEvent, step: number) => {
-    e.preventDefault();
-    setDragOverCell(null);
-    const padId = e.dataTransfer.getData("text/pad-id");
-    if (padId !== "") {
-      const id = parseInt(padId);
-      setGrid(prev => {
-        const next = prev.map(row => [...row]);
-        next[step][id] = true;
-        return next;
-      });
-    }
-  }, []);
-
   // Load initial grid from engine (e.g. default pattern set in Layout).
   // Re-reads when slots change — catches async default pattern loaded after samples.
   useEffect(() => {
