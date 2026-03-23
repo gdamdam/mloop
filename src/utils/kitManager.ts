@@ -37,6 +37,113 @@ export function deleteKit(name: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(kits));
 }
 
+// ── User Kit Library (multi-save with rename/delete) ─────────────────────
+
+/** Per-slot metadata stored alongside the audio buffer. */
+export interface UserKitSlot {
+  name: string;
+  buffer: number[] | null; // Float32Array → number[] for JSON, null if empty
+  volume: number;
+  pan: number;
+  pitch: number;
+  playMode: string;
+  trimStart: number;
+  trimEnd: number;
+  loopBeats: number;
+  muteGroup: number;
+}
+
+/** A user-saved kit with full per-pad settings. */
+export interface UserKit {
+  name: string;
+  slots: UserKitSlot[];
+}
+
+const USER_KITS_KEY = "mloop-user-kits";
+
+/** Load all user kits from localStorage. */
+export function loadUserKits(): UserKit[] {
+  try {
+    const raw = localStorage.getItem(USER_KITS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+/** Persist user kits array to localStorage. */
+function saveUserKitsArray(kits: UserKit[]): void {
+  localStorage.setItem(USER_KITS_KEY, JSON.stringify(kits));
+}
+
+/** Append a new user kit. */
+export function addUserKit(kit: UserKit): UserKit[] {
+  const kits = [...loadUserKits(), kit];
+  saveUserKitsArray(kits);
+  return kits;
+}
+
+/** Delete user kit by index. */
+export function deleteUserKit(idx: number): UserKit[] {
+  const kits = loadUserKits().filter((_, i) => i !== idx);
+  saveUserKitsArray(kits);
+  return kits;
+}
+
+/** Rename user kit by index. */
+export function renameUserKit(idx: number, newName: string): UserKit[] {
+  const kits = loadUserKits().map((k, i) => i === idx ? { ...k, name: newName } : k);
+  saveUserKitsArray(kits);
+  return kits;
+}
+
+/** Convert current pad slots to a UserKit. */
+export function padsToUserKit(
+  name: string,
+  slots: { name: string; buffer: Float32Array | null; volume: number; pan: number; pitch: number; playMode: string; trimStart: number; trimEnd: number; loopBeats: number; muteGroup: number }[],
+): UserKit {
+  return {
+    name,
+    slots: slots.map(s => ({
+      name: s.name,
+      buffer: s.buffer ? Array.from(s.buffer) : null,
+      volume: s.volume,
+      pan: s.pan,
+      pitch: s.pitch,
+      playMode: s.playMode,
+      trimStart: s.trimStart,
+      trimEnd: s.trimEnd,
+      loopBeats: s.loopBeats,
+      muteGroup: s.muteGroup,
+    })),
+  };
+}
+
+/** Load a UserKit into pad slots, restoring all per-pad settings. */
+export function userKitToPads(
+  kit: UserKit,
+  padEngine: {
+    slots: { volume: number; pan: number; pitch: number; playMode: string; trimStart: number; trimEnd: number; loopBeats: number; muteGroup: number }[];
+    importBuffer: (id: number, data: Float32Array, name?: string) => void;
+    clear: (id: number) => void;
+  },
+): void {
+  for (let i = 0; i < 16; i++) {
+    const saved = kit.slots[i];
+    if (saved && saved.buffer && saved.buffer.length > 0) {
+      padEngine.importBuffer(i, new Float32Array(saved.buffer), saved.name);
+      padEngine.slots[i].volume = saved.volume;
+      padEngine.slots[i].pan = saved.pan;
+      padEngine.slots[i].pitch = saved.pitch;
+      padEngine.slots[i].playMode = saved.playMode;
+      padEngine.slots[i].trimStart = saved.trimStart;
+      padEngine.slots[i].trimEnd = saved.trimEnd;
+      padEngine.slots[i].loopBeats = saved.loopBeats;
+      padEngine.slots[i].muteGroup = saved.muteGroup;
+    } else {
+      padEngine.clear(i);
+    }
+  }
+}
+
 /** Export a kit as a JSON file via system Save As dialog. */
 export async function exportKit(kit: SavedKit): Promise<void> {
   const json = JSON.stringify(kit);
