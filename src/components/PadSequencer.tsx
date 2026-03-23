@@ -169,17 +169,18 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
     return () => { padEngine.onStepChange = null; };
   }, [padEngine]);
 
-  // Start/stop sequencer via PadEngine (Web Audio scheduled)
-  useEffect(() => {
+  // Start/stop sequencer — only when user clicks the sequencer's own play button
+  const handleSeqPlayStop = useCallback(() => {
     if (!padEngine) return;
-    if (playing) {
-      padEngine.startSequencer();
-    } else {
+    if (padEngine.isSeqPlaying) {
       padEngine.stopSequencer();
-      setCurrentStep(-1);
+      setPlaying(false);
+      setRecording(false);
+    } else {
+      padEngine.startSequencer();
+      setPlaying(true);
     }
-    return () => { padEngine.stopSequencer(); };
-  }, [playing, padEngine]);
+  }, [padEngine]);
 
   if (loadedSlots.length === 0) {
     return (
@@ -200,7 +201,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
       {/* Transport */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button
-          onClick={() => setPlaying(!playing)}
+          onClick={handleSeqPlayStop}
           style={{
             width: 32, height: 32, borderRadius: "50%", fontSize: 14,
             background: playing ? "var(--playing)" : "var(--bg-cell)",
@@ -211,7 +212,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
           {playing ? "■" : "▶"}
         </button>
         <button
-          onClick={() => { if (!playing) { setPlaying(true); } setRecording(!recording); }}
+          onClick={() => { if (!playing && padEngine) { padEngine.startSequencer(); setPlaying(true); } setRecording(!recording); }}
           style={{
             width: 32, height: 32, borderRadius: "50%", fontSize: 9, fontWeight: 700,
             background: recording ? "var(--record)" : "var(--bg-cell)",
