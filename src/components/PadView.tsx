@@ -388,25 +388,83 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               </span>
             </div>
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-              {/* Built-in kit presets */}
-              <select
-                onChange={async (e) => {
-                  if (!padEngine) return;
-                  const idx = parseInt(e.target.value);
-                  if (isNaN(idx)) return;
-                  for (let i = 0; i < 16; i++) padEngine.clear(i);
-                  const samples = await SAMPLE_PRESETS[idx].generate();
-                  for (let i = 0; i < samples.length && i < 16; i++) {
-                    padEngine.importBuffer(i, samples[i].buffer, samples[i].name);
-                  }
-                }}
-                defaultValue=""
-                style={{ font: "inherit", fontSize: 11, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 8px" }}
-              >
-                <option value="" disabled>Kit</option>
-                {SAMPLE_PRESETS.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
-              </select>
-              {/* +Save current kit to user library */}
+              {/* Kit selector — built-in presets + user saved kits */}
+              <div ref={kitsMenuRef} style={{ position: "relative" }}>
+                <button
+                  onClick={() => { setKitsMenuOpen(p => !p); setKitRenamingIdx(null); }}
+                  style={{
+                    font: "inherit", fontSize: 11, padding: "5px 10px", borderRadius: 6,
+                    background: kitsMenuOpen ? "var(--preview)" : "var(--bg-cell)",
+                    color: kitsMenuOpen ? "#000" : "var(--text)",
+                    border: "1px solid var(--border)", cursor: "pointer",
+                  }}
+                  title="Select kit"
+                >
+                  Kit ▾
+                </button>
+                {kitsMenuOpen && (
+                  <div style={{
+                    position: "absolute", top: "100%", left: 0, marginTop: 4,
+                    background: "var(--bg-panel)", border: "1px solid var(--border)",
+                    borderRadius: 6, padding: 4, minWidth: 180, maxWidth: 240, zIndex: 100,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+                    maxHeight: 300, overflowY: "auto", fontSize: 10,
+                  }}>
+                    {/* Built-in presets */}
+                    <div style={{ fontSize: 8, color: "var(--text-dim)", padding: "2px 6px", textTransform: "uppercase", letterSpacing: 1 }}>Built-in</div>
+                    {SAMPLE_PRESETS.map((p, i) => (
+                      <div key={`builtin-${i}`}
+                        onClick={async () => {
+                          if (!padEngine) return;
+                          for (let j = 0; j < 16; j++) padEngine.clear(j);
+                          const samples = await p.generate();
+                          for (let j = 0; j < samples.length && j < 16; j++) padEngine.importBuffer(j, samples[j].buffer, samples[j].name);
+                          setKitsMenuOpen(false);
+                          forceUpdate(n => n + 1);
+                        }}
+                        style={{ padding: "4px 6px", borderRadius: 3, cursor: "pointer", color: "var(--text)" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-cell)"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        {p.name}
+                      </div>
+                    ))}
+                    {/* User saved kits */}
+                    {userKits.length > 0 && (<>
+                      <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+                      <div style={{ fontSize: 8, color: "var(--text-dim)", padding: "2px 6px", textTransform: "uppercase", letterSpacing: 1 }}>Saved</div>
+                      {userKits.map((k, i) => (
+                        <div key={`user-${i}`} style={{ display: "flex", alignItems: "center", gap: 3, padding: "3px 6px", borderRadius: 3 }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-cell)"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        >
+                          {kitRenamingIdx === i ? (
+                            <input autoFocus value={kitRenameValue}
+                              onChange={e => setKitRenameValue(e.target.value)}
+                              onKeyDown={e => { if (e.key === "Enter" && kitRenameValue.trim()) { setUserKits(renameUserKit(i, kitRenameValue.trim())); setKitRenamingIdx(null); } if (e.key === "Escape") setKitRenamingIdx(null); }}
+                              onBlur={() => { if (kitRenameValue.trim()) setUserKits(renameUserKit(i, kitRenameValue.trim())); setKitRenamingIdx(null); }}
+                              onClick={e => e.stopPropagation()}
+                              style={{ flex: 1, fontSize: 10, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--preview)", borderRadius: 3, padding: "2px 4px", outline: "none" }}
+                            />
+                          ) : (
+                            <span onClick={() => { if (!padEngine) return; for (let j = 0; j < 16; j++) padEngine.clear(j); userKitToPads(k, padEngine); setKitsMenuOpen(false); forceUpdate(n => n + 1); }}
+                              style={{ flex: 1, cursor: "pointer", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                              title={`${k.name} (${k.slots.filter(s => s.buffer !== null).length} sounds)`}
+                            >
+                              {k.name} <span style={{ color: "var(--text-dim)", fontSize: 8 }}>{k.slots.filter(s => s.buffer !== null).length}snd</span>
+                            </span>
+                          )}
+                          <button onClick={(e) => { e.stopPropagation(); setKitRenamingIdx(i); setKitRenameValue(k.name); }}
+                            style={{ fontSize: 8, color: "var(--text-dim)", background: "none", border: "none", cursor: "pointer", padding: "1px 2px", flexShrink: 0 }} title="Rename">✎</button>
+                          <button onClick={(e) => { e.stopPropagation(); setUserKits(deleteUserKit(i)); }}
+                            style={{ fontSize: 8, color: "var(--record)", background: "none", border: "none", cursor: "pointer", padding: "1px 2px", flexShrink: 0 }} title="Delete">✕</button>
+                        </div>
+                      ))}
+                    </>)}
+                  </div>
+                )}
+              </div>
+              {/* +Save current kit */}
               <button onClick={() => {
                 if (!padEngine) return;
                 const name = prompt("Kit name:");
@@ -416,90 +474,6 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               }} style={{ fontSize: 11, padding: "5px 10px", borderRadius: 6, background: "var(--bg-cell)", color: "var(--text-dim)" }} title="Save current pads as kit">
                 +Save
               </button>
-              {/* Kits dropdown — load/rename/delete saved kits */}
-              <div ref={kitsMenuRef} style={{ position: "relative" }}>
-                <button
-                  onClick={() => { setKitsMenuOpen(p => !p); setKitRenamingIdx(null); }}
-                  style={{
-                    fontSize: 11, padding: "5px 10px", borderRadius: 6,
-                    background: kitsMenuOpen ? "var(--preview)" : "var(--bg-cell)",
-                    color: kitsMenuOpen ? "#000" : userKits.length > 0 ? "var(--preview)" : "var(--text-dim)",
-                  }}
-                  title="Load saved kit"
-                >
-                  Kits ▾
-                </button>
-                {kitsMenuOpen && (
-                  <div style={{
-                    position: "absolute", top: "100%", right: 0, marginTop: 4,
-                    background: "var(--bg-panel)", border: "1px solid var(--border)",
-                    borderRadius: 6, padding: 4, minWidth: 200, zIndex: 100,
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-                    maxHeight: 280, overflowY: "auto",
-                  }}>
-                    {userKits.length === 0 ? (
-                      <div style={{ fontSize: 10, color: "var(--text-dim)", padding: "8px 8px", textAlign: "center" }}>
-                        No saved kits
-                      </div>
-                    ) : userKits.map((k, i) => (
-                      <div key={i} style={{
-                        display: "flex", alignItems: "center", gap: 4, padding: "4px 6px",
-                        borderRadius: 4, cursor: "pointer",
-                      }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-cell)"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                      >
-                        {kitRenamingIdx === i ? (
-                          <input
-                            autoFocus
-                            value={kitRenameValue}
-                            onChange={e => setKitRenameValue(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter" && kitRenameValue.trim()) { setUserKits(renameUserKit(i, kitRenameValue.trim())); setKitRenamingIdx(null); }
-                              if (e.key === "Escape") setKitRenamingIdx(null);
-                            }}
-                            onBlur={() => { if (kitRenameValue.trim()) setUserKits(renameUserKit(i, kitRenameValue.trim())); setKitRenamingIdx(null); }}
-                            style={{
-                              flex: 1, fontSize: 10, background: "var(--bg-cell)",
-                              color: "var(--text)", border: "1px solid var(--preview)",
-                              borderRadius: 3, padding: "2px 4px", outline: "none",
-                            }}
-                            onClick={e => e.stopPropagation()}
-                          />
-                        ) : (
-                          <span
-                            onClick={() => {
-                              if (!padEngine) return;
-                              for (let j = 0; j < 16; j++) padEngine.clear(j);
-                              userKitToPads(k, padEngine);
-                              setKitsMenuOpen(false);
-                              forceUpdate(n => n + 1);
-                            }}
-                            style={{ flex: 1, fontSize: 10, color: "var(--text)", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                            title={`${k.name} (${k.slots.filter(s => s.buffer !== null).length} sounds)`}
-                          >
-                            {k.name} <span style={{ color: "var(--text-dim)", fontSize: 8 }}>{k.slots.filter(s => s.buffer !== null).length}snd</span>
-                          </span>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setKitRenamingIdx(i); setKitRenameValue(k.name); }}
-                          style={{ fontSize: 8, color: "var(--text-dim)", background: "none", border: "none", cursor: "pointer", padding: "1px 3px", flexShrink: 0 }}
-                          title="Rename"
-                        >
-                          ✎
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setUserKits(deleteUserKit(i)); }}
-                          style={{ fontSize: 8, color: "var(--record)", background: "none", border: "none", cursor: "pointer", padding: "1px 3px", flexShrink: 0 }}
-                          title="Delete"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
               {/* Export kit */}
               <button onClick={() => {
                 if (!padEngine) return;
