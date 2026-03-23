@@ -10,7 +10,7 @@ interface Props {
   getAnalyser?: () => AnalyserNode | null;
 }
 
-const APP_VERSION = "1.0.0-pre.58";
+const APP_VERSION = "1.0.0-pre.59";
 
 const LINES = [
   "",
