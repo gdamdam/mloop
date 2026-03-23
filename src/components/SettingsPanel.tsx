@@ -88,35 +88,27 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
         {/* ── Theme ─────────────────────────────────────────── */}
         <div className="settings-section">
           <div className="settings-label">Theme</div>
-          <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 3 }}>DARK</div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
-            {PALETTES.filter(p => p.dark).map(p => (
-              <button key={p.id} onClick={() => { onPaletteChange(p.id); applyPalette(p); }}
-                style={{
-                  padding: "6px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600,
-                  background: p.bg, color: p.text,
-                  border: palette === p.id ? `2px solid ${p.preview}` : "2px solid transparent",
-                  cursor: "pointer",
-                }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.preview, display: "inline-block", marginRight: 3 }} />
-                {p.name}
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 3 }}>LIGHT</div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {PALETTES.filter(p => !p.dark).map(p => (
-              <button key={p.id} onClick={() => { onPaletteChange(p.id); applyPalette(p); }}
-                style={{
-                  padding: "6px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600,
-                  background: p.bg, color: p.text,
-                  border: palette === p.id ? `2px solid ${p.preview}` : `2px solid ${p.border}`,
-                  cursor: "pointer",
-                }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: p.preview, display: "inline-block", marginRight: 3 }} />
-                {p.name}
-              </button>
-            ))}
+          <div style={{ display: "flex", gap: 6 }}>
+            <select
+              value={PALETTES.find(p => p.dark && p.id === palette) ? palette : ""}
+              onChange={(e) => { const p = PALETTES.find(x => x.id === e.target.value); if (p) { onPaletteChange(p.id); applyPalette(p); } }}
+              style={{ flex: 1, padding: "6px 8px", borderRadius: 6, fontSize: 11, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer" }}
+            >
+              <option value="" disabled>Dark</option>
+              {PALETTES.filter(p => p.dark).map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              value={PALETTES.find(p => !p.dark && p.id === palette) ? palette : ""}
+              onChange={(e) => { const p = PALETTES.find(x => x.id === e.target.value); if (p) { onPaletteChange(p.id); applyPalette(p); } }}
+              style={{ flex: 1, padding: "6px 8px", borderRadius: 6, fontSize: 11, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer" }}
+            >
+              <option value="" disabled>Light</option>
+              {PALETTES.filter(p => !p.dark).map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
