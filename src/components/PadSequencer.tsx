@@ -50,9 +50,10 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   const [grid, setGrid] = useState<boolean[][]>(() =>
     Array.from({ length: 64 }, () => Array(16).fill(false))
   );
-  const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
   const [swing, setSwing] = useState(0);
+  // Playing state derived from engine — single source of truth
+  const playing = padEngine?.isSeqPlaying ?? false;
   const [currentStep, setCurrentStep] = useState(-1);
   const [dragOverCell, setDragOverCell] = useState<{ step: number; slot: number } | null>(null);
   const [mutedRows, setMutedRows] = useState<Set<number>>(new Set());
@@ -162,24 +163,22 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
     // eslint-disable-next-line react-hooks/immutability -- padEngine is an external class instance, not React state
     padEngine.onStepChange = (step) => {
       setCurrentStep(step); currentStepRef.current = step;
-      // Sync play state with engine (header button may have started/stopped it)
-      if (step >= 0) setPlaying(true);
-      else setPlaying(false);
     };
     return () => { padEngine.onStepChange = null; };
   }, [padEngine]);
 
-  // Start/stop sequencer — only when user clicks the sequencer's own play button
+  const [, forceRender] = useState(0);
+  // Start/stop sequencer
   const handleSeqPlayStop = useCallback(() => {
     if (!padEngine) return;
     if (padEngine.isSeqPlaying) {
       padEngine.stopSequencer();
-      setPlaying(false);
       setRecording(false);
+      setCurrentStep(-1);
     } else {
       padEngine.startSequencer();
-      setPlaying(true);
     }
+    forceRender(n => n + 1);
   }, [padEngine]);
 
   if (loadedSlots.length === 0) {
@@ -212,7 +211,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
           {playing ? "■" : "▶"}
         </button>
         <button
-          onClick={() => { if (!playing && padEngine) { padEngine.startSequencer(); setPlaying(true); } setRecording(!recording); }}
+          onClick={() => { if (!playing && padEngine) { padEngine.startSequencer(); forceRender(n => n + 1); } setRecording(!recording); }}
           style={{
             width: 32, height: 32, borderRadius: "50%", fontSize: 9, fontWeight: 700,
             background: recording ? "var(--record)" : "var(--bg-cell)",
