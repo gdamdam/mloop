@@ -238,7 +238,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
           value={padEngine?.getSeqSwing() ?? 0}
           onChange={(e) => padEngine?.setSeqSwing(parseFloat(e.target.value))}
           title={`Swing ${Math.round((padEngine?.getSeqSwing() ?? 0) * 100)}%`}
-          style={{ width: 40 }} />
+          style={{ width: 40, flex: "none" }} />
         {/* Swing — inline with transport */}
         {/* Step count selector */}
         <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
