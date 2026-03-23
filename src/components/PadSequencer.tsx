@@ -355,8 +355,8 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
         ))}
       </div>
 
-      {/* Step indicators — bottom, full width, click/drag to select */}
-      <div style={{ display: "flex", gap: 1, paddingLeft: 20, marginTop: 4, touchAction: "none", userSelect: "none" }}
+      {/* Step indicators — always visible below grid */}
+      <div style={{ display: "flex", gap: 1, paddingLeft: 20, marginTop: 4, touchAction: "none", userSelect: "none", flexShrink: 0 }}
         title="Click to select steps · Shift+click for range · Drag to select · CLR clears selected"
         onPointerUp={() => { draggingSelect.current = false; }}
         onPointerLeave={() => { draggingSelect.current = false; }}
