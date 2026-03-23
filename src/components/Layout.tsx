@@ -122,7 +122,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   // Check for app updates every 5 minutes (like mpump)
   useEffect(() => {
-    const APP_VERSION = "1.0.0-pre.53";
+    const APP_VERSION = "1.0.0-pre.54";
     const check = () => {
       fetch("version.json", { cache: "no-store" })
         .then(r => r.json())
@@ -310,22 +310,19 @@ export function Layout({ state, command, engine }: LayoutProps) {
     clearTimeout(logoClickTimer.current);
     logoClickTimer.current = window.setTimeout(() => {
       const count = logoClickCount.current;
-      if (count === 1) {
-        // Random theme
+      if (count >= 5) {
+        setShowMegaKaos(true);
+      } else if (count === 4) {
+        setShowAbout(true);
+      } else if (count === 3) {
         const randomPalette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
         handlePaletteChange(randomPalette.id);
       } else if (count === 2) {
-        // Toggle logo pulse (beat-reactive animation)
         setLogoPulse(p => !p);
-      } else if (count >= 5) {
-        // Easter egg — fullscreen KAOS
-        setShowMegaKaos(true);
-      } else if (count >= 3) {
-        // Show credits
-        setShowAbout(true);
       }
+      // 1 click = just the flash animation (already triggered)
       logoClickCount.current = 0;
-    }, 420);
+    }, 500);
   }, [handlePaletteChange]);
 
   const isDark = PALETTES.find(x => x.id === palette)?.dark ?? true;
@@ -335,9 +332,9 @@ export function Layout({ state, command, engine }: LayoutProps) {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="header">
         <div className="title">
-          <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× theme · 2× pulse · 3× credits · 5× ???">{LOGO}</pre>
+          <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× pulse · 2× beat sync · 3× theme · 4× credits">{LOGO}</pre>
           <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
-          <span className="title-version">1.0.0-pre.53</span>
+          <span className="title-version">1.0.0-pre.54</span>
         </div>
 
         {/* View toggle */}
