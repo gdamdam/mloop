@@ -25,12 +25,12 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
     <footer className="app-footer" style={{
       textAlign: "center",
       padding: "16px 12px 24px",
-      fontSize: 10,
+      fontSize: 12,
       color: "var(--text-dim)",
       opacity: 0.7,
       lineHeight: 1.8,
     }}>
-      <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.60</span>
+      <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.61</span>
       {" · "}
       <span>© 2026</span>
       {" · "}
@@ -44,7 +44,7 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
         <span style={{ cursor: "pointer" }} onClick={onShowHelp}>Help</span>
         {" · "}
         <a href="https://ko-fi.com/gdamdam" target="_blank" rel="noopener"
-          style={{ color: "var(--text-dim)", textDecoration: "none" }}>Support ♥</a>
+          style={{ color: "#ff4466", fontWeight: 700, textDecoration: "none" }}>Support ♥</a>
         {" · "}
         <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE" target="_blank" rel="noopener"
           style={{ color: "var(--text-dim)", textDecoration: "none" }}>GPL-3.0</a>
