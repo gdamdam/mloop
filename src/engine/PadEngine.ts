@@ -132,12 +132,17 @@ export class PadEngine {
       clearInterval(this.countInTimer);
       this.countInTimer = null;
     }
+    if (this._countInSource) {
+      try { this._countInSource.stop(); this._countInSource.disconnect(); } catch { /* ok */ }
+      this._countInSource = null;
+    }
     this.onCountIn?.(0);
   }
 
   /**
    * Start recording with count-in. Plays metronome clicks for countInBeats,
-   * then starts actual recording. Metronome stops when recording begins.
+   * then starts actual recording. Uses Web Audio look-ahead scheduling
+   * for jitter-free metronome clicks during count-in.
    * If countInBeats is 0, starts immediately.
    */
   async startRecording(slotId: number, bpm = 120): Promise<void> {
@@ -150,34 +155,43 @@ export class PadEngine {
       return this.startRecordingNow(slotId);
     }
 
-    // Count-in: schedule clicks and start recording after
+    // Count-in: schedule all clicks via Web Audio clock for sample-accurate timing
     const beatDur = 60 / bpm;
-    let beatsLeft = this.countInBeats;
+    const totalBeats = this.countInBeats;
 
     // Notify UI of count-in start
     slot.status = "recording"; // show visual early so user knows it's armed
-    this.onCountIn?.(beatsLeft);
+    this.onCountIn?.(totalBeats);
     this.onStateChange?.();
 
-    // Play first click immediately
-    this.playClick(this.ctx.currentTime, true);
-    beatsLeft--;
-    this.onCountIn?.(beatsLeft);
+    // Schedule all count-in clicks at exact Web Audio times
+    const startTime = this.ctx.currentTime;
+    for (let i = 0; i < totalBeats; i++) {
+      const when = startTime + i * beatDur;
+      const isDownbeat = i % 4 === 0;
+      this.playClick(when, isDownbeat);
+      // Schedule UI updates via setTimeout aligned to audio time
+      const delayMs = Math.max(0, (when - this.ctx.currentTime) * 1000);
+      setTimeout(() => this.onCountIn?.(totalBeats - i - 1), delayMs);
+    }
 
-    // Schedule remaining clicks
-    this.countInTimer = window.setInterval(() => {
-      if (beatsLeft <= 0) {
-        // Count-in done — start recording
-        this.cancelCountIn();
-        this.startRecordingNow(slotId);
-        return;
-      }
-      const isDownbeat = beatsLeft % 4 === 0;
-      this.playClick(this.ctx.currentTime, isDownbeat);
-      beatsLeft--;
-      this.onCountIn?.(beatsLeft);
-    }, beatDur * 1000);
+    // Schedule recording start at the exact end of count-in using a silent source
+    const recordTime = startTime + totalBeats * beatDur;
+    const silent = this.ctx.createBuffer(1, 2, this.ctx.sampleRate);
+    const src = this.ctx.createBufferSource();
+    src.buffer = silent;
+    src.connect(this.ctx.destination);
+    src.onended = () => {
+      this.countInTimer = null;
+      this.startRecordingNow(slotId);
+    };
+    src.start(this.ctx.currentTime);
+    src.stop(recordTime);
+    // Store ref so cancelCountIn can abort
+    this._countInSource = src;
   }
+
+  private _countInSource: AudioBufferSourceNode | null = null;
 
   /** Actually start recording (after count-in). */
   private async startRecordingNow(slotId: number): Promise<void> {
