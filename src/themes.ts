@@ -84,6 +84,5 @@ export function applyPalette(p: PaletteDef): void {
 export function loadPaletteId(): PaletteId {
   const stored = localStorage.getItem("mloop-palette");
   if (stored && PALETTES.find(p => p.id === stored)) return stored as PaletteId;
-  const hour = new Date().getHours();
   return "midnight";
 }
