@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d1117" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./favicon.svg" />
+    <title>mloop — Browser Loop Station & Sampler</title>
+    <meta name="description" content="Browser-based loop station & MPC-style sampler. Record, layer, slice, sequence, perform — no install, no subscription, no account." />
+    <!-- Open Graph / Social Cards -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="mloop — Browser Loop Station & Sampler" />
+    <meta property="og:description" content="Record, layer, slice, sequence, perform — all in your browser. 16 sample pads, 3 loop tracks, 9 effects, KAOS XY pad. Free, no account needed." />
+    <meta property="og:url" content="https://mloop.mpump.live/" />
+    <meta property="og:image" content="https://mloop.mpump.live/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="mloop — Browser Loop Station & Sampler" />
+    <meta name="twitter:description" content="Record, layer, slice, sequence, perform — all in your browser. Free, no install." />
+    <meta name="twitter:image" content="https://mloop.mpump.live/og-image.png" />
+    <script type="module" crossorigin src="./assets/index-iPSsxRQk.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-AZdvY_pj.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Register service worker for offline support (PWA).
+      // The SW uses network-first strategy and excludes recorder-worklet.js
+      // to avoid Firefox AudioWorklet caching issues.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function() {
+          navigator.serviceWorker.register("./sw.js").catch(function() {});
+        });
+      }
+    </script>
+    <!-- GoatCounter — privacy-first analytics, no cookies, no personal data -->
+    <script data-goatcounter="https://mloop99.goatcounter.com/count"
+            async src="//gc.zgo.at/count.js"></script>
+  </body>
+</html>
