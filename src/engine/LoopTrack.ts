@@ -45,6 +45,8 @@ export class LoopTrack {
   private autoStopTimer: number | null = null;
   /** Input latency in samples — set by AudioEngine after mic init for trim compensation. */
   latencyTrimSamples = 0;
+  /** Per-layer volume multipliers (1.0 = full, applies during mixdown). */
+  layerVolumes: number[] = [];
 
   /** Callback to notify engine of state changes (triggers React re-render). */
   onStateChange: (() => void) | null = null;
@@ -84,6 +86,24 @@ export class LoopTrack {
     return this.layers.length;
   }
 
+  /** Set volume for a specific layer (0–1). Triggers buffer rebuild if playing. */
+  setLayerVolume(layerIdx: number, vol: number): void {
+    if (layerIdx < 0 || layerIdx >= this.layers.length) return;
+    this.layerVolumes[layerIdx] = Math.max(0, Math.min(1, vol));
+    this.degradedData = null; // force fresh mixdown with new volumes
+    this.rebuildMixedBuffer();
+    if (this.status === "playing" && this.mixedBuffer) {
+      this.stopSource();
+      this.startPlayback();
+    }
+    this.notifyChange();
+  }
+
+  /** Get current layer volumes array. */
+  getLayerVolumes(): number[] {
+    return [...this.layerVolumes];
+  }
+
   get volume(): number {
     return this._volume;
   }
@@ -115,16 +135,16 @@ export class LoopTrack {
     this.status = "recording";
     this.notifyChange();
 
-    // Auto-stop after one master loop cycle so overdubs stay aligned
+    // Auto-stop using Web Audio clock for sample-accurate timing.
+    // A silent scheduled source triggers onended at the exact audio-clock time.
     if (masterLength > 0) {
       this.clearAutoStopTimer();
-      const durationMs = (masterLength / this.ctx.sampleRate) * 1000;
-      this.autoStopTimer = window.setTimeout(() => {
-        this.autoStopTimer = null;
+      const durationSec = masterLength / this.ctx.sampleRate;
+      this.scheduleAutoStop(durationSec, () => {
         if (this.status === "recording") {
           this.stopRecording(masterLength);
         }
-      }, durationMs);
+      });
     }
   }
 
@@ -161,6 +181,7 @@ export class LoopTrack {
     trimmed.set(compensated.subarray(0, copyLen));
 
     this.layers.push(trimmed);
+    this.layerVolumes.push(1);
     this.degradedData = null; // reset so destruction rebuilds from all layers
     this.rebuildMixedBuffer();
     this.startPlayback();
@@ -187,15 +208,14 @@ export class LoopTrack {
     this.status = "overdubbing";
     this.notifyChange();
 
-    // Auto-stop after one loop cycle — overdubs are always one cycle
+    // Auto-stop using Web Audio clock for sample-accurate overdub length
     this.clearAutoStopTimer();
-    const durationMs = (this.loopLengthSamples / this.ctx.sampleRate) * 1000;
-    this.autoStopTimer = window.setTimeout(() => {
-      this.autoStopTimer = null;
+    const durationSec = this.loopLengthSamples / this.ctx.sampleRate;
+    this.scheduleAutoStop(durationSec, () => {
       if (this.status === "overdubbing") {
         this.stopOverdub();
       }
-    }, durationMs);
+    });
   }
 
   /** Stop overdub, merge the new layer into the stack, and restart playback. */
@@ -214,6 +234,7 @@ export class LoopTrack {
       const copyLen = Math.min(compensated.length, this.loopLengthSamples);
       trimmed.set(compensated.subarray(0, copyLen));
       this.layers.push(trimmed);
+      this.layerVolumes.push(1);
       this.degradedData = null;
       this.rebuildMixedBuffer();
     }
@@ -226,6 +247,8 @@ export class LoopTrack {
   // ── Playback ───────────────────────────────────────────────────────────
 
   private destructionTimer: number | null = null;
+  /** Audio-clock destruction cycle source — fires onended at loop boundary. */
+  private destructionSource: AudioBufferSourceNode | null = null;
 
   /**
    * Start looped playback of the mixed buffer.
@@ -254,12 +277,22 @@ export class LoopTrack {
     this.startDestructionCycle();
   }
 
-  /** Start the destruction cycle — checks every loop boundary. */
+  /**
+   * Start the destruction cycle using Web Audio clock.
+   * Schedules a silent source that fires onended at the next loop boundary,
+   * then chains to the next cycle. Avoids setInterval drift.
+   */
   private startDestructionCycle(): void {
     this.stopDestructionTimer();
     if (this.loopLengthSamples <= 0) return;
-    const cycleDurationMs = (this.loopLengthSamples / this.ctx.sampleRate) * 1000 / this.playbackRate;
-    this.destructionTimer = window.setInterval(() => {
+    if (this.destruction.amount <= 0) return;
+
+    const cycleDurationSec = this.loopLengthSamples / this.ctx.sampleRate / this.playbackRate;
+    const silent = this.ctx.createBuffer(1, 2, this.ctx.sampleRate);
+    const src = this.ctx.createBufferSource();
+    src.buffer = silent;
+    src.connect(this.ctx.destination);
+    src.onended = () => {
       if (this.status !== "playing") return;
       if (this.destruction.amount <= 0) return;
       // Degrade and restart with new buffer (buffer is readonly after start)
@@ -274,13 +307,22 @@ export class LoopTrack {
         source.start();
         this.sourceNode = source;
       }
-    }, cycleDurationMs);
+      // Chain next cycle
+      this.startDestructionCycle();
+    };
+    src.start(this.ctx.currentTime);
+    src.stop(this.ctx.currentTime + cycleDurationSec);
+    this.destructionSource = src;
   }
 
   private stopDestructionTimer(): void {
     if (this.destructionTimer !== null) {
       clearInterval(this.destructionTimer);
       this.destructionTimer = null;
+    }
+    if (this.destructionSource) {
+      try { this.destructionSource.stop(); this.destructionSource.disconnect(); } catch { /* ok */ }
+      this.destructionSource = null;
     }
   }
 
@@ -290,10 +332,34 @@ export class LoopTrack {
     this.startPlayback(offsetSeconds);
   }
 
+  /** Audio-clock auto-stop node — fires onended at exact scheduled time. */
+  private autoStopSource: AudioBufferSourceNode | null = null;
+
+  /**
+   * Schedule an auto-stop callback using the Web Audio clock.
+   * Creates a silent buffer source that fires onended after the given duration.
+   * This avoids JS setTimeout drift — timing is sample-accurate.
+   */
+  private scheduleAutoStop(durationSec: number, callback: () => void): void {
+    this.clearAutoStopTimer();
+    const silent = this.ctx.createBuffer(1, 2, this.ctx.sampleRate);
+    const src = this.ctx.createBufferSource();
+    src.buffer = silent;
+    src.connect(this.ctx.destination); // must be connected to fire onended
+    src.onended = callback;
+    src.start(this.ctx.currentTime);
+    src.stop(this.ctx.currentTime + durationSec);
+    this.autoStopSource = src;
+  }
+
   private clearAutoStopTimer(): void {
     if (this.autoStopTimer !== null) {
       clearTimeout(this.autoStopTimer);
       this.autoStopTimer = null;
+    }
+    if (this.autoStopSource) {
+      try { this.autoStopSource.stop(); this.autoStopSource.disconnect(); } catch { /* ok */ }
+      this.autoStopSource = null;
     }
   }
 
@@ -341,11 +407,13 @@ export class LoopTrack {
     if (this.destruction.amount > 0 && this.degradedData && this.degradedData.length === len) {
       this.destruction.degrade(this.degradedData);
     } else {
-      // First call or no destruction: build fresh from layers
+      // First call or no destruction: build fresh from layers with per-layer volume
       const mixed = new Float32Array(len);
-      for (const layer of this.layers) {
+      for (let l = 0; l < this.layers.length; l++) {
+        const layer = this.layers[l];
+        const vol = this.layerVolumes[l] ?? 1;
         for (let i = 0; i < len; i++) {
-          mixed[i] += layer[i];
+          mixed[i] += layer[i] * vol;
         }
       }
       for (let i = 0; i < len; i++) {
@@ -400,6 +468,7 @@ export class LoopTrack {
   undoLastLayer(): void {
     if (this.layers.length < 2) return;
     this.layers.pop();
+    this.layerVolumes.pop();
     this.rebuildMixedBuffer();
     if (this.status === "playing") {
       this.stopSource();
@@ -420,6 +489,7 @@ export class LoopTrack {
       this.recorder = null;
     }
     this.layers = [];
+    this.layerVolumes = [];
     this.mixedBuffer = null;
     this.loopLengthSamples = 0;
     this.isReversed = false;
@@ -443,9 +513,11 @@ export class LoopTrack {
       const copyLen = Math.min(data.length, masterLength);
       trimmed.set(data.subarray(0, copyLen));
       this.layers.push(trimmed);
+      this.layerVolumes.push(1);
     } else {
       this.loopLengthSamples = data.length;
       this.layers.push(new Float32Array(data));
+      this.layerVolumes.push(1);
     }
     this.degradedData = null;
 
@@ -463,6 +535,7 @@ export class LoopTrack {
   restoreLayers(layers: Float32Array[], loopLength: number): void {
     this.clear();
     this.layers = layers;
+    this.layerVolumes = layers.map(() => 1);
     this.loopLengthSamples = loopLength;
     if (layers.length > 0) {
       this.rebuildMixedBuffer();
