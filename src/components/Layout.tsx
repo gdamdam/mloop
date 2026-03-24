@@ -158,6 +158,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
     generateDefaultSamples().then(samples => {
       for (let i = 0; i < samples.length && i < 16; i++) {
         padEngine.importBuffer(i, samples[i].buffer, samples[i].name);
+        if (samples[i].pan !== undefined) padEngine.slots[i].pan = samples[i].pan!;
       }
       // Default pattern showcasing all 8 sounds
       // Pads: 0=Kick, 1=Snare, 2=HH, 3=Clap, 4=Open HH, 5=Rim, 6=Tom, 7=Cymbal

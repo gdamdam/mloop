@@ -39,6 +39,8 @@ export class AudioEngine {
   private inputAnalyser: AnalyserNode;
   private resumeTimer: number | null = null;
   private monitorGain: GainNode;
+  private resumeHandler: (() => void) | null = null;
+  private resumeEvents = ["pointerdown", "keydown", "touchstart"];
 
   constructor() {
     // Safari compat: fall back to webkitAudioContext if needed
@@ -473,7 +475,7 @@ export class AudioEngine {
 
   /** Enable/disable live mic monitoring through speakers. */
   setMonitor(on: boolean): void {
-    this.monitorGain.gain.value = on ? 1 : 0;
+    this.monitorGain.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.015);
   }
 
   /**
@@ -488,14 +490,13 @@ export class AudioEngine {
       }
     };
     this.resumeTimer = window.setInterval(resume, RESUME_INTERVAL_MS);
-    const events = ["pointerdown", "keydown", "touchstart"];
-    const handler = () => {
+    this.resumeHandler = () => {
       if (this.ctx.state === "suspended") {
         this.ctx.resume();
       }
     };
-    for (const e of events) {
-      document.addEventListener(e, handler, { passive: true });
+    for (const e of this.resumeEvents) {
+      document.addEventListener(e, this.resumeHandler, { passive: true });
     }
   }
 
@@ -504,6 +505,12 @@ export class AudioEngine {
     this.timing.stop();
     if (this.resumeTimer !== null) {
       clearInterval(this.resumeTimer);
+    }
+    if (this.resumeHandler) {
+      for (const e of this.resumeEvents) {
+        document.removeEventListener(e, this.resumeHandler);
+      }
+      this.resumeHandler = null;
     }
     if (this.inputStream) {
       for (const track of this.inputStream.getTracks()) {

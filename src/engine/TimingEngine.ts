@@ -197,6 +197,6 @@ export class TimingEngine {
     }
     const avgInterval = totalInterval / (this.tapTimes.length - 1);
 
-    this._bpm = Math.round(60000 / avgInterval);
+    this.bpm = Math.round(60000 / avgInterval);
   }
 }

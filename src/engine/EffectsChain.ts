@@ -37,7 +37,7 @@ function makeDistortionCurve(drive: number): Float32Array<ArrayBuffer> {
  * Fewer bits = more aggressive quantization = more lo-fi crunch.
  */
 function makeBitcrushCurve(bits: number): Float32Array<ArrayBuffer> {
-  const n = 65536;
+  const n = 4096;
   const curve = new Float32Array(n);
   const steps = Math.pow(2, bits);
   for (let i = 0; i < n; i++) {
@@ -189,17 +189,17 @@ export class EffectsChain {
         return true;
       }
       case "delay": {
-        // Node order: dry=0, wet=1, delay=2, feedback=3
-        const dl = nodes[2] as DelayNode;
-        const fb = nodes[3] as GainNode;
+        // Node order: dry=0, wetGain=1, dlL=2, fbLR=3
+        const dlL = nodes[2] as DelayNode;
+        const fbLR = nodes[3] as GainNode;
         const dry = nodes[0] as GainNode;
-        const wet = nodes[1] as GainNode;
+        const wetGain = nodes[1] as GainNode;
         const { time, feedback, mix, sync, division } = this.fx.delay;
         const delayTime = sync ? delayDivisionToSeconds(division, this._bpm) : time;
-        dl.delayTime.setTargetAtTime(delayTime, t, RAMP);
-        fb.gain.setTargetAtTime(feedback, t, RAMP);
+        dlL.delayTime.setTargetAtTime(delayTime, t, RAMP);
+        fbLR.gain.setTargetAtTime(feedback, t, RAMP);
         dry.gain.setTargetAtTime(1 - mix, t, RAMP);
-        wet.gain.setTargetAtTime(mix, t, RAMP);
+        wetGain.gain.setTargetAtTime(mix, t, RAMP);
         return true;
       }
       case "reverb": {
@@ -219,12 +219,23 @@ export class EffectsChain {
         return true;
       }
       case "chorus": {
-        // LFO rate/depth can't be smoothly updated here — just handle mix
+        // Stereo chorus: dry=0, wetL=1, wetR=2
         const dry = nodes[0] as GainNode;
-        const wet = nodes[1] as GainNode;
+        const wetL = nodes[1] as GainNode;
+        const wetR = nodes[2] as GainNode;
         dry.gain.setTargetAtTime(1 - this.fx.chorus.mix, t, RAMP);
-        wet.gain.setTargetAtTime(this.fx.chorus.mix, t, RAMP);
+        wetL.gain.setTargetAtTime(this.fx.chorus.mix, t, RAMP);
+        wetR.gain.setTargetAtTime(this.fx.chorus.mix, t, RAMP);
         return true;
+      }
+      case "bitcrusher": {
+        const ws = nodes[0] as WaveShaperNode;
+        ws.curve = makeBitcrushCurve(this.fx.bitcrusher.bits);
+        return true;
+      }
+      case "phaser": {
+        // Can't smoothly update allpass chain — only handle via rebuild
+        return false;
       }
       default:
         return false;
@@ -341,21 +352,34 @@ export class EffectsChain {
         return ws;
       }
       case "chorus": {
-        // Chorus: mix original (dry) with a modulated short delay (wet).
-        // LFO modulates delay time to create pitch wobble.
+        // Stereo chorus: two delay lines with quadrature LFOs panned L/R
         const { rate, depth, mix } = this.fx.chorus;
         const dry = this.ctx.createGain(); dry.gain.value = 1 - mix;
-        const wet = this.ctx.createGain(); wet.gain.value = mix;
-        const delay = this.ctx.createDelay(0.05); delay.delayTime.value = 0.01;
-        const lfo = this.ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = rate;
-        const lfoGain = this.ctx.createGain(); lfoGain.gain.value = depth;
-        lfo.connect(lfoGain); lfoGain.connect(delay.delayTime); lfo.start();
-        this.fxLFOs.push(lfo);
+        const wetL = this.ctx.createGain(); wetL.gain.value = mix;
+        const wetR = this.ctx.createGain(); wetR.gain.value = mix;
+        const delayL = this.ctx.createDelay(0.05); delayL.delayTime.value = 0.012;
+        const delayR = this.ctx.createDelay(0.05); delayR.delayTime.value = 0.008;
+        // LFO L (sine)
+        const lfoL = this.ctx.createOscillator(); lfoL.type = "sine"; lfoL.frequency.value = rate;
+        const lfoGainL = this.ctx.createGain(); lfoGainL.gain.value = depth;
+        lfoL.connect(lfoGainL); lfoGainL.connect(delayL.delayTime); lfoL.start();
+        // LFO R (quadrature — start with quarter-period offset for 90° phase)
+        const lfoR = this.ctx.createOscillator(); lfoR.type = "sine"; lfoR.frequency.value = rate;
+        const lfoGainR = this.ctx.createGain(); lfoGainR.gain.value = depth;
+        const quarterPeriod = 1 / (4 * Math.max(rate, 0.01));
+        lfoR.connect(lfoGainR); lfoGainR.connect(delayR.delayTime);
+        lfoR.start(this.ctx.currentTime + quarterPeriod);
+        this.fxLFOs.push(lfoL, lfoR);
+        // Pan wet signals L/R
+        const panL = this.ctx.createStereoPanner(); panL.pan.value = -0.8;
+        const panR = this.ctx.createStereoPanner(); panR.pan.value = 0.8;
+        prev.connect(dry);
+        prev.connect(delayL); delayL.connect(wetL); wetL.connect(panL);
+        prev.connect(delayR); delayR.connect(wetR); wetR.connect(panR);
         const merge = this.ctx.createGain();
-        prev.connect(dry); prev.connect(delay); delay.connect(wet);
-        dry.connect(merge); wet.connect(merge);
-        this.fxNodes.push(dry, wet, delay, lfoGain, merge);
-        this.liveNodes.set("chorus", [dry, wet, delay, lfoGain, merge]);
+        dry.connect(merge); panL.connect(merge); panR.connect(merge);
+        this.fxNodes.push(dry, wetL, wetR, delayL, delayR, lfoGainL, lfoGainR, panL, panR, merge);
+        this.liveNodes.set("chorus", [dry, wetL, wetR]);
         return merge;
       }
       case "phaser": {
@@ -381,18 +405,32 @@ export class EffectsChain {
         return merge;
       }
       case "delay": {
-        // Feedback delay with dry/wet mix. Supports tempo-sync via BPM.
+        // Stereo ping-pong delay: alternates L/R with cross-feedback
         const { time, feedback, mix, sync, division } = this.fx.delay;
         const delayTime = sync ? delayDivisionToSeconds(division, this._bpm) : time;
         const dry = this.ctx.createGain(); dry.gain.value = 1 - mix;
-        const wet = this.ctx.createGain(); wet.gain.value = mix;
-        const dl = this.ctx.createDelay(2); dl.delayTime.value = delayTime;
-        const fb = this.ctx.createGain(); fb.gain.value = feedback;
-        // Feedback loop: delay → feedback gain → delay (creates repeating echoes)
-        prev.connect(dry); prev.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet);
-        const merge = this.ctx.createGain(); dry.connect(merge); wet.connect(merge);
-        this.fxNodes.push(dry, wet, dl, fb, merge);
-        this.liveNodes.set("delay", [dry, wet, dl, fb, merge]);
+        const wetGain = this.ctx.createGain(); wetGain.gain.value = mix;
+        // Two delay taps at equal time
+        const dlL = this.ctx.createDelay(2); dlL.delayTime.value = delayTime;
+        const dlR = this.ctx.createDelay(2); dlR.delayTime.value = delayTime;
+        // Cross-feedback: L → R → L (ping-pong)
+        const fbLR = this.ctx.createGain(); fbLR.gain.value = feedback;
+        const fbRL = this.ctx.createGain(); fbRL.gain.value = feedback;
+        dlL.connect(fbLR); fbLR.connect(dlR);
+        dlR.connect(fbRL); fbRL.connect(dlL);
+        // Pan delay outputs L/R
+        const panL = this.ctx.createStereoPanner(); panL.pan.value = -1;
+        const panR = this.ctx.createStereoPanner(); panR.pan.value = 1;
+        dlL.connect(panL); dlR.connect(panR);
+        // Mix into output
+        const wetMerge = this.ctx.createGain();
+        panL.connect(wetMerge); panR.connect(wetMerge);
+        wetMerge.connect(wetGain);
+        // Input feeds into left delay first
+        prev.connect(dry); prev.connect(dlL);
+        const merge = this.ctx.createGain(); dry.connect(merge); wetGain.connect(merge);
+        this.fxNodes.push(dry, wetGain, dlL, dlR, fbLR, fbRL, panL, panR, wetMerge, merge);
+        this.liveNodes.set("delay", [dry, wetGain, dlL, fbLR, merge]);
         return merge;
       }
       case "reverb": {
