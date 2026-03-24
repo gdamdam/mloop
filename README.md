@@ -194,6 +194,23 @@ npm run build    # production build
 npm run test     # run tests
 npm run deploy   # build + deploy to GitHub Pages
 ```
+---
+
+## Privacy
+
+mloop respects your privacy.
+
+- **No cookies** — mpump does not set any cookies
+- **No personal data** — no accounts, no emails, no tracking IDs
+- **No fingerprinting** — no device or browser identification
+- **No third-party trackers** — no Google, no Facebook, no ad networks
+- **Local storage only** — presets, settings, and patterns stay in your browser
+- **Anonymous page views** — counted via [GoatCounter](https://goatcounter.com), a privacy-first analytics tool. It just increments a number every time someone loads the page — no cookies, no personal data, no fingerprinting. The counter shows total page loads across all visitors, not unique users or sessions
+- **Open source** — all code is public on GitHub
+
+Your music stays on your device. Always.
+
+---
 
 ## License
 
