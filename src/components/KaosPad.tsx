@@ -94,6 +94,21 @@ export function KaosPad({ engine }: KaosPadProps) {
   const gestureRef = useRef(new GestureRecorder());
   const [gestureState, setGestureState] = useState<"idle" | "recording" | "playing">("idle");
 
+  // Pause/resume gesture playback when transport stops/starts
+  const anyTrackActive = engine?.tracks.some(t =>
+    t.status === "playing" || t.status === "recording" || t.status === "overdubbing"
+  ) ?? false;
+
+  useEffect(() => {
+    if (gestureState !== "playing") return;
+    const gr = gestureRef.current;
+    if (!anyTrackActive) {
+      gr.pausePlayback();
+    } else if (gr.isPaused) {
+      gr.resumePlayback();
+    }
+  }, [anyTrackActive, gestureState]);
+
   // Get current effects from first track (they're synced)
   const effects: EffectParams = engine?.tracks[0]?.getEffects() ?? DEFAULT_EFFECTS;
 

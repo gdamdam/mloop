@@ -26,15 +26,18 @@ export class GestureRecorder {
   points: GesturePoint[] = [];
   private recording = false;
   private playing = false;
+  private paused = false;
   private startTime = 0;
   private loopDurationMs = 0;
   private rafId = 0;
+  private pausedElapsed = 0; // ms elapsed in gesture at time of pause
 
   /** Callback fired during playback with interpolated {x, y} values. */
   onPlayback: ((x: number, y: number) => void) | null = null;
 
   get isRecording(): boolean { return this.recording; }
   get isPlaying(): boolean { return this.playing; }
+  get isPaused(): boolean { return this.paused; }
   get hasGesture(): boolean { return this.points.length > 0; }
 
   /**
@@ -71,12 +74,42 @@ export class GestureRecorder {
     if (this.points.length < 2) return;
     this.loopDurationMs = loopDurationMs;
     this.playing = true;
-    this.startTime = performance.now();
+    this.paused = false;
+    this.pausedElapsed = 0;
+    this.resumeFrom(0);
+  }
+
+  /** Stop playback and cancel the animation frame loop. */
+  stopPlayback(): void {
+    this.playing = false;
+    this.paused = false;
+    this.pausedElapsed = 0;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+  }
+
+  /** Pause playback — snapshot elapsed position, stop RAF. */
+  pausePlayback(): void {
+    if (!this.playing || this.paused) return;
+    this.paused = true;
+    const elapsed = performance.now() - this.startTime;
+    this.pausedElapsed = elapsed % this.loopDurationMs;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+  }
+
+  /** Resume playback from paused position. */
+  resumePlayback(): void {
+    if (!this.playing || !this.paused) return;
+    this.paused = false;
+    this.resumeFrom(this.pausedElapsed);
+  }
+
+  /** Internal: start the RAF tick loop from a given elapsed offset. */
+  private resumeFrom(elapsedMs: number): void {
+    this.startTime = performance.now() - elapsedMs;
 
     const tick = () => {
-      if (!this.playing) return;
+      if (!this.playing || this.paused) return;
       const elapsed = performance.now() - this.startTime;
-      // Wrap around at loop boundary for infinite repetition
       const t = (elapsed % this.loopDurationMs) / this.loopDurationMs;
 
       const { x, y } = this.interpolate(t);
@@ -85,12 +118,6 @@ export class GestureRecorder {
       this.rafId = requestAnimationFrame(tick);
     };
     tick();
-  }
-
-  /** Stop playback and cancel the animation frame loop. */
-  stopPlayback(): void {
-    this.playing = false;
-    if (this.rafId) cancelAnimationFrame(this.rafId);
   }
 
   /** Clear the recorded gesture and stop all activity. */
