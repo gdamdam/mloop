@@ -90,7 +90,7 @@ export class LoopTrack {
 
   set volume(v: number) {
     this._volume = v;
-    this.outputGain.gain.value = v;
+    this.outputGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02);
   }
 
   get muted(): boolean {
@@ -100,7 +100,7 @@ export class LoopTrack {
   /** Mute/unmute by zeroing the mute gate (preserves volume setting). */
   set muted(m: boolean) {
     this._muted = m;
-    this.muteGain.gain.value = m ? 0 : 1;
+    this.muteGain.gain.setTargetAtTime(m ? 0 : 1, this.ctx.currentTime, 0.015);
   }
 
   // ── Recording ──────────────────────────────────────────────────────────
@@ -206,10 +206,13 @@ export class LoopTrack {
     this.recorder = null;
 
     if (raw.length > 0) {
-      // Trim/pad to exact loop length for seamless alignment
+      // Latency compensation: trim leading samples caused by audio pipeline delay
+      const offset = Math.min(this.latencyTrimSamples, raw.length - 1);
+      const compensated = offset > 0 ? raw.subarray(offset) : raw;
+      // Pad to exact loop length for seamless alignment
       const trimmed = new Float32Array(this.loopLengthSamples);
-      const copyLen = Math.min(raw.length, this.loopLengthSamples);
-      trimmed.set(raw.subarray(0, copyLen));
+      const copyLen = Math.min(compensated.length, this.loopLengthSamples);
+      trimmed.set(compensated.subarray(0, copyLen));
       this.layers.push(trimmed);
       this.degradedData = null;
       this.rebuildMixedBuffer();

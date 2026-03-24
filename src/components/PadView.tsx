@@ -418,7 +418,10 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
                           if (!padEngine) return;
                           for (let j = 0; j < 16; j++) padEngine.clear(j);
                           const samples = await p.generate();
-                          for (let j = 0; j < samples.length && j < 16; j++) padEngine.importBuffer(j, samples[j].buffer, samples[j].name);
+                          for (let j = 0; j < samples.length && j < 16; j++) {
+                            padEngine.importBuffer(j, samples[j].buffer, samples[j].name);
+                            if (samples[j].pan !== undefined) padEngine.slots[j].pan = samples[j].pan!;
+                          }
                           setKitsMenuOpen(false);
                           forceUpdate(n => n + 1);
                         }}

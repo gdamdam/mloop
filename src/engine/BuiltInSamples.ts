@@ -692,7 +692,7 @@ function synthCricket(): Promise<Float32Array> {
 
 export interface SamplePreset {
   name: string;
-  generate: () => Promise<{ name: string; buffer: Float32Array }[]>;
+  generate: () => Promise<{ name: string; buffer: Float32Array; pan?: number }[]>;
 }
 
 export const SAMPLE_PRESETS: SamplePreset[] = [
@@ -700,54 +700,54 @@ export const SAMPLE_PRESETS: SamplePreset[] = [
     name: "Default",
     generate: async () => {
       const [a,b,c,d,e,f,g,h] = await Promise.all([synthKick(), synthSnare(), synthHiHat(), synthClap(), synthOpenHat(), synthRim(), synthTom(), synthCymbal()]);
-      return [{name:"Kick",buffer:a},{name:"Snare",buffer:b},{name:"Hi-Hat",buffer:c},{name:"Clap",buffer:d},{name:"Open HH",buffer:e},{name:"Rim",buffer:f},{name:"Tom",buffer:g},{name:"Cymbal",buffer:h}];
+      return [{name:"Kick",buffer:a,pan:0},{name:"Snare",buffer:b,pan:0},{name:"Hi-Hat",buffer:c,pan:0.3},{name:"Clap",buffer:d,pan:0},{name:"Open HH",buffer:e,pan:-0.3},{name:"Rim",buffer:f,pan:0.2},{name:"Tom",buffer:g,pan:-0.15},{name:"Cymbal",buffer:h,pan:0.35}];
     },
   },
   {
     name: "Hip-Hop",
     generate: async () => {
       const [a,b,c,d,e,f,g,h] = await Promise.all([synth808Sub(), synthSnare(), synthHiHat(), synthOpenHat(), synthSnap(), synthPerc(), synthZap(), synthCymbal()]);
-      return [{name:"808 Sub",buffer:a},{name:"Snare",buffer:b},{name:"HH",buffer:c},{name:"Open HH",buffer:d},{name:"Snap",buffer:e},{name:"Perc",buffer:f},{name:"Zap",buffer:g},{name:"Crash",buffer:h}];
+      return [{name:"808 Sub",buffer:a,pan:0},{name:"Snare",buffer:b,pan:0},{name:"HH",buffer:c,pan:0.35},{name:"Open HH",buffer:d,pan:-0.35},{name:"Snap",buffer:e,pan:0.15},{name:"Perc",buffer:f,pan:-0.2},{name:"Zap",buffer:g,pan:0.25},{name:"Crash",buffer:h,pan:-0.25}];
     },
   },
   {
     name: "House",
     generate: async () => {
       const [a,b,c,d,e,f,g,h] = await Promise.all([synthDeepKick(), synthRim(), synthHiHat(), synthOpenHat(), synthClap(), synthShaker(), synthConga(), synthRide()]);
-      return [{name:"Deep Kick",buffer:a},{name:"Rim",buffer:b},{name:"HH",buffer:c},{name:"Open HH",buffer:d},{name:"Clap",buffer:e},{name:"Shaker",buffer:f},{name:"Conga",buffer:g},{name:"Ride",buffer:h}];
+      return [{name:"Deep Kick",buffer:a,pan:0},{name:"Rim",buffer:b,pan:0.2},{name:"HH",buffer:c,pan:0.3},{name:"Open HH",buffer:d,pan:-0.3},{name:"Clap",buffer:e,pan:0},{name:"Shaker",buffer:f,pan:0.25},{name:"Conga",buffer:g,pan:-0.2},{name:"Ride",buffer:h,pan:0.35}];
     },
   },
   {
     name: "Lo-Fi",
     generate: async () => {
       const [a,b,c,d,e,f,g,h] = await Promise.all([synthDustyKick(), synthSnare(), synthHiHat(), synthSnap(), synthBrush(), synthThud(), synthShaker(), synthChime()]);
-      return [{name:"Dusty Kick",buffer:a},{name:"Snare",buffer:b},{name:"Soft HH",buffer:c},{name:"Snap",buffer:d},{name:"Brush",buffer:e},{name:"Thud",buffer:f},{name:"Shaker",buffer:g},{name:"Chime",buffer:h}];
+      return [{name:"Dusty Kick",buffer:a,pan:0},{name:"Snare",buffer:b,pan:0},{name:"Soft HH",buffer:c,pan:0.25},{name:"Snap",buffer:d,pan:-0.15},{name:"Brush",buffer:e,pan:0.2},{name:"Thud",buffer:f,pan:0},{name:"Shaker",buffer:g,pan:-0.25},{name:"Chime",buffer:h,pan:0.3}];
     },
   },
   {
     name: "Industrial",
     generate: async () => {
       const [a,b,c,d,e,f,g,h] = await Promise.all([synthKick(), synthSnare(), synthAnvil(), synthBuzz(), synthGlitch(), synthStatic(), synthBoom(), synthZap()]);
-      return [{name:"Kick",buffer:a},{name:"Metal Snare",buffer:b},{name:"Anvil",buffer:c},{name:"Buzz",buffer:d},{name:"Glitch",buffer:e},{name:"Static",buffer:f},{name:"Boom",buffer:g},{name:"Zap",buffer:h}];
+      return [{name:"Kick",buffer:a,pan:0},{name:"Metal Snare",buffer:b,pan:0},{name:"Anvil",buffer:c,pan:-0.3},{name:"Buzz",buffer:d,pan:0.25},{name:"Glitch",buffer:e,pan:-0.2},{name:"Static",buffer:f,pan:0.35},{name:"Boom",buffer:g,pan:0},{name:"Zap",buffer:h,pan:-0.25}];
     },
   },
   {
     name: "Reggaeton",
     generate: async () => {
       const [a,b,c,d,e,f,g,h] = await Promise.all([synthKick(), synthRim(), synthHiHat(), synthOpenHat(), synthClap(), synthClave(), synthBongo(), synthCowbell()]);
-      return [{name:"Kick",buffer:a},{name:"Side Stick",buffer:b},{name:"Tick HH",buffer:c},{name:"Open HH",buffer:d},{name:"Clap",buffer:e},{name:"Clave",buffer:f},{name:"Bongo",buffer:g},{name:"Cowbell",buffer:h}];
+      return [{name:"Kick",buffer:a,pan:0},{name:"Side Stick",buffer:b,pan:0.2},{name:"Tick HH",buffer:c,pan:0.3},{name:"Open HH",buffer:d,pan:-0.3},{name:"Clap",buffer:e,pan:0},{name:"Clave",buffer:f,pan:0.25},{name:"Bongo",buffer:g,pan:-0.2},{name:"Cowbell",buffer:h,pan:-0.25}];
     },
   },
   {
     name: "FX",
     generate: async () => {
       const [a,b,c,d,e,f,g,h] = await Promise.all([synthVoiceUh(), synthVoiceAh(), synthBreath(), synthWhistle(), synthWaterDrop(), synthWoodKnock(), synthWind(), synthCricket()]);
-      return [{name:"Uh",buffer:a},{name:"Ah",buffer:b},{name:"Breath",buffer:c},{name:"Whistle",buffer:d},{name:"Drop",buffer:e},{name:"Wood",buffer:f},{name:"Wind",buffer:g},{name:"Cricket",buffer:h}];
+      return [{name:"Uh",buffer:a,pan:-0.2},{name:"Ah",buffer:b,pan:0.2},{name:"Breath",buffer:c,pan:0},{name:"Whistle",buffer:d,pan:0.3},{name:"Drop",buffer:e,pan:-0.3},{name:"Wood",buffer:f,pan:0.15},{name:"Wind",buffer:g,pan:-0.15},{name:"Cricket",buffer:h,pan:0.35}];
     },
   },
 ];
 
 /** Generate default samples (first preset). */
-export async function generateDefaultSamples(): Promise<{ name: string; buffer: Float32Array }[]> {
+export async function generateDefaultSamples(): Promise<{ name: string; buffer: Float32Array; pan?: number }[]> {
   return SAMPLE_PRESETS[0].generate();
 }

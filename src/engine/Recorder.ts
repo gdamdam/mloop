@@ -90,8 +90,12 @@ export class Recorder {
       this.totalSamples += copy.length;
     };
     this.inputNode.connect(this.scriptNode);
-    // ScriptProcessorNode requires connection to destination to process
-    this.scriptNode.connect(this.ctx.destination);
+    // ScriptProcessorNode requires connection to destination to process,
+    // but route through a silent gain to avoid sending mic input to speakers
+    const silent = this.ctx.createGain();
+    silent.gain.value = 0;
+    this.scriptNode.connect(silent);
+    silent.connect(this.ctx.destination);
     this.mode = "fallback";
   }
 
