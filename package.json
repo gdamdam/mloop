@@ -1,7 +1,7 @@
 {
   "name": "mloop",
   "private": true,
-  "version": "1.0.0-pre.59",
+  "version": "1.0.0-pre.60",
   "type": "module",
   "scripts": {
     "dev": "vite",
