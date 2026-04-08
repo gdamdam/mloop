@@ -7,8 +7,17 @@
  *
  * Signal flow:
  *   mic → inputGain → inputAnalyser (metering)
- *                   → monitorGain → masterGain → limiter → analyser → destination
+ *                   → monitorGain → masterGain → hpf → eqLow → eqMid → eqHigh → glueComp → glueMakeup
+ *                                               → drivePre → drive → drivePost → limiter → outputTrim → analyser → destination
  *   each LoopTrack also connects to masterGain via its own chain.
+ *
+ * Master-bus chain (Option B layout):
+ *   1. hpf        — 12 dB/oct highpass, off/20/30/40 Hz (rumble cut)
+ *   2. 3-band EQ  — low shelf, mid peaking, high shelf
+ *   3. glue comp  — gentle 2:1 glue, single AMOUNT knob
+ *   4. drive      — tanh soft-clip waveshaper, amount 1..10
+ *   5. limiter    — brick-wall, adjustable ceiling, on/off
+ *   6. outputTrim — final user-facing VOL fader (post-limiter)
  */
 
 import { LoopTrack } from "./LoopTrack";
@@ -34,7 +43,19 @@ export class AudioEngine {
   private inputSource: MediaStreamAudioSourceNode | null = null;
   private inputGain: GainNode;
   private masterGain: GainNode;
+  private hpf: BiquadFilterNode;
+  private eqLow: BiquadFilterNode;
+  private eqMid: BiquadFilterNode;
+  private eqHigh: BiquadFilterNode;
+  private glueComp: DynamicsCompressorNode;
+  private glueMakeup: GainNode;
+  private drive: WaveShaperNode;
+  private drivePre: GainNode;
+  private drivePost: GainNode;
   private limiter: DynamicsCompressorNode;
+  private limiterEnabled = true;
+  private limiterCeiling = -1; // dB — user-adjustable output ceiling
+  private outputTrim: GainNode;
   private analyser: AnalyserNode;
   private inputAnalyser: AnalyserNode;
   private resumeTimer: number | null = null;
@@ -64,20 +85,80 @@ export class AudioEngine {
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.value = 1;
 
-    // Brick-wall limiter prevents clipping when multiple tracks stack
+    // ── Master HPF (rumble cut) ──────────────────────────────────────
+    // Off by default (frequency at 10 Hz is effectively inaudible).
+    this.hpf = this.ctx.createBiquadFilter();
+    this.hpf.type = "highpass";
+    this.hpf.frequency.value = 10;
+    this.hpf.Q.value = 0.707;
+
+    // ── Master 3-band EQ ─────────────────────────────────────────────
+    this.eqLow = this.ctx.createBiquadFilter();
+    this.eqLow.type = "lowshelf";
+    this.eqLow.frequency.value = 250;
+    this.eqLow.gain.value = 0;
+
+    this.eqMid = this.ctx.createBiquadFilter();
+    this.eqMid.type = "peaking";
+    this.eqMid.frequency.value = 1000;
+    this.eqMid.Q.value = 1;
+    this.eqMid.gain.value = 0;
+
+    this.eqHigh = this.ctx.createBiquadFilter();
+    this.eqHigh.type = "highshelf";
+    this.eqHigh.frequency.value = 4000;
+    this.eqHigh.gain.value = 0;
+
+    // ── Master glue compressor ───────────────────────────────────────
+    // Gentle 2:1 bus compression. AMOUNT knob drives the threshold from
+    // 0 dB (no compression) down to -18 dB (heavy glue).
+    this.glueComp = this.ctx.createDynamicsCompressor();
+    this.glueComp.threshold.value = 0;  // off by default
+    this.glueComp.ratio.value = 2;
+    this.glueComp.attack.value = 0.03;
+    this.glueComp.release.value = 0.25;
+    this.glueComp.knee.value = 6;
+    this.glueMakeup = this.ctx.createGain();
+    this.glueMakeup.gain.value = 1;     // auto-compensated in setGlueAmount()
+
+    // ── Master drive (soft-clip tanh waveshaper) ─────────────────────
+    this.drivePre = this.ctx.createGain();
+    this.drivePre.gain.value = 1;
+    this.drive = this.ctx.createWaveShaper();
+    this.drive.curve = AudioEngine.makeDriveCurve(1);
+    this.drive.oversample = "2x";
+    this.drivePost = this.ctx.createGain();
+    this.drivePost.gain.value = 1;
+
+    // ── Brick-wall limiter ───────────────────────────────────────────
     this.limiter = this.ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -3;
+    this.limiter.threshold.value = this.limiterCeiling;
     this.limiter.ratio.value = 12;
     this.limiter.attack.value = 0.003;
     this.limiter.release.value = 0.1;
     this.limiter.knee.value = 6;
 
+    // ── Output trim — final user-facing VOL fader ────────────────────
+    this.outputTrim = this.ctx.createGain();
+    this.outputTrim.gain.value = 1;
+
     // Output analyser for master waveform visualization
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 2048;
 
-    this.masterGain.connect(this.limiter);
-    this.limiter.connect(this.analyser);
+    // masterGain → hpf → eq → glueComp → glueMakeup → drive stage → limiter → outputTrim → analyser → destination
+    this.masterGain.connect(this.hpf);
+    this.hpf.connect(this.eqLow);
+    this.eqLow.connect(this.eqMid);
+    this.eqMid.connect(this.eqHigh);
+    this.eqHigh.connect(this.glueComp);
+    this.glueComp.connect(this.glueMakeup);
+    this.glueMakeup.connect(this.drivePre);
+    this.drivePre.connect(this.drive);
+    this.drive.connect(this.drivePost);
+    this.drivePost.connect(this.limiter);
+    this.limiter.connect(this.outputTrim);
+    this.outputTrim.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
 
     // Monitor path: input → monitor gain → master (for headphone monitoring)
@@ -442,6 +523,73 @@ export class AudioEngine {
   getMasterNode(): GainNode { return this.masterGain; }
   getAnalyser(): AnalyserNode { return this.analyser; }
   getInputAnalyser(): AnalyserNode { return this.inputAnalyser; }
+
+  // ── Master mixer accessors ───────────────────────────────────────────
+  getEqLow(): BiquadFilterNode { return this.eqLow; }
+  getEqMid(): BiquadFilterNode { return this.eqMid; }
+  getEqHigh(): BiquadFilterNode { return this.eqHigh; }
+  getLimiter(): DynamicsCompressorNode { return this.limiter; }
+  getOutputTrim(): GainNode { return this.outputTrim; }
+
+  /** HPF frequency in Hz. 10 Hz (or lower) is effective bypass. */
+  setHpfFreq(hz: number) { this.hpf.frequency.value = Math.max(10, hz); }
+  getHpfFreq(): number { return this.hpf.frequency.value; }
+
+  /**
+   * Glue compressor AMOUNT 0..1.
+   * 0 → threshold 0 dB (no compression), 1 → threshold -18 dB (heavy glue).
+   * Makeup gain applied on the glueMakeup node to compensate for level drop.
+   */
+  setGlueAmount(amount: number) {
+    const a = Math.max(0, Math.min(1, amount));
+    this.glueComp.threshold.value = -18 * a;
+    // Rough auto-makeup: +3 dB at full glue.
+    this.glueMakeup.gain.value = 1 + a * 0.5;
+  }
+  getGlueAmount(): number {
+    return -this.glueComp.threshold.value / 18;
+  }
+
+  /** Toggle the brick-wall limiter between active (uses ceiling) and bypass (1:1). */
+  setLimiterEnabled(on: boolean) {
+    this.limiterEnabled = on;
+    if (on) {
+      this.limiter.threshold.value = this.limiterCeiling;
+      this.limiter.ratio.value = 12;
+    } else {
+      this.limiter.threshold.value = 0;
+      this.limiter.ratio.value = 1;
+    }
+  }
+  isLimiterEnabled(): boolean { return this.limiterEnabled; }
+
+  /** Limiter output ceiling in dB (default -1). Only applied when limiter is on. */
+  setLimiterCeiling(dB: number) {
+    this.limiterCeiling = Math.max(-24, Math.min(0, dB));
+    if (this.limiterEnabled) this.limiter.threshold.value = this.limiterCeiling;
+  }
+  getLimiterCeiling(): number { return this.limiterCeiling; }
+
+  /** Drive amount 1..10 — updates pre-gain, waveshaper curve, and post-gain compensation. */
+  setDrive(amount: number) {
+    const a = Math.max(1, Math.min(10, amount));
+    this.drivePre.gain.value = a;
+    this.drive.curve = AudioEngine.makeDriveCurve(a);
+    this.drivePost.gain.value = 1 / Math.sqrt(a);
+  }
+  getDrive(): number { return this.drivePre.gain.value; }
+
+  /** Build a tanh soft-clip curve for the master waveshaper. */
+  private static makeDriveCurve(amount: number): Float32Array {
+    const n = 1024;
+    const curve = new Float32Array(n);
+    const k = amount; // steeper = more clipping
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2) / n - 1; // -1..1
+      curve[i] = Math.tanh(k * x);
+    }
+    return curve;
+  }
 
   /**
    * Read the current input level as a 0–1 peak value.

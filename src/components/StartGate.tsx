@@ -1,23 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { PALETTES, applyPalette } from "../themes";
 import { APP_VERSION } from "../config";
 
 // Same logo as the header — block-art style
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
-
-// Capture the beforeinstallprompt event for Android/Chrome install
-let deferredPrompt: Event | null = null;
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-});
-
-function triggerInstallPrompt() {
-  if (deferredPrompt && "prompt" in deferredPrompt) {
-    (deferredPrompt as { prompt: () => void }).prompt();
-    deferredPrompt = null;
-  }
-}
 
 interface StartGateProps {
   onStart: () => void;
@@ -26,14 +12,7 @@ interface StartGateProps {
 export function StartGate({ onStart }: StartGateProps) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [canInstall, setCanInstall] = useState(!!deferredPrompt);
   const flashTimer = useRef(0);
-
-  useEffect(() => {
-    const handler = () => setCanInstall(true);
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
 
   const isIOS = /iPad|iPhone/.test(navigator.userAgent) && !("standalone" in navigator && (navigator as unknown as { standalone: boolean }).standalone);
   const logoRef = useRef<HTMLPreElement>(null);
@@ -80,7 +59,7 @@ export function StartGate({ onStart }: StartGateProps) {
 
   return (
     <div className="start-gate">
-      <pre ref={logoRef} className="start-gate-title" onClick={handleLogoClick} style={{ cursor: "pointer" }}>{LOGO}</pre>
+      <pre ref={logoRef} className="start-gate-title" onClick={handleLogoClick} style={{ cursor: "pointer", textAlign: "left", display: "inline-block" }}>{LOGO} <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 5px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 1 }}>EXPERIMENTAL</span></pre>
       <p className="start-gate-sub">
         Loop Station &amp; Sampler<br />
         Record, loop, sample, perform<br />
@@ -102,20 +81,6 @@ export function StartGate({ onStart }: StartGateProps) {
       <div style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.5, marginTop: 12, textAlign: "center" }}>
         Works offline — save this page to play anywhere.<br />No internet needed.
       </div>
-
-      {/* Android: native install prompt */}
-      {canInstall && (
-        <button
-          onClick={() => { triggerInstallPrompt(); setCanInstall(false); }}
-          style={{
-            marginTop: 8, padding: "6px 16px", borderRadius: 6,
-            fontSize: 11, fontWeight: 700, cursor: "pointer",
-            background: "var(--preview)", color: "#000", border: "none",
-          }}
-        >
-          Install App
-        </button>
-      )}
 
       {/* iOS: manual Add to Home Screen hint */}
       {isIOS && (

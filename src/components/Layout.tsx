@@ -20,8 +20,8 @@ import { MegaKaos } from "./MegaKaos";
 import { Tutorial } from "./Tutorial";
 import { SettingsPanel } from "./SettingsPanel";
 import { AppFooter } from "./AppFooter";
-import { VuMeter } from "./VuMeter";
 import { NeedleMeter } from "./NeedleMeter";
+import { MixerView } from "./MixerView";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useMidiMapping } from "../hooks/useMidiMapping";
 import { MidiController } from "../engine/MidiController";
@@ -32,7 +32,7 @@ import { useLinkBridge } from "../hooks/useLinkBridge";
 
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
 
-type ViewMode = "tracks" | "pads";
+type ViewMode = "tracks" | "pads" | "mixer";
 
 interface LayoutProps {
   state: EngineState;
@@ -213,7 +213,8 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
   }, []);
 
   // Main play/stop — PAD mode toggles sequencer, LOOPER mode toggles looper
-  const [seqPlaying, setSeqPlaying] = useState(false);
+  // (no reader for the value — setter is used by the space shortcut and the looper play button)
+  const [, setSeqPlaying] = useState(false);
   const handleMainPlayStop = useCallback(() => {
     if (viewMode === "pads") {
       // PAD mode: toggle sequencer
@@ -336,47 +337,24 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
       <header className="header">
         <div className="title">
           <pre className={`title-art logo-flash ${logoPulse && state.tracks.some(t => t.status === "playing" || t.status === "recording" || t.status === "overdubbing") ? "logo-pulse" : ""}`} key={logoFlash} style={{ color: "var(--preview)" }} onClick={handleLogoClick} title="1× pulse · 2× beat sync · 3× theme · 4× credits">{LOGO}</pre>
-          <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>BETA</span>
+          <span style={{ fontSize: 8, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: "var(--preview)", color: "#000", letterSpacing: 0.5, lineHeight: 1 }}>EXPERIMENTAL</span>
           <span className="title-version">{APP_VERSION}</span>
         </div>
 
         {/* View toggle */}
         <div style={{ display: "flex", gap: 2, background: "var(--bg-cell)", borderRadius: 6, padding: 2 }}>
-          {(["pads", "tracks"] as const).map(m => (
+          {(["pads", "tracks", "mixer"] as const).map(m => (
             <button key={m} onClick={() => setViewMode(m)}
-              title={m === "pads" ? "Switch to PAD mode" : "Switch to LOOPER mode"}
+              title={m === "pads" ? "Switch to PAD mode" : m === "tracks" ? "Switch to LOOPER mode" : "Switch to MIXER mode"}
               style={{
               fontSize: 9, fontWeight: 700, padding: "4px 8px", borderRadius: 4,
               background: viewMode === m ? "var(--preview)" : "transparent",
               color: viewMode === m ? "#000" : "var(--text-dim)", letterSpacing: 0.5,
             }}>
-              {m === "tracks" ? "LOOPER" : "PAD"}
+              {m === "tracks" ? "LOOPER" : m === "mixer" ? "MIXER" : "PAD"}
             </button>
           ))}
         </div>
-
-        {/* Play/Stop — PAD mode: sequencer, LOOPER mode: looper */}
-        {(() => {
-          const looperPlaying = state.tracks.some(t => t.status === "playing");
-          const isActive = viewMode === "pads" ? seqPlaying : (anyRecording || looperPlaying);
-          const isRec = viewMode === "tracks" && anyRecording;
-          return (
-            <button
-              onClick={handleMainPlayStop}
-              style={{
-                width: 36, height: 36, borderRadius: "50%", fontSize: 16, flexShrink: 0,
-                background: isRec ? "var(--record)" : isActive ? "var(--playing)" : "var(--bg-cell)",
-                color: isActive ? "#000" : "var(--text)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                border: "2px solid var(--border)", cursor: "pointer",
-                boxShadow: isRec ? "0 0 12px var(--record)" : isActive ? "0 0 10px var(--playing)" : "none",
-              }}
-              title={viewMode === "pads" ? "Play/Stop Sequencer (Space)" : "Play/Stop All (Space)"}
-            >
-              {isActive ? "■" : "▶"}
-            </button>
-          );
-        })()}
 
         {/* Undo — bright when available, dim when nothing to undo */}
         <button
@@ -394,10 +372,10 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
           ↩
         </button>
 
-        {/* Master volume */}
-        <HeaderSlider label="VOL" min={0} max={1} step={0.01} initial={1}
+        {/* Master volume — targets post-limiter output trim (Option B layout). */}
+        <HeaderSlider label="VOL" min={0} max={1.5} step={0.01} initial={1}
           format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => { if (engine) engine.getMasterNode().gain.value = v; }}
+          onChange={(v) => { if (engine) engine.getOutputTrim().gain.value = v; }}
         />
 
         {/* Desktop: all buttons inline */}
@@ -548,6 +526,8 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
             <KaosPad engine={engine} />
           </div>
         </div>
+      ) : viewMode === "mixer" ? (
+        <MixerView engine={engine} />
       ) : (
         <PadView engine={engine} padEngine={padEngine} flashPad={flashPad} />
       )}

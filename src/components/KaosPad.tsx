@@ -257,23 +257,40 @@ export function KaosPad({ engine }: KaosPadProps) {
         ctx.beginPath(); ctx.moveTo(0, h * i / 4); ctx.lineTo(w, h * i / 4); ctx.stroke();
       }
 
-      // Audio visualization (bars)
+      // Audio visualization — full-canvas waveform background
       if (engine) {
         const analyser = engine.getAnalyser();
-        const dataLen = analyser.frequencyBinCount;
-        const data = new Uint8Array(dataLen);
-        analyser.getByteFrequencyData(data);
+        try { analyser.fftSize = 2048; } catch { /* ok */ }
+        const timeData = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(timeData);
 
-        const barCount = 32;
-        const barW = w / barCount;
-        ctx.fillStyle = preview + "30";
-        for (let i = 0; i < barCount; i++) {
-          const idx = Math.floor(i * dataLen / barCount);
-          const v = data[idx] / 255;
-          const barH = v * h * 0.4;
-          ctx.fillRect(i * barW + 1, h / 2 - barH, barW - 2, barH);
-          ctx.fillRect(i * barW + 1, h / 2, barW - 2, barH);
+        const sliceW = w / timeData.length;
+
+        // Filled shape between waveform and midline
+        ctx.beginPath();
+        for (let i = 0; i < timeData.length; i++) {
+          const v = timeData[i] / 128 - 1;
+          const y = h / 2 - v * h * 0.46;
+          if (i === 0) ctx.moveTo(0, y);
+          else ctx.lineTo(i * sliceW, y);
         }
+        ctx.lineTo(w, h / 2);
+        ctx.lineTo(0, h / 2);
+        ctx.closePath();
+        ctx.fillStyle = preview + "22";
+        ctx.fill();
+
+        // Waveform line
+        ctx.beginPath();
+        for (let i = 0; i < timeData.length; i++) {
+          const v = timeData[i] / 128 - 1;
+          const y = h / 2 - v * h * 0.46;
+          if (i === 0) ctx.moveTo(0, y);
+          else ctx.lineTo(i * sliceW, y);
+        }
+        ctx.strokeStyle = preview + "55";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       }
 
       // Trails

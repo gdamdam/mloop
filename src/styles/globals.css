@@ -32,9 +32,14 @@ html, body {
   color: var(--text);
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Disable text selection on interactive UI only — keeping it off body
+   was interfering with touch scrolling on iOS. */
+button, .header, .mixer-strips, .track-strip, .pad-grid {
   -webkit-user-select: none;
   user-select: none;
-  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -67,7 +72,175 @@ input[type="range"] {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+}
+
+/* ── Mixer view ──────────────────────────────────────────────────────── */
+.mixer-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+.mixer-strips {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  justify-content: center;
+  padding: 16px 12px;
+  background: var(--bg-cell);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  scrollbar-width: thin;
+}
+
+/* On narrow viewports, left-align so the scroll starts at HPF (signal in),
+   tighten spacing, and shrink the fader columns slightly. */
+@media (max-width: 720px) {
+  .mixer-strips {
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 12px 10px;
+  }
+  .mixer-strip {
+    min-width: 44px;
+  }
+  .mixer-strip-slider-wrap {
+    width: 24px;
+    height: 140px;
+  }
+  .mixer-limiter-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 10px;
+  }
+}
+.mixer-divider {
+  width: 1px;
+  background: var(--border);
+  margin: 4px 2px;
+}
+.mixer-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 48px;
+}
+.mixer-strip-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.mixer-strip-slider-wrap {
+  position: relative;
+  width: 28px;
+  height: 160px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.mixer-strip-centre {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--text-dim);
+  opacity: 0.5;
+  z-index: 1;
+  bottom: var(--centre, 50%);
+}
+.mixer-strip-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--fill, 0%);
+  background: var(--preview);
+  opacity: 0.35;
+  pointer-events: none;
+  transition: height 0.08s linear, width 0.08s linear;
+}
+.mixer-strip-slider {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ns-resize;
+  /* Firefox vertical range */
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+.mixer-strip-value {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--preview);
+  font-family: monospace;
+  min-width: 40px;
+  text-align: center;
+}
+.mixer-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  opacity: 0.7;
+  font-family: monospace;
+}
+
+/* Limiter on/off button */
+.mixer-limiter-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.mixer-limiter-btn:hover {
+  filter: brightness(1.15);
+}
+
+/* Clip LED */
+.mixer-clip-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+}
+.mixer-clip-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2a0e0e;
+  border: 1px solid #3a1616;
+  transition: background 0.05s, box-shadow 0.05s;
+}
+.mixer-clip-led.clip-on {
+  background: #ff3838;
+  box-shadow: 0 0 10px #ff3838, 0 0 3px #fff inset;
+  border-color: #ff5050;
+}
+.mixer-clip-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 1px;
 }
 
 .header {
