@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mloop — a fast no-account live sampler and looper on the web</title>
+  <meta name="description" content="mloop is a free open-source browser sampler and loop station. Record, layer, pad, sequence — no install, no account, no cloud." />
+  <meta property="og:title" content="mloop — a fast no-account live sampler and looper on the web" />
+  <meta property="og:description" content="Record live audio into loops. Play 16-pad MPC-style samples. Step-sequence your kit. All in the browser. Free." />
+  <meta property="og:url" content="https://mloop.mpump.live/landing.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="mloop" />
+  <meta property="og:image" content="https://mloop.mpump.live/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="mloop — a fast no-account live sampler and looper on the web" />
+  <meta name="twitter:description" content="Free open-source browser sampler + loop station. No install. No account." />
+  <meta name="twitter:image" content="https://mloop.mpump.live/og-image.png" />
+  <meta name="theme-color" content="#060e10" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="manifest" href="./manifest.json" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:         #060e10;
+      --panel:      rgba(6, 18, 22, 0.95);
+      --panel-soft: rgba(95, 221, 255, 0.04);
+      --border:     #102030;
+      --text:       #c8dde8;
+      --dim:        #5a8898;
+      --accent:     #5fddff;
+      --mono:       "SF Mono", "Fira Code", "Cascadia Code", monospace;
+      --ui:         system-ui, -apple-system, sans-serif;
+      --shadow:     0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    html, body { min-height: 100%; }
+    body {
+      font-family: var(--ui);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(95,221,255,0.09), transparent 28%),
+        radial-gradient(circle at 85% 8%, rgba(95,221,255,0.05), transparent 22%),
+        linear-gradient(180deg, #040c10 0%, #060e10 100%);
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Animated pad header ─────────────────────────── */
+    .pad-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 11px 20px;
+      background: rgba(6,14,16,0.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .pad-logo {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 7px;
+      line-height: 1.2;
+      white-space: pre;
+      text-shadow: 0 0 8px rgba(95,221,255,0.35);
+      flex-shrink: 0;
+    }
+    .pad-mini {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 3px;
+      flex: 1;
+      overflow: hidden;
+    }
+    .pad-cell {
+      height: 11px;
+      border-radius: 2px;
+      background: #0c1e28;
+      border: 1px solid var(--border);
+      transition: background 0.1s, box-shadow 0.1s;
+    }
+    .pad-cell.dim-on { background: rgba(95,221,255,0.30); border-color: rgba(95,221,255,0.2); }
+    .pad-cell.on     { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px rgba(95,221,255,0.5); }
+
+    /* ── Layout ──────────────────────────────────────── */
+    .shell {
+      width: min(1100px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    /* ── Cards ───────────────────────────────────────── */
+    .card {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(10,22,28,0.97), rgba(6,14,16,0.99));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, transparent 0, rgba(95,221,255,0.02) 50%, transparent 100%),
+        repeating-linear-gradient(180deg, transparent 0 28px, rgba(95,221,255,0.015) 28px 29px);
+      pointer-events: none;
+    }
+    .card-body {
+      position: relative;
+      z-index: 1;
+      padding: 30px;
+    }
+    @media (max-width: 640px) { .card-body { padding: 22px 18px; } }
+
+    /* ── Hero ────────────────────────────────────────── */
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+      gap: 20px;
+      align-items: stretch;
+    }
+    @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
+
+    .hero-logo {
+      white-space: pre;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: clamp(9px, 1.9vw, 13px);
+      line-height: 1.15;
+      text-shadow: 0 0 12px rgba(95,221,255,0.3);
+      margin-bottom: 20px;
+    }
+    .beta {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--accent);
+      color: #040c10;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      vertical-align: middle;
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1.7px;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: clamp(34px, 6.5vw, 72px);
+      line-height: 0.98;
+      letter-spacing: -2px;
+      color: #fff;
+      margin-bottom: 18px;
+      max-width: 11ch;
+    }
+    h1 em { color: var(--accent); font-style: normal; }
+    .lede {
+      font-size: clamp(16px, 2.1vw, 20px);
+      line-height: 1.75;
+      color: var(--text);
+      max-width: 34rem;
+      margin-bottom: 18px;
+    }
+    .proof-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 22px;
+    }
+    .proof-pill {
+      padding: 7px 12px;
+      border: 1px solid rgba(95,221,255,0.22);
+      border-radius: 999px;
+      background: rgba(95,221,255,0.07);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.4px;
+    }
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .cta-link, .cta-link-sec {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 12px 24px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-family: var(--ui);
+      font-size: 15px;
+      transition: 0.2s ease;
+    }
+    .cta-link {
+      border: 2px solid rgba(95,221,255,0.5);
+      color: var(--accent);
+      font-weight: 700;
+      box-shadow: 0 0 18px rgba(95,221,255,0.16);
+    }
+    .cta-link:hover {
+      border-color: rgba(180,242,255,1);
+      box-shadow: 0 0 32px rgba(95,221,255,0.3);
+    }
+    .cta-link-sec {
+      border: 1px solid var(--border);
+      color: var(--dim);
+      font-weight: 600;
+    }
+    .cta-link-sec:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .hero-note {
+      margin-top: 14px;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    /* ── Hero screenshot ─────────────────────────────── */
+    .hero-video-wrap {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #04090c;
+      margin-bottom: 16px;
+    }
+    .hero-video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ── Right-panel summary ─────────────────────────── */
+    .summary { display: grid; gap: 10px; }
+    .summary-item {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-soft);
+    }
+    .summary-item strong {
+      display: block;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .summary-item span { color: var(--text); font-size: 15px; line-height: 1.6; }
+
+    /* ── Sections ────────────────────────────────────── */
+    .stack { display: grid; gap: 18px; margin-top: 18px; }
+    .section-label {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      opacity: 0.75;
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-size: clamp(24px, 3.8vw, 40px);
+      line-height: 1.16;
+      color: #e8f8ff;
+      margin-bottom: 10px;
+    }
+    .section-copy {
+      font-size: 17px;
+      line-height: 1.75;
+      color: #7aaabb;
+      max-width: 54rem;
+    }
+    .section-head { margin-bottom: 16px; }
+
+    /* ── Three-up feature grid ───────────────────────── */
+    .three-up {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (max-width: 860px) { .three-up { grid-template-columns: 1fr; } }
+    .feature {
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel-soft);
+    }
+    .feature strong { display: block; color: var(--text); font-size: 16px; margin-bottom: 8px; }
+    .feature p { color: var(--dim); font-size: 15px; line-height: 1.7; }
+
+    /* ── Split (PAD vs LOOPER) ───────────────────────── */
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+    .list { display: grid; gap: 10px; }
+    .list-item {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-soft);
+    }
+    .list-item strong { display: block; color: var(--text); margin-bottom: 5px; font-size: 15px; }
+    .list-item span { color: var(--dim); font-size: 14px; line-height: 1.65; }
+
+    /* ── Mode badge ──────────────────────────────────── */
+    .mode-badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .mode-badge.pad    { background: rgba(95,221,255,0.15); color: var(--accent); border: 1px solid rgba(95,221,255,0.3); }
+    .mode-badge.looper { background: rgba(200,140,255,0.1); color: #c88cff;       border: 1px solid rgba(200,140,255,0.25); }
+
+    /* ── Privacy strip ───────────────────────────────── */
+    .privacy-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 4px;
+    }
+    @media (max-width: 760px) { .privacy-strip { grid-template-columns: 1fr; } }
+    .privacy-item {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-soft);
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--dim);
+    }
+    .privacy-item strong { display: block; color: var(--text); margin-bottom: 4px; font-size: 14px; }
+
+    /* ── Footer ──────────────────────────────────────── */
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 22px 4px 0;
+    }
+    footer span, footer a { color: var(--dim); font-family: var(--mono); font-size: 11px; opacity: 0.78; }
+    footer a:hover { color: var(--accent); opacity: 1; }
+  </style>
+</head>
+<body>
+
+<!-- Animated pad-grid sticky header -->
+<div class="pad-header">
+  <div class="pad-logo">█▄ ▄█ █   █▀█ █▀█ █▀█
+█ ▀ █ █▄▄ █▄█ █▄█ █▀▀</div>
+  <div class="pad-mini" id="padMini"></div>
+</div>
+
+<div class="shell">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="card">
+      <div class="card-body">
+        <pre class="hero-logo">█▄ ▄█ █   █▀█ █▀█ █▀█
+█ ▀ █ █▄▄ █▄█ █▄█ █▀▀ <span class="beta">EXPERIMENTAL</span></pre>
+        <div class="eyebrow">free · open source · no account · no install</div>
+        <h1>Sample. Loop. <em>Now.</em></h1>
+        <p class="lede">
+          mloop is a fast live sampler and looper. Record audio directly from your mic, layer loops, play pads, sequence a kit —
+          all in the browser, all on your device.
+        </p>
+        <div class="proof-strip">
+          <span class="proof-pill">Works on iPhone, iPad, Android, desktop</span>
+          <span class="proof-pill">No cloud — your audio stays local</span>
+          <span class="proof-pill">Export WAV or session JSON</span>
+        </div>
+        <div class="cta-row">
+          <a href="./index.html" class="cta-link" onclick="gcEvent('landing-open')">Open mloop</a>
+          <a href="https://github.com/gdamdam/mloop" class="cta-link-sec" onclick="gcEvent('landing-github')">Source on GitHub</a>
+          <a href="https://mpump.live" class="cta-link-sec" onclick="gcEvent('landing-mpump')">Companion: mpump</a>
+        </div>
+        <div class="hero-note">pad sampler + loop station + step sequencer + 9 effects + kaos pad + destruction mode</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="hero-video-wrap">
+          <a href="./index.html" onclick="gcEvent('landing-screenshot')" title="Open mloop">
+            <img src="./mloop_screenshot.png" alt="mloop — pad sampler and loop station" class="hero-video" style="cursor:pointer;" />
+          </a>
+        </div>
+        <div class="summary">
+          <div class="summary-item">
+            <strong>Zero friction start</strong>
+            <span>No sign-up screen. No project setup. Grant mic access and you're recording.</span>
+          </div>
+          <div class="summary-item">
+            <strong>Two modes, one session</strong>
+            <span>PAD and LOOPER share the same AudioContext and persist together — switch modes without losing work.</span>
+          </div>
+          <div class="summary-item">
+            <strong>Your audio stays local</strong>
+            <span>Sessions are stored in your browser's IndexedDB. No data ever leaves your device.</span>
+          </div>
+          <div class="summary-item">
+            <strong>Export when you're ready</strong>
+            <span>Mix down all loops to a timestamped WAV or export the session JSON to reload anywhere.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="stack">
+
+    <!-- Why it clicks -->
+    <section class="card">
+      <div class="card-body">
+        <div class="section-head">
+          <div class="section-label">Why It Feels Different</div>
+          <div class="section-title">No signup. No loading. Just record.</div>
+          <p class="section-copy">Many browser tools front-load sign-up screens before you can make any sound. mloop skips that — open the page, grant mic access, and start.</p>
+        </div>
+        <div class="three-up">
+          <div class="feature">
+            <strong>Instant live input</strong>
+            <p>Grant mic access once and record loops or pads directly from any input connected to your device.</p>
+          </div>
+          <div class="feature">
+            <strong>PAD + LOOPER in one session</strong>
+            <p>Both modes share the same AudioContext. Switch between them freely — your loops and pads persist together.</p>
+          </div>
+          <div class="feature">
+            <strong>Save, export, or share</strong>
+            <p>Name and pin sessions in the browser, export a WAV mixdown, or share effects settings as a URL.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAD vs LOOPER split -->
+    <section class="split">
+
+      <div class="card">
+        <div class="card-body">
+          <div class="mode-badge pad">PAD</div>
+          <div class="section-head">
+            <div class="section-title">MPC-style sampler in the browser.</div>
+            <p class="section-copy">16 pads, each with its own sample, trim, pitch, pan, and play mode.</p>
+          </div>
+          <div class="list">
+            <div class="list-item">
+              <strong>Record or import any sample</strong>
+              <span>Capture audio live from mic, resample from the looper, or import a file.</span>
+            </div>
+            <div class="list-item">
+              <strong>Step sequencer</strong>
+              <span>8 / 16 / 32 / 64 steps with swing, real-time step recording, and mute groups.</span>
+            </div>
+            <div class="list-item">
+              <strong>7 built-in drum kits</strong>
+              <span>Acoustic, lo-fi, electronic, percussion — load a kit and you're playing in one tap.</span>
+            </div>
+            <div class="list-item">
+              <strong>Sample slicer + chromatic</strong>
+              <span>Slice a loop into pads automatically, or use pads as a chromatic instrument.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="mode-badge looper">LOOPER</div>
+          <div class="section-head">
+            <div class="section-title">Live loop station with effects.</div>
+            <p class="section-copy">3 independent tracks, each with layered overdubs, sync, and a full effects chain.</p>
+          </div>
+          <div class="list">
+            <div class="list-item">
+              <strong>Record · Overdub · Undo</strong>
+              <span>Layer takes non-destructively. One tap undo removes the last overdub layer.</span>
+            </div>
+            <div class="list-item">
+              <strong>3 sync modes</strong>
+              <span>FREE for freeform ambient, SYNC for phase-locked looping, LOCK for a fixed time window.</span>
+            </div>
+            <div class="list-item">
+              <strong>KAOS XY pad + 9 effects</strong>
+              <span>Delay, reverb, distortion, chorus, flanger, phaser, bitcrush, compressor, tremolo — controllable with gestures.</span>
+            </div>
+            <div class="list-item">
+              <strong>Destruction mode</strong>
+              <span>Progressive tape degradation per cycle — pitch drift, wow &amp; flutter, bit reduction.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="card">
+      <div class="card-body">
+        <div class="section-head">
+          <div class="section-label">Privacy</div>
+          <div class="section-title">Your music never leaves your device.</div>
+          <p class="section-copy">mloop processes audio locally using the Web Audio API. No audio is ever uploaded. No account is ever required.</p>
+        </div>
+        <div class="privacy-strip">
+          <div class="privacy-item"><strong>No cookies or accounts</strong>No sign-up, no login, no session tokens.</div>
+          <div class="privacy-item"><strong>No third-party trackers</strong>No Google, no Facebook, no ad networks. Visit counts are anonymized via GoatCounter.</div>
+          <div class="privacy-item"><strong>Local storage only</strong>Sessions, kits, and settings live in your browser's IndexedDB. Export to move them.</div>
+          <div class="privacy-item"><strong>No fingerprinting</strong>No device or browser identification of any kind.</div>
+          <div class="privacy-item"><strong>Open source</strong>All code is public on GitHub — audit it yourself.</div>
+          <div class="privacy-item"><strong>AGPL-3.0-or-later</strong>Free to use, study, modify, and redistribute under the terms of the AGPL.</div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /stack -->
+
+  <footer>
+    <span>Built by <a href="https://github.com/gdamdam">gdamdam</a> · <a href="https://github.com/gdamdam/mloop">Source (AGPL-3.0)</a> · Companion to <a href="https://mpump.live">mpump</a></span>
+    <span><a href="./index.html">Open mloop</a></span>
+    <span id="ver">mloop</span>
+  </footer>
+
+</div><!-- /shell -->
+
+<!-- Animated pad-mini header -->
+<script>
+(function () {
+  var grid = document.getElementById('padMini');
+  var N = 16; // 8 cols × 2 rows = 16 cells shown as 2-row pad
+  // pattern: which cells are "dim-on" (loaded pads)
+  var pattern = [1,1,0,1,1,0,1,0,  0,1,1,0,0,1,0,1];
+  var cells = [];
+  for (var i = 0; i < N; i++) {
+    var c = document.createElement('div');
+    c.className = 'pad-cell' + (pattern[i] ? ' dim-on' : '');
+    grid.appendChild(c);
+    cells.push(c);
+  }
+  var cur = 0;
+  setInterval(function () {
+    cells.forEach(function (c, i) {
+      c.className = 'pad-cell' + (pattern[i] ? ' dim-on' : '');
+    });
+    // only flash if this pad is "loaded"
+    if (pattern[cur]) cells[cur].className = 'pad-cell on';
+    do { cur = (cur + 1) % N; } while (!pattern[cur]);
+  }, 200);
+})();
+</script>
+
+<!-- Version from version.json — stays in sync with bump-version.sh -->
+<script>
+fetch('./version.json').then(function(r){return r.json();}).then(function(d){
+  var el=document.getElementById('ver');
+  if(el&&d.v) el.textContent='mloop v'+d.v;
+}).catch(function(){});
+</script>
+
+<!-- GoatCounter analytics -->
+<script data-goatcounter="https://gdamdam.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>
+function gcEvent(name) {
+  try {
+    var gc = window.goatcounter;
+    if (gc && gc.count) gc.count({ path: 'event/' + name, event: true });
+  } catch (e) {}
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+# mloop — temporarily blocking all crawlers while the site is in pre-release.
+# Remove this file (or replace with an Allow directive) once the public launch
+# is ready and the landing page has been moved to the root.
+
+User-agent: *
+Disallow: /
