@@ -10,6 +10,7 @@ import { KaosPad } from "./KaosPad";
 import { PadView } from "./PadView";
 import { SessionManager } from "./SessionManager";
 import { ShortcutOverlay } from "./ShortcutOverlay";
+import { BpmControl } from "./BpmControl";
 import { MidiMapper } from "./MidiMapper";
 import { HelpModal } from "./HelpModal";
 import { AboutModal } from "./AboutModal";
@@ -650,25 +651,10 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       >
         {state.syncMode === "free" ? "\u2298" : state.syncMode === "sync" ? "\u27F3" : "\uD83D\uDD12"}
       </button>
-      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm - 1 })} title="Decrease BPM">−</button>
-      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--preview)", minWidth: 28, textAlign: "center" }}>{state.bpm}</span>
-      <button className="header-btn" onClick={() => command({ type: "set_bpm", bpm: state.bpm + 1 })} title="Increase BPM">+</button>
-      <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
+      <BpmControl bpm={state.bpm} command={command} />
+      <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 4px" }} />
       <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
         style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">{"\u2669"}</button>
-      <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
-      <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
-      <button className="header-btn" onClick={toggleFullscreen} title="Fullscreen">{"\u26F6"}</button>
-      <button className="header-btn" onClick={() => {
-        const name = prompt(isPinned ? "Update pinned session name:" : "Name for pinned session:", "My Session");
-        if (name) { command({ type: "pin_session" }); setIsPinned(true); localStorage.setItem("mloop-pin-name", name); }
-      }}
-        style={isPinned ? { background: "var(--preview)", color: "#000" } : undefined}
-        title={isPinned ? `Pinned: ${localStorage.getItem("mloop-pin-name") || "session"} — click to update` : "Pin session (auto-loads on next visit)"}>{"\u2605"}</button>
-      <button className="header-btn" onClick={() => setShowSessions(true)} title="Sessions">{"\u2193"}</button>
-      {MidiController.isSupported() && (
-        <button className="header-btn" onClick={() => setShowMidi(true)} title="MIDI" style={{ fontSize: 9 }}>M</button>
-      )}
       <button className="header-btn" onClick={() => {
         const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
         if (isSafari && location.protocol === "https:") {
@@ -684,9 +670,74 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       >
         {linkState.connected ? `L${linkState.peers}` : "L"}
       </button>
-      <button className="header-btn" onClick={() => setShowOverlay(true)} title="Shortcuts">?</button>
       <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>{"\u25D1"}</button>
+      <HeaderMoreMenu
+        command={command}
+        isPinned={isPinned}
+        setIsPinned={setIsPinned}
+        toggleFullscreen={toggleFullscreen}
+        setShowSessions={setShowSessions}
+        setShowMidi={setShowMidi}
+        setShowOverlay={setShowOverlay}
+      />
       <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">{"\u2699"}</button>
     </>
+  );
+}
+
+/**
+ * HeaderMoreMenu — ⋯ dropdown consolidating secondary header actions
+ * (Tap Tempo, Pin session, Sessions, Fullscreen, MIDI, Shortcuts). Mirrors
+ * mpump's .header-more-menu so the two apps feel like siblings.
+ */
+function HeaderMoreMenu({ command, isPinned, setIsPinned, toggleFullscreen, setShowSessions, setShowMidi, setShowOverlay }: {
+  command: (cmd: LoopCommand) => void;
+  isPinned: boolean; setIsPinned: (v: boolean) => void;
+  toggleFullscreen: () => void;
+  setShowSessions: (v: boolean) => void; setShowMidi: (v: boolean) => void;
+  setShowOverlay: (v: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".header-more-wrap")) setOpen(false);
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [open]);
+
+  return (
+    <div className="header-more-wrap">
+      <button
+        className="header-btn"
+        onClick={() => setOpen((v) => !v)}
+        title="More actions"
+        aria-label="More actions"
+        aria-expanded={open}
+      >⋯</button>
+      {open && (
+        <div className="header-more-menu" onClick={() => setOpen(false)}>
+          <button onClick={() => command({ type: "tap_tempo" })}>⊙ Tap tempo</button>
+          <button onClick={toggleFullscreen}>⛶ Fullscreen</button>
+          <div className="more-menu-sep" />
+          <button onClick={() => {
+            const name = prompt(isPinned ? "Update pinned session name:" : "Name for pinned session:", "My Session");
+            if (name) { command({ type: "pin_session" }); setIsPinned(true); localStorage.setItem("mloop-pin-name", name); }
+          }}>★ {isPinned ? "Update pinned" : "Pin session"}</button>
+          <button onClick={() => setShowSessions(true)}>↓ Sessions</button>
+          <button onClick={() => command({ type: "export_session_file" })}>↓ Export session</button>
+          <button onClick={() => command({ type: "import_session_file" })}>↑ Import session</button>
+          <button onClick={() => command({ type: "export_wav" })}>♫ Export WAV</button>
+          <button onClick={() => command({ type: "share_link" })}>↗ Share link</button>
+          <div className="more-menu-sep" />
+          {MidiController.isSupported() && (
+            <button onClick={() => setShowMidi(true)}>🎹 MIDI</button>
+          )}
+          <button onClick={() => setShowOverlay(true)}>? Shortcuts</button>
+        </div>
+      )}
+    </div>
   );
 }
