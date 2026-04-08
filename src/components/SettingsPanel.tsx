@@ -88,27 +88,43 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
         {/* ── Theme ─────────────────────────────────────────── */}
         <div className="settings-section">
           <div className="settings-label">Theme</div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <select
-              value={PALETTES.find(p => p.dark && p.id === palette) ? palette : ""}
-              onChange={(e) => { const p = PALETTES.find(x => x.id === e.target.value); if (p) { onPaletteChange(p.id); applyPalette(p); } }}
-              style={{ flex: 1, padding: "6px 8px", borderRadius: 6, fontSize: 11, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer" }}
-            >
-              <option value="" disabled>Dark</option>
-              {PALETTES.filter(p => p.dark).map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-            <select
-              value={PALETTES.find(p => !p.dark && p.id === palette) ? palette : ""}
-              onChange={(e) => { const p = PALETTES.find(x => x.id === e.target.value); if (p) { onPaletteChange(p.id); applyPalette(p); } }}
-              style={{ flex: 1, padding: "6px 8px", borderRadius: 6, fontSize: 11, background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer" }}
-            >
-              <option value="" disabled>Light</option>
-              {PALETTES.filter(p => !p.dark).map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+          {/* 3 dark row on top, 3 light row below — category labels removed. */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+            {[...PALETTES.filter(p => p.dark), ...PALETTES.filter(p => !p.dark)].map((p) => {
+              const active = p.id === palette;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => { onPaletteChange(p.id); applyPalette(p); }}
+                  aria-pressed={active}
+                  title={`${p.name} (${p.dark ? "dark" : "light"})`}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    gap: 4,
+                    padding: 6,
+                    borderRadius: 6,
+                    border: active ? "2px solid var(--preview)" : "1px solid var(--border)",
+                    background: p.panel,
+                    color: p.text,
+                    cursor: "pointer",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: 0.3,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {/* Swatch strip: bg / cell / accent */}
+                  <div style={{ display: "flex", height: 14, borderRadius: 3, overflow: "hidden", border: `1px solid ${p.border}` }}>
+                    <div style={{ flex: 1, background: p.bg }} />
+                    <div style={{ flex: 1, background: p.cell }} />
+                    <div style={{ flex: 1, background: p.preview }} />
+                  </div>
+                  <span style={{ textAlign: "center" }}>{p.name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
