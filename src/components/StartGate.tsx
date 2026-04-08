@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { PALETTES, applyPalette } from "../themes";
+import { APP_VERSION } from "../config";
 
 // Same logo as the header — block-art style
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
@@ -123,7 +124,7 @@ export function StartGate({ onStart }: StartGateProps) {
         </div>
       )}
 
-      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v1.0.0-pre.62</span>
+      <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v{APP_VERSION}</span>
     </div>
   );
 }

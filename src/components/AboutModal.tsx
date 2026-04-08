@@ -4,13 +4,12 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { APP_VERSION } from "../config";
 
 interface Props {
   onClose: () => void;
   getAnalyser?: () => AnalyserNode | null;
 }
-
-const APP_VERSION = "1.0.0-pre.62";
 
 const LINES = [
   "",

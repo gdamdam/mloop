@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Recorder } from "../engine/Recorder";
+import { APP_VERSION } from "../config";
 
 /** Fetches total page views from GoatCounter. */
 function VisitCounter() {
@@ -30,7 +31,7 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
       opacity: 0.7,
       lineHeight: 1.8,
     }}>
-      <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v1.0.0-pre.62</span>
+      <span style={{ cursor: "pointer" }} onClick={onShowCredits}>v{APP_VERSION}</span>
       {" · "}
       <span>© 2026</span>
       {" · "}
