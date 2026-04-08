@@ -80,9 +80,9 @@ export function VuMeter({ getAnalyser, height }: VuMeterProps) {
         const timeData = new Uint8Array(analyser.fftSize);
         analyser.getByteTimeDomainData(timeData);
 
-        // Centre line
+        // Centre line — kept visible on dark bg as a "silence rail"
         ctx.strokeStyle = accent;
-        ctx.globalAlpha = 0.15;
+        ctx.globalAlpha = 0.32;
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.moveTo(0, h / 2);
@@ -105,7 +105,7 @@ export function VuMeter({ getAnalyser, height }: VuMeterProps) {
         ctx.lineTo(0, h / 2);
         ctx.closePath();
         ctx.fillStyle = accent;
-        ctx.globalAlpha = 0.18;
+        ctx.globalAlpha = 0.32;
         ctx.fill();
         ctx.globalAlpha = 1;
 

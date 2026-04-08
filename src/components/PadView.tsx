@@ -737,31 +737,41 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
 
       {/* Right: Scratchpad + Pad Detail + Step Sequencer */}
       <div className="pad-right">
-        {/* Top row: sequencer play button + master VU */}
+        {/* Top row: [play button + VOL slider stacked] · master VU */}
         <div style={{ display: "flex", alignItems: "stretch", gap: 8, marginBottom: 6 }}>
-          <button
-            onClick={() => {
-              if (!padEngine) return;
-              if (padEngine.isSeqPlaying) padEngine.stopSequencer();
-              else padEngine.startSequencer();
-              forceUpdate(n => n + 1);
-            }}
-            title="Play / Stop sequencer"
-            style={{
-              width: 72, height: 72, borderRadius: 10, flexShrink: 0,
-              fontSize: 24, fontWeight: 700,
-              background: padEngine?.isSeqPlaying ? "var(--playing)" : "var(--bg-cell)",
-              color: padEngine?.isSeqPlaying ? "#000" : "var(--text)",
-              border: "1px solid var(--border)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: padEngine?.isSeqPlaying ? "0 0 12px var(--playing)" : "none",
-            }}
-          >
-            {padEngine?.isSeqPlaying ? "■" : "▶"}
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+            <button
+              onClick={() => {
+                if (!padEngine) return;
+                if (padEngine.isSeqPlaying) padEngine.stopSequencer();
+                else padEngine.startSequencer();
+                forceUpdate(n => n + 1);
+              }}
+              title="Play / Stop the step sequencer — runs the drum pattern at the current BPM"
+              style={{
+                width: 72, height: 52, borderRadius: 10,
+                fontSize: 22, fontWeight: 700,
+                background: padEngine?.isSeqPlaying ? "var(--playing)" : "var(--bg-cell)",
+                color: padEngine?.isSeqPlaying ? "#000" : "var(--text)",
+                border: "1px solid var(--border)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: padEngine?.isSeqPlaying ? "0 0 12px var(--playing)" : "none",
+              }}
+            >
+              {padEngine?.isSeqPlaying ? "■" : "▶"}
+            </button>
+            <input
+              type="range" min={0} max={1.5} step={0.01}
+              defaultValue={engine?.getOutputTrim().gain.value ?? 1}
+              onChange={(e) => { if (engine) engine.getOutputTrim().gain.value = parseFloat(e.target.value); }}
+              title="Master volume — final output level (post-limiter)"
+              className="volume-slider"
+              style={{ width: 72 }}
+            />
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <VuMeter
-              getAnalyser={() => engine?.getInputAnalyser() ?? engine?.getAnalyser() ?? null}
+              getAnalyser={() => engine?.getAnalyser() ?? null}
               height={72}
             />
           </div>

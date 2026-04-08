@@ -41,6 +41,11 @@ export function SampleEditor({ buffer, sampleRate, onSave, onClose }: SampleEdit
 
     ctx.clearRect(0, 0, w, h);
 
+    // Resolve CSS custom properties — canvas fillStyle cannot use var().
+    const rootStyle = getComputedStyle(document.documentElement);
+    const accent = rootStyle.getPropertyValue("--preview").trim() || "#3ddc97";
+    const dim = rootStyle.getPropertyValue("--text-dim").trim() || "#888";
+
     // Dimmed area outside selection
     ctx.fillStyle = "rgba(0,0,0,0.5)";
     ctx.fillRect(0, 0, startPct * w, h);
@@ -56,8 +61,8 @@ export function SampleEditor({ buffer, sampleRate, onSave, onClose }: SampleEdit
       }
       const barH = max * halfH * 0.9;
       const inSelection = x / w >= startPct && x / w <= endPct;
-      ctx.fillStyle = inSelection ? "var(--preview)" : "var(--text-dim)";
-      ctx.globalAlpha = inSelection ? 0.7 : 0.2;
+      ctx.fillStyle = inSelection ? accent : dim;
+      ctx.globalAlpha = inSelection ? 0.95 : 0.3;
       ctx.fillRect(x, halfH - barH, 1, barH * 2);
     }
     ctx.globalAlpha = 1;

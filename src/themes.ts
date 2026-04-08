@@ -30,18 +30,20 @@ export interface PaletteDef {
 
 export const PALETTES: PaletteDef[] = [
   // ── Dark palettes ────────────────────────────────────────────────────
-  // Forest — greens, but with a teal tilt and a cyan accent instead of mpump's mint.
+  // Forest — warm greens with a mint accent. Previously cyan (#5fddff)
+  // which read too close to Koala Sampler — swapped to mint (#3ddc97)
+  // to give mloop its own visual identity.
   { id: "forest", name: "Forest", dark: true,
-    bg: "#0a1815", panel: "#112420", cell: "#183028", border: "#284a40",
-    text: "#c8e6d8", dim: "#6a8a80", preview: "#5fddff" },
+    bg: "#0a1815", panel: "#112420", cell: "#183028", border: "#2a4a3c",
+    text: "#e8f6ec", dim: "#8aada0", preview: "#3ddc97" },
   // Ember — warmer reds, pushed toward amber/orange vs mpump's red-tomato.
   { id: "ember", name: "Ember", dark: true,
     bg: "#1a0d08", panel: "#241610", cell: "#2e1e14", border: "#4a2c1e",
-    text: "#f0d8c8", dim: "#8a6550", preview: "#ff8a3d" },
+    text: "#fceee0", dim: "#ab8268", preview: "#ff8a3d" },
   // Neon — pitch black with a hint of blue in the panels; cyan accent (mpump is magenta).
   { id: "neon", name: "Neon", dark: true,
     bg: "#000000", panel: "#080810", cell: "#14141c", border: "#1f1f2a",
-    text: "#ffffff", dim: "#666666", preview: "#00ffff" },
+    text: "#ffffff", dim: "#8a8a8a", preview: "#00ffff" },
 
   // ── Light palettes ───────────────────────────────────────────────────
   // Minimal — cool off-white with a slate-blue accent (mpump's is neutral gray).

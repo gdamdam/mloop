@@ -25,13 +25,15 @@ interface StripProps {
   onChange: (v: number) => void;
   /** Optional visual centre (e.g. 0 for EQ) — renders a tick at that value. */
   centre?: number;
+  /** Tooltip explaining what this fader does. */
+  title?: string;
 }
 
-function Strip({ label, value, min, max, step, unit, onChange, centre }: StripProps) {
+function Strip({ label, value, min, max, step, unit, onChange, centre, title }: StripProps) {
   const pct = ((value - min) / (max - min)) * 100;
   const centrePct = centre !== undefined ? ((centre - min) / (max - min)) * 100 : null;
   return (
-    <div className="mixer-strip">
+    <div className="mixer-strip" title={title}>
       <div className="mixer-strip-label">{label}</div>
       <div className="mixer-strip-slider-wrap">
         {centrePct !== null && (
@@ -173,15 +175,20 @@ export function MixerView({ engine }: MixerViewProps) {
         <div className="mixer-divider" />
 
         {/* EQ bands */}
-        <Strip label="LOW" value={low} min={-18} max={18} step={0.5} unit="dB" onChange={onLow} centre={0} />
-        <Strip label="MID" value={mid} min={-18} max={18} step={0.5} unit="dB" onChange={onMid} centre={0} />
-        <Strip label="HIGH" value={high} min={-18} max={18} step={0.5} unit="dB" onChange={onHigh} centre={0} />
+        <Strip label="LOW" value={low} min={-18} max={18} step={0.5} unit="dB" onChange={onLow} centre={0}
+          title="Low shelf EQ — boost or cut everything below ~250 Hz (bass, kick)" />
+        <Strip label="MID" value={mid} min={-18} max={18} step={0.5} unit="dB" onChange={onMid} centre={0}
+          title="Mid peaking EQ — boost or cut a 1 kHz band (body, presence)" />
+        <Strip label="HIGH" value={high} min={-18} max={18} step={0.5} unit="dB" onChange={onHigh} centre={0}
+          title="High shelf EQ — boost or cut everything above ~4 kHz (air, cymbals)" />
 
         <div className="mixer-divider" />
 
         {/* Glue + drive */}
-        <Strip label="GLUE" value={glue} min={0} max={1} step={0.01} unit="" onChange={onGlue} />
-        <Strip label="DRIVE" value={drive} min={1} max={10} step={0.1} unit="×" onChange={onDrive} />
+        <Strip label="GLUE" value={glue} min={0} max={1} step={0.01} unit="" onChange={onGlue}
+          title="Glue compressor — gentle 2:1 bus compression that pulls tracks together. 0 = bypass, 1 = heavy glue with auto makeup gain" />
+        <Strip label="DRIVE" value={drive} min={1} max={10} step={0.1} unit="×" onChange={onDrive}
+          title="Soft-clip drive — tanh waveshaper adds warmth and harmonics. Loudness is auto-compensated" />
 
         <div className="mixer-divider" />
 
@@ -206,12 +213,14 @@ export function MixerView({ engine }: MixerViewProps) {
           </div>
         </div>
 
-        <Strip label="CEIL" value={ceiling} min={-6} max={0} step={0.1} unit="dB" onChange={onCeiling} />
+        <Strip label="CEIL" value={ceiling} min={-6} max={0} step={0.1} unit="dB" onChange={onCeiling}
+          title="Limiter output ceiling — the maximum peak level the limiter will allow through. -1 dB is a safe default" />
 
         <div className="mixer-divider" />
 
         {/* Output trim — final fader (post-limiter) */}
-        <Strip label="VOL" value={volume} min={0} max={1.5} step={0.01} unit="" onChange={onVolume} />
+        <Strip label="VOL" value={volume} min={0} max={1.5} step={0.01} unit="" onChange={onVolume}
+          title="Master output trim — final volume stage, after the limiter. Does not affect drive/compressor response" />
       </div>
 
       <div className="mixer-hint">

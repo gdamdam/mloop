@@ -208,6 +208,11 @@ function TrimWaveform({ buffer, trimStart, trimEnd, onTrimChange }: {
 
     ctx.clearRect(0, 0, w, h);
 
+    // Resolve CSS custom properties — canvas fillStyle cannot use var().
+    const rootStyle = getComputedStyle(document.documentElement);
+    const accent = rootStyle.getPropertyValue("--preview").trim() || "#3ddc97";
+    const dim = rootStyle.getPropertyValue("--text-dim").trim() || "#888";
+
     // Dimmed outside selection
     ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.fillRect(0, 0, trimStart * w, h);
@@ -223,8 +228,8 @@ function TrimWaveform({ buffer, trimStart, trimEnd, onTrimChange }: {
       }
       const barH = max * halfH * 0.9;
       const inSel = x / w >= trimStart && x / w <= trimEnd;
-      ctx.fillStyle = inSel ? "var(--preview)" : "var(--text-dim)";
-      ctx.globalAlpha = inSel ? 0.6 : 0.15;
+      ctx.fillStyle = inSel ? accent : dim;
+      ctx.globalAlpha = inSel ? 0.95 : 0.3;
       ctx.fillRect(x, halfH - barH, 1, barH * 2);
     }
     ctx.globalAlpha = 1;

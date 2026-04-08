@@ -277,8 +277,16 @@ export function KaosPad({ engine }: KaosPadProps) {
         ctx.lineTo(w, h / 2);
         ctx.lineTo(0, h / 2);
         ctx.closePath();
-        ctx.fillStyle = preview + "22";
+        ctx.fillStyle = preview + "3a";
         ctx.fill();
+
+        // Centre line — so silence is still visible on dark backgrounds
+        ctx.strokeStyle = preview + "44";
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, h / 2);
+        ctx.lineTo(w, h / 2);
+        ctx.stroke();
 
         // Waveform line
         ctx.beginPath();
@@ -288,7 +296,7 @@ export function KaosPad({ engine }: KaosPadProps) {
           if (i === 0) ctx.moveTo(0, y);
           else ctx.lineTo(i * sliceW, y);
         }
-        ctx.strokeStyle = preview + "55";
+        ctx.strokeStyle = preview + "cc";
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }

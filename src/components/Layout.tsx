@@ -62,6 +62,8 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
   const lowSignalCounter = useRef(0);
   const [masterRec, setMasterRec] = useState(false);
   const [masterRecTime, setMasterRecTime] = useState(0);
+  // Live-displayed master volume value (controlled so the readout updates while dragging).
+  const [masterVol, setMasterVol] = useState(1);
   const masterRecStart = useRef(0);
 
   // Master record timer — counts up while recording
@@ -345,7 +347,11 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
         <div style={{ display: "flex", gap: 2, background: "var(--bg-cell)", borderRadius: 6, padding: 2 }}>
           {(["pads", "tracks", "mixer"] as const).map(m => (
             <button key={m} onClick={() => setViewMode(m)}
-              title={m === "pads" ? "Switch to PAD mode" : m === "tracks" ? "Switch to LOOPER mode" : "Switch to MIXER mode"}
+              title={m === "pads"
+                ? "PAD mode — 16 sample pads + step sequencer"
+                : m === "tracks"
+                ? "LOOPER mode — 3 live loop tracks with overdub and effects"
+                : "MIXER mode — master bus: HPF · 3-band EQ · glue comp · drive · limiter"}
               style={{
               fontSize: 9, fontWeight: 700, padding: "4px 8px", borderRadius: 4,
               background: viewMode === m ? "var(--preview)" : "transparent",
@@ -366,7 +372,7 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
             color: canUndo ? "var(--preview)" : "var(--text-dim)",
             cursor: canUndo ? "pointer" : "default",
           }}
-          title="Undo last action"
+          title="Undo — remove the last overdub layer on the active track (⌘/Ctrl+Z)"
           disabled={!canUndo}
         >
           ↩
@@ -377,7 +383,9 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
         <button
           className="header-btn"
           onClick={handleMasterRec}
-          title={masterRec ? "Stop master recording" : "Record master output as WAV"}
+          title={masterRec
+            ? "Stop master recording and download the WAV"
+            : "Record the full master output (pads + loops + effects) and save as a WAV file"}
           style={{
             fontSize: 10, fontWeight: 700, minWidth: masterRec ? 64 : 36,
             padding: "4px 8px",
@@ -390,12 +398,6 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
             ? `■ ${Math.floor(masterRecTime / 60000)}:${String(Math.floor((masterRecTime / 1000) % 60)).padStart(2, "0")}`
             : "● REC"}
         </button>
-
-        {/* Master volume — targets post-limiter output trim (Option B layout). */}
-        <HeaderSlider label="VOL" min={0} max={1.5} step={0.01} initial={1}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => { if (engine) engine.getOutputTrim().gain.value = v; }}
-        />
 
         {/* Desktop: all buttons inline */}
         <div className="header-buttons-desktop" style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -411,7 +413,7 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
         {/* Mobile: hamburger button */}
         <div className="header-hamburger-wrap" style={{ position: "relative" }}>
           <button className="header-btn header-hamburger-btn" onClick={() => setShowHamburger(!showHamburger)}
-            title="Menu"
+            title="Open the overflow menu — sessions, settings, help, and secondary actions"
             style={{ fontSize: 16, fontWeight: 700 }}>
             {showHamburger ? "✕" : "≡"}
           </button>
@@ -503,8 +505,8 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
               onChange={(v) => { if (engine) engine.setMicGain(v); }}
             />
             <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
-              style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
-            <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
+              style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome — toggle a click track at the current BPM">♩</button>
+            <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo — tap repeatedly in time to set BPM (averaged over last 5 taps)" style={{ fontSize: 9 }}>T</button>
             {/* Analog needle VU meter — inline with master rec controls */}
             <div style={{ width: 70, height: 36, flexShrink: 0 }}>
               <NeedleMeter
@@ -516,6 +518,26 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
                   return hasPlayback ? engine.getAnalyser() : engine.getInputAnalyser();
                 }} />
             </div>
+            {/* Master volume — compact slider next to the VU meter, with live % readout */}
+            <span style={{ fontSize: 9, color: "var(--text-dim)", letterSpacing: 0.5, flexShrink: 0 }}>VOL</span>
+            <input
+              type="range" min={0} max={1.5} step={0.01}
+              value={masterVol}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                setMasterVol(v);
+                if (engine) engine.getOutputTrim().gain.value = v;
+              }}
+              title="Master volume — final output level (post-limiter)"
+              className="volume-slider"
+              style={{ width: 53, flex: "none", flexShrink: 0 }}
+            />
+            <span style={{
+              fontSize: 9, fontFamily: "monospace", color: "var(--preview)",
+              minWidth: 30, textAlign: "right", flexShrink: 0,
+            }}>
+              {Math.round(masterVol * 100)}%
+            </span>
           </div>
           <div className="tracks-row">
             {state.tracks.map((track) => (
@@ -629,7 +651,7 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       <BpmControl bpm={state.bpm} command={command} />
       <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 4px" }} />
       <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
-        style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">{"\u2669"}</button>
+        style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome — toggle a click track at the current BPM">{"\u2669"}</button>
       <button className="header-btn" onClick={() => {
         const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
         if (isSafari && location.protocol === "https:") {
@@ -691,7 +713,7 @@ function HeaderMoreMenu({ command, isPinned, setIsPinned, isDark, toggleDarkLigh
       <button
         className="header-btn"
         onClick={() => setOpen((v) => !v)}
-        title="More actions"
+        title="More actions — sessions, pin, share, settings, help, and other secondary controls"
         aria-label="More actions"
         aria-expanded={open}
       >⋯</button>
