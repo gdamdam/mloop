@@ -43,7 +43,10 @@ export class PadEngine {
   /** Which slot is currently recording (null = none). */
   private recordingSlot: number | null = null;
   /** Track active one-shot sources so we can stop them on re-trigger. */
-  private activeSources: Map<number, AudioBufferSourceNode> = new Map();
+  // Sets per slot so multiple one-shot hits can overlap and ring out
+  // independently. stopSlot() stops every source for a slot; onended
+  // removes them one-at-a-time as each sample finishes naturally.
+  private activeSources: Map<number, Set<AudioBufferSourceNode>> = new Map();
 
   /** Callback to notify UI of state changes. */
   onStateChange: (() => void) | null = null;
@@ -264,7 +267,12 @@ export class PadEngine {
       }
     }
 
-    this.stopSlot(slotId);
+    // Gate/loop modes are mono-voice (retriggering stops the previous
+    // instance). One-shot mode is poly — let repeated hits overlap and
+    // ring out naturally so they don't choke each other.
+    if (slot.playMode !== "one") {
+      this.stopSlot(slotId);
+    }
 
     const source = this.ctx.createBufferSource();
     source.buffer = slot.audioBuffer;
@@ -288,7 +296,13 @@ export class PadEngine {
     panner.pan.value = slot.pan;
 
     source.connect(gain).connect(panner).connect(this.masterNode);
-    source.onended = () => { this.activeSources.delete(slotId); };
+    source.onended = () => {
+      const set = this.activeSources.get(slotId);
+      if (set) {
+        set.delete(source);
+        if (set.size === 0) this.activeSources.delete(slotId);
+      }
+    };
 
     // Apply trim: start at trimStart offset, play for trimmed duration
     const offset = slot.trimStart * slot.audioBuffer.duration;
@@ -299,7 +313,9 @@ export class PadEngine {
       source.start(when, offset, duration);
     }
 
-    this.activeSources.set(slotId, source);
+    let set = this.activeSources.get(slotId);
+    if (!set) { set = new Set(); this.activeSources.set(slotId, set); }
+    set.add(source);
   }
 
   // ── Built-in sequencer (Web Audio scheduled) ──────────────────────────
@@ -387,13 +403,14 @@ export class PadEngine {
     }
   }
 
-  /** Stop a currently playing pad slot. */
+  /** Stop all currently-playing instances of a pad slot. */
   stopSlot(slotId: number): void {
-    const source = this.activeSources.get(slotId);
-    if (source) {
+    const set = this.activeSources.get(slotId);
+    if (!set) return;
+    for (const source of set) {
       try { source.stop(); source.disconnect(); } catch { /* ok */ }
-      this.activeSources.delete(slotId);
     }
+    this.activeSources.delete(slotId);
   }
 
   /** Clear a pad slot — stops playback and removes the sample. */
@@ -607,8 +624,10 @@ export class PadEngine {
    */
   loadSnapshot(snap: PadSnapshot): void {
     this.stopSequencer();
-    for (const [, src] of this.activeSources) {
-      try { src.stop(); src.disconnect(); } catch { /* ok */ }
+    for (const [, set] of this.activeSources) {
+      for (const src of set) {
+        try { src.stop(); src.disconnect(); } catch { /* ok */ }
+      }
     }
     this.activeSources.clear();
 
