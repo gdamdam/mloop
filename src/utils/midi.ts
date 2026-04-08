@@ -161,7 +161,6 @@ function read16(view: DataView, off: number): number {
 function readVLQ(data: Uint8Array, offset: number): [number, number] {
   let value = 0;
   let len = 0;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (offset + len >= data.length) break;
     const byte = data[offset + len];

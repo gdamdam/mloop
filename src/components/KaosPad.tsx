@@ -93,6 +93,9 @@ export function KaosPad({ engine }: KaosPadProps) {
   // Gesture loop recorder — records XY movements as repeating automation
   const gestureRef = useRef(new GestureRecorder());
   const [gestureState, setGestureState] = useState<"idle" | "recording" | "playing">("idle");
+  // Mirror of gestureRef.current.hasGesture in React state — lets the overlay
+  // buttons render disabled/enabled without reading the ref during render.
+  const [hasGesture, setHasGesture] = useState(false);
 
   // Pause/resume gesture playback when transport stops/starts
   const anyTrackActive = engine?.tracks.some(t =>
@@ -124,6 +127,7 @@ export function KaosPad({ engine }: KaosPadProps) {
   const stopGestureRec = useCallback(() => {
     gestureRef.current.stopRecording();
     setGestureState("idle");
+    setHasGesture(gestureRef.current.hasGesture);
   }, []);
 
   const startGesturePlay = useCallback(() => {
@@ -144,6 +148,7 @@ export function KaosPad({ engine }: KaosPadProps) {
   const clearGesture = useCallback(() => {
     gestureRef.current.clear();
     setGestureState("idle");
+    setHasGesture(false);
   }, []);
 
   // Get current effects from first track (they're synced)
@@ -426,7 +431,7 @@ export function KaosPad({ engine }: KaosPadProps) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              gestureState === "recording" ? stopGestureRec() : startGestureRec();
+              if (gestureState === "recording") stopGestureRec(); else startGestureRec();
             }}
             aria-pressed={gestureState === "recording"}
             title={gestureState === "recording" ? "Stop recording gesture" : "Record XY gesture"}
@@ -445,9 +450,9 @@ export function KaosPad({ engine }: KaosPadProps) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              gestureState === "playing" ? stopGesturePlay() : startGesturePlay();
+              if (gestureState === "playing") stopGesturePlay(); else startGesturePlay();
             }}
-            disabled={!gestureRef.current.hasGesture && gestureState !== "playing"}
+            disabled={!hasGesture && gestureState !== "playing"}
             aria-pressed={gestureState === "playing"}
             title={gestureState === "playing" ? "Stop gesture loop" : "Loop recorded gesture"}
             style={{
@@ -457,7 +462,7 @@ export function KaosPad({ engine }: KaosPadProps) {
               background: gestureState === "playing" ? "var(--preview)" : "rgba(0,0,0,0.4)",
               color: gestureState === "playing" ? "#000" : "var(--preview)",
               cursor: "pointer",
-              opacity: (!gestureRef.current.hasGesture && gestureState !== "playing") ? 0.4 : 1,
+              opacity: (!hasGesture && gestureState !== "playing") ? 0.4 : 1,
               backdropFilter: "blur(2px)",
             }}
           >
@@ -465,7 +470,7 @@ export function KaosPad({ engine }: KaosPadProps) {
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); clearGesture(); }}
-            disabled={!gestureRef.current.hasGesture && gestureState === "idle"}
+            disabled={!hasGesture && gestureState === "idle"}
             title="Clear recorded gesture"
             style={{
               fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
@@ -474,7 +479,7 @@ export function KaosPad({ engine }: KaosPadProps) {
               background: "rgba(0,0,0,0.4)",
               color: "var(--preview)",
               cursor: "pointer",
-              opacity: (!gestureRef.current.hasGesture && gestureState === "idle") ? 0.4 : 1,
+              opacity: (!hasGesture && gestureState === "idle") ? 0.4 : 1,
               backdropFilter: "blur(2px)",
             }}
           >
