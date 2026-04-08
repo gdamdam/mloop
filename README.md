@@ -1,227 +1,108 @@
 <h1 align="center">mloop</h1>
-<p align="center">Browser-based loop station & MPC-style sampler.<br>Record, layer, slice, sequence, perform — no install, no subscription, no account.</p>
+<p align="center">
+  A fast no-account live sampler and loop station on the web.<br>
+  Record, layer, pad, sequence, destroy — no install, no subscription, no account.
+</p>
 
 <p align="center">
   <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.2.0-blue" alt="Version"></a>
   <a href="https://mpump.live"><img src="https://img.shields.io/badge/companion-mpump-orange" alt="Companion to mpump"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-green" alt="License"></a>
-  <br>
-  <a href="https://mloop.mpump.live/">https://mloop.mpump.live/</a>
+  <br><br>
+  <strong><a href="https://mloop.mpump.live/">mloop.mpump.live</a></strong>
+  &nbsp;·&nbsp;
+  <a href="https://mloop.mpump.live/landing.html">Landing page</a>
 </p>
 
 ---
 
-Open **[mloop](https://mloop.mpump.live/)** and start making music — no MIDI device required. 16-pad sampler with step sequencer, 3 loop tracks with overdub, 9 real-time effects, KAOS XY pad, 7 synthesized drum kits (56 sounds), sample slicer, mic recording, and Link Bridge sync — all in the browser via Web Audio API.
-
-Companion to **[mpump](https://mpump.live)** — the browser-based drum machine & synth sequencer. mloop and mpump share a design language, effects DSP (see `src/engine/EffectsChain.ts`, ported from mpump's `AudioPort.ts`), and the [Link Bridge](docs/LINK-BRIDGE.md) for Ableton Link sync. Engineering notes live in [`docs/`](docs/).
-
 ## Two Modes
 
-| Mode | Description |
+| Mode | What it does |
 |---|---|
-| **PAD** (default) | 4x4 MPC-style sample pads, step sequencer (8/16/32/64 steps) with real-time step recording, sample slicer, chromatic mode, resample, 7 built-in drum kits, keyboard finger drumming |
-| **LOOPER** | 3 independent loop tracks with record, overdub, undo, reverse, half-speed, KAOS XY pad with master effects |
+| **PAD** | 4×4 MPC-style sample pads · step sequencer (8/16/32/64 steps) with real-time step recording · sample slicer · chromatic mode · resample from looper · 7 built-in drum kits · keyboard finger drumming |
+| **LOOPER** | 3 independent loop tracks · record / overdub / undo / reverse / half-speed · KAOS XY pad with 9 live effects · destruction mode · tape reel UI |
+
+PAD and LOOPER share the same session — save, pin, and export both at once.
 
 ---
 
-## Sample Pads & Sequencer
+## Loop Station (LOOPER mode)
 
-- **16 pads** — tap empty to record from mic, tap loaded to play
-- **7 built-in kits** — all synthesized via `OfflineAudioContext`, zero sample files
-- **Step sequencer** — 8/16/32/64 steps, swing, random pattern generator
-- **Real-time step recording** — press ● REC, play pads to record hits into the grid live
-- **Per-pad controls** — volume, pan, pitch (±12 semitones), trim, play mode (ONE/GATE/LOOP)
-- **Mute groups** (choke) — assign pads to groups 1-4
-- **Drag & drop** — rearrange pads, drop onto sequencer
-- **Pad detail panel** — waveform trim, editable name, all controls
-- **Roll/repeat** — hold for rapid-fire retriggering
-- **URL import** — paste a link to load a sample from any URL
-
----
-
-## Sample Slicer
-
-- **Equal slicing** — divide evenly into N slices (2-16)
-- **Auto-chop** — transient detection with sensitivity control
-- Access via **✂** in the pad toolbar
-
----
-
-## Kits & Sounds
-
-7 drum kits × 8 sounds (56 total), all synthesized — zero sample files:
-
-| Kit | Sounds |
-|---|---|
-| **Default** | Kick, Snare, HH, Clap, Open HH, Rim, Tom, Cymbal |
-| **Hip-Hop** | 808 Sub, Snare, HH, Open HH, Snap, Perc, Zap, Crash |
-| **House** | Deep Kick, Rim, HH, Open HH, Clap, Shaker, Conga, Ride |
-| **Lo-Fi** | Dusty Kick, Snare, Soft HH, Snap, Brush, Thud, Shaker, Chime |
-| **Industrial** | Kick, Metal Snare, Anvil, Buzz, Glitch, Static, Boom, Zap |
-| **Reggaeton** | Kick, Side Stick, Tick HH, Open HH, Clap, Clave, Bongo, Cowbell |
-| **FX** | Uh, Ah, Breath, Whistle, Water Drop, Wood Knock, Wind, Cricket |
-
-Save, export, import custom kits. Sound browser lets you mix sounds across kits.
-
----
-
-## Scratchpad Recorder
-
-Quick sampling strip in PAD mode:
-- **MIC** — record from microphone
-- **RESAMPLE** — capture master output
-- **DUB** — mic + master combined
-- Auto-trim silence, drag onto any pad, configurable count-in
-
----
-
-## Loop Station
-
-- **Record / Overdub / Play / Stop** per track
-- **Undo** last overdub layer
+- **Record / Overdub / Play / Stop** per track — layers accumulate non-destructively
+- **Undo** last overdub layer per track
 - **Reverse** and **half-speed** playback
-- **3 sync modes** — FREE, SYNC (phase-locked), LOCK (fixed time window)
+- **3 sync modes** — FREE (freeform), SYNC (phase-locked), LOCK (fixed time window, default)
 - **Metronome** with tap tempo
-- **Destruction Mode** — progressive tape degradation per loop cycle
+- **KAOS XY pad** — 10 effects mapped to X/Y axes with gesture recording and replay
+- **9 effects** — delay (sync/free), reverb (room/hall/plate/spring), distortion, chorus, flanger, phaser, bitcrush, compressor, tremolo
+- **Destruction mode** — progressive tape degradation (pitch drift, wow & flutter, bit reduction) per cycle
 - **Master record** — capture full output as WAV with live timer
-- **Tape reel animation** — spinning reels with color states
-- **Analog needle VU meter** — input (idle), output (playing), red (recording)
-- **Audio input selector** — choose mic/line-in device
-- **Low signal detection** with auto-gain option
+- **Tape reel animation** — spinning reels with color-coded record/play/stop states
+- **Analog needle VU meter** — input (idle), output (playing), red zone (recording)
+- **Audio input selector** — choose mic or line-in device
+- **Low-signal detection** with auto-gain suggestion
 
----
+## PAD Mode
 
-## KAOS XY Pad
+- **16 pads** — each with sample, trim, pitch, pan, volume, play mode (one-shot / gate / loop)
+- **Step sequencer** — 8 / 16 / 32 / 64 steps, swing, real-time step record, mute groups
+- **7 built-in kits** — acoustic, lo-fi, electronic, percussion, and more
+- **Sample capture** — record live from mic, resample from looper output, or import a file
+- **Sample slicer** — auto-chop a loop into pads
+- **Chromatic mode** — play pads as a pitched instrument
+- **Sound Browser** — audition and load single samples
 
-- 7 assignable targets: Cutoff, Resonance, Distortion, Highpass, Delay, Reverb, Volume
-- Neon touch trails with audio-reactive visualizer
-- **Gesture Loops** — record and loop XY movements as automation
-- Drag-to-reorder effect chain
+## Sessions
 
----
-
-## Effects (9 total)
-
-Low-Pass · Compressor · High-Pass · Distortion · Bitcrusher · Chorus · Phaser · Delay · Reverb
-
-Per-track independent chains + master effects via KAOS pad. Smooth parameter updates.
-
----
-
-## Sessions & Export
-
-- **Save / Load** sessions (IndexedDB)
-- **Export / Import** session as JSON
-- **Export WAV** mixdown with metadata (title, software, date)
-- **Import audio** files (drag & drop)
-- **PIN** session — auto-loads on next visit
-- **Share** settings link
-
----
-
-## Link Bridge
-
-Sync with [mpump](https://mpump.live) via Link Bridge:
-- **BPM sync** — bidirectional, changes push both ways
-- **Play/stop sync** — play in one app, the other follows
-- Enable with the **L** button in the header
-- Both apps must be on the same computer with Link Bridge running
-
----
-
-## Themes
-
-12 color themes (6 dark, 6 light):
-- **Dark**: Midnight, Neon, Forest, Ember, Cobalt, Violet
-- **Light**: Minimal, Cream, Artic, Sand, Rose, Slate
-- Default: Sand (day), Forest (night)
-
-Logo click: 1× random theme, 2× beat pulse, 3× credits
-
----
+- **Named sessions** — save and load any number of named sessions (stored in browser IndexedDB)
+- **Session thumbnails** — each saved session shows a visual preview: looper track bars (height = layer count), pad grid (filled = slot loaded), BPM, sync mode
+- **Pin session** — auto-restore the pinned session on next open (looper + PAD together)
+- **JSON export / import** — portable `.mloop-session.json` files, human-readable
+- **WAV mixdown export** — mix all looper tracks to a stereo WAV
 
 ## Keyboard Shortcuts
 
-### Looper Mode
-
 | Key | Action |
 |---|---|
-| `1` `2` `3` | Record track 1/2/3 |
-| `Q` `W` `E` | Play track 1/2/3 |
-| `A` `S` `D` | Mute track 1/2/3 |
-| `Z` `X` `C` | Clear track 1/2/3 |
-| `Shift+1/2/3` | Overdub track 1/2/3 |
-| `Space` | Play/Stop all |
-| `M` | Metronome |
-| `T` | Tap tempo |
-| `?` | Show shortcuts |
-
-### PAD Mode — Finger Drumming
-
-| Keys | Pads |
-|---|---|
-| `7` `8` `9` `0` | Pads 13-16 (top row) |
-| `U` `I` `O` `P` | Pads 9-12 |
-| `J` `K` `L` `;` | Pads 5-8 |
-| `M` `,` `.` `/` | Pads 1-4 (bottom row) |
-
-### Global
-
-| Key | Action |
-|---|---|
-| `⌘/Ctrl+Z` | Undo |
+| `⌘/Ctrl+Z` | Undo last overdub |
 | `⌘/Ctrl+S` | Save session |
 
 ---
 
 ## Tech Stack
 
-- **React 19** + **TypeScript** + **Vite 8**
-- **Web Audio API** — all synthesis and effects in-browser
-- **AudioWorklet** — sample-accurate recording (ScriptProcessorNode fallback for Firefox)
-- **Zero runtime dependencies** beyond React
-- **~413KB** production bundle (gzipped ~119KB)
-- **PWA** — works offline via service worker
+| Layer | Detail |
+|---|---|
+| Framework | React 19 + Vite 8 + TypeScript (strict) |
+| Audio | Web Audio API — `AudioEngine`, `PadEngine`, `EffectsChain`, `DestructionEngine`, `TimingEngine` |
+| State | `useReducer` + optimistic dispatch (`loopEngineReducer`, `loopEngineCommands`) |
+| Persistence | IndexedDB (`SessionData`) + JSON export (`SessionExport`) — two independent surfaces |
+| Tests | Vitest + jsdom + `@testing-library/jest-dom` — ~180 cases across engine, hooks, and persistence |
+| Deploy | GitHub Pages via `gh-pages` |
 
----
-
-## Development
-
-```bash
-npm install
-npm run dev      # dev server at localhost:5173
-npm run build    # production build
-npm run test     # run tests
-npm run deploy   # build + deploy to GitHub Pages
-```
 ---
 
 ## Privacy
 
-mloop respects your privacy.
+mloop runs entirely in your browser. No data ever leaves your device.
 
-- **No cookies** — mpump does not set any cookies
+- **No cookies** — no cookies are set
 - **No personal data** — no accounts, no emails, no tracking IDs
 - **No fingerprinting** — no device or browser identification
-- **No third-party trackers** — no Google, no Facebook, no ad networks
-- **Local storage only** — presets, settings, and patterns stay in your browser
+- **No third-party trackers** — visit counts only, anonymized via [GoatCounter](https://www.goatcounter.com/)
+- **Local storage only** — sessions, kits, and settings live in your browser's IndexedDB
 - **Open source** — all code is public on GitHub
 
 Your music stays on your device. Always.
 
 ---
 
+## Related
+
+- **[mpump](https://mpump.live)** — companion browser groovebox (beat sequencer, shareable links, Live Jam)
+- [Source on GitHub](https://github.com/gdamdam/mloop)
+
 ## License
 
 [AGPL-3.0-or-later](LICENSE).
-
----
-
-## Trademark
-
-"mloop" is an unregistered trademark of the author.
-Use of the name or logo for derivative projects or services may cause confusion and is not permitted.
-
----
-
-Built with Claude Code. Design, architecture, UX, audio chain, and creative direction by [gdamdam](https://github.com/gdamdam).

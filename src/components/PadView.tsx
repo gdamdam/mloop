@@ -21,6 +21,7 @@ import { PadDetail } from "./PadDetail";
 import type { PlayMode } from "./PadDetail";
 import { SampleSlicer } from "./SampleSlicer";
 import { ScratchpadRecorder } from "./ScratchpadRecorder";
+import { VuMeter } from "./VuMeter";
 
 interface PadViewProps {
   engine: AudioEngine | null;
@@ -736,6 +737,10 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
 
       {/* Right: Scratchpad + Pad Detail + Step Sequencer */}
       <div className="pad-right">
+        <VuMeter
+          getAnalyser={() => engine?.getInputAnalyser() ?? engine?.getAnalyser() ?? null}
+          height={72}
+        />
         <ScratchpadRecorder engine={engine} />
         <PadDetail
           slot={selectedPad !== null ? slots[selectedPad] ?? null : null}

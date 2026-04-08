@@ -400,12 +400,6 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
           onChange={(v) => { if (engine) engine.getMasterNode().gain.value = v; }}
         />
 
-        {/* VU meter — wraps to new line on mobile via CSS */}
-        {/* Spectrum VU meter */}
-        <div className="header-vu">
-          <VuMeter getAnalyser={() => engine?.getAnalyser() ?? null} />
-        </div>
-
         {/* Desktop: all buttons inline */}
         <div className="header-buttons-desktop" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <HeaderOverflowButtons
@@ -531,14 +525,13 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
                 ? `■ ${Math.floor(masterRecTime / 60000)}:${String(Math.floor((masterRecTime / 1000) % 60)).padStart(2, "0")}`
                 : "REC"}
             </button>
-            {/* Analog needle VU meter — fixed width */}
+            {/* Analog needle VU meter — inline with master rec controls */}
             <div style={{ width: 70, height: 36, flexShrink: 0 }}>
               <NeedleMeter
                 isPlaying={state.tracks.some(t => t.status === "playing")}
                 isRecording={state.tracks.some(t => t.status === "recording" || t.status === "overdubbing")}
                 getAnalyser={() => {
                   if (!engine) return null;
-                  // Recording: show input signal. Playing: show output. Idle: show input.
                   const hasPlayback = state.tracks.some(t => t.status === "playing");
                   return hasPlayback ? engine.getAnalyser() : engine.getInputAnalyser();
                 }} />
@@ -636,9 +629,9 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       <button className="header-btn"
         onClick={() => command({ type: "set_timing_mode", mode: state.timingMode === "free" ? "quantized" : "free" })}
         style={state.timingMode === "quantized" ? { background: "var(--preview)", color: "#000" } : undefined}
-        title={state.timingMode === "free" ? "Free timing — click for quantized (snap to bar)" : "Quantized — click for free timing"}
+        title={state.timingMode === "free" ? "Snap off — free timing · click to snap to bar" : "Snap on — quantized to bar · click for free timing"}
       >
-        {state.timingMode === "free" ? "FREE" : "QNT"}
+        SNAP
       </button>
       <button className="header-btn"
         onClick={() => {

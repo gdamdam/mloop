@@ -99,17 +99,41 @@ export async function loadSession(name: string): Promise<SessionData | undefined
   });
 }
 
-/** List all saved sessions (name + timestamp), sorted newest first. */
-export async function listSessions(): Promise<{ name: string; savedAt: number }[]> {
+/**
+ * Lightweight summary of a saved session — no ArrayBuffer data.
+ * Returned by `listSessions` so the session panel can render thumbnails
+ * without loading multi-megabyte audio buffers.
+ */
+export interface SessionMeta {
+  name: string;
+  savedAt: number;
+  bpm: number;
+  syncMode: "free" | "sync" | "lock";
+  timingMode: "free" | "quantized";
+  /** Layer count for each looper track (index = track index). */
+  trackLayers: number[];
+  /** Number of PAD slots that have audio loaded. */
+  padSlots: number;
+}
+
+/** List all saved sessions as lightweight metadata, sorted newest first. */
+export async function listSessions(): Promise<SessionMeta[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const req = tx.objectStore(STORE_NAME).getAll();
     req.onsuccess = () => {
-      const sessions = (req.result as SessionData[]).map((s) => ({
-        name: s.name,
-        savedAt: s.savedAt,
-      }));
+      const sessions = (req.result as SessionData[])
+        .filter((s) => s.name !== "__pinned__")
+        .map<SessionMeta>((s) => ({
+          name: s.name,
+          savedAt: s.savedAt,
+          bpm: s.bpm ?? 120,
+          syncMode: s.syncMode ?? "free",
+          timingMode: s.timingMode ?? "free",
+          trackLayers: s.tracks.map((t) => t.layers.length),
+          padSlots: s.pad?.slots.filter((sl) => !!sl.buffer).length ?? 0,
+        }));
       sessions.sort((a, b) => b.savedAt - a.savedAt);
       resolve(sessions);
     };
