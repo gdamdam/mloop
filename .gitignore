@@ -23,3 +23,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local-only project knowledge (not tracked — mirror of mpump/misc/ pattern)
+misc/

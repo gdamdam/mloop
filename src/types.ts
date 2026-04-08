@@ -116,12 +116,15 @@ export type LoopCommand =
 /** Available effect types — order matches the default chain routing. */
 export type EffectName = "lowpass" | "compressor" | "highpass" | "distortion" | "bitcrusher" | "chorus" | "phaser" | "delay" | "reverb";
 
+/** Reverb algorithm preset — controls IR shape (from mpump). */
+export type ReverbType = "room" | "hall" | "plate" | "spring";
+
 /** Type-safe parameter shapes for each effect. All effects have an `on` toggle. */
 export interface EffectParams {
   lowpass: { on: boolean; cutoff: number; q: number };
   delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: string };
   distortion: { on: boolean; drive: number };
-  reverb: { on: boolean; decay: number; mix: number };
+  reverb: { on: boolean; decay: number; mix: number; type?: ReverbType };
   compressor: { on: boolean; threshold: number; ratio: number };
   highpass: { on: boolean; cutoff: number; q: number };
   chorus: { on: boolean; rate: number; depth: number; mix: number };
@@ -134,7 +137,7 @@ export const DEFAULT_EFFECTS: EffectParams = {
   lowpass: { on: false, cutoff: 8000, q: 1 },
   delay: { on: false, time: 0.3, feedback: 0.4, mix: 0.3, sync: true, division: "1/16" },
   distortion: { on: false, drive: 20 },
-  reverb: { on: false, decay: 2, mix: 0.3 },
+  reverb: { on: false, decay: 2, mix: 0.3, type: "room" },
   compressor: { on: false, threshold: -24, ratio: 4 },
   highpass: { on: false, cutoff: 200, q: 1 },
   chorus: { on: false, rate: 1.5, depth: 0.003, mix: 0.3 },

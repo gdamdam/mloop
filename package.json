@@ -1,7 +1,8 @@
 {
   "name": "mloop",
-  "private": true,
   "version": "1.0.0-pre.66",
+  "description": "Browser-based loop station and MPC-style sampler — companion to mpump.",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",

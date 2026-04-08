@@ -11,33 +11,35 @@
  * ramping (setTargetAtTime) for knob tweaks to avoid clicks.
  */
 
-import type { EffectParams, EffectName } from "../types";
+import type { EffectParams, EffectName, ReverbType } from "../types";
 import { DEFAULT_EFFECTS } from "../types";
 
-// ── Curve generators ──────────────────────────────────────────────────
+// ── Curve generators (ported from mpump drumSynth.ts) ────────────────
 
 /**
- * Generate a soft-clip distortion curve using the formula:
- *   f(x) = (1+k)*x / (1 + k*|x|)
- * Higher drive values push signal harder into saturation.
+ * Generate a distortion curve for WaveShaperNode.
+ * Soft-clip base + subtle asymmetric term for even-harmonic (tube) warmth.
+ * 1024 samples for smooth clipping (ported from mpump).
  */
 function makeDistortionCurve(drive: number): Float32Array<ArrayBuffer> {
-  const n = 256;
+  const n = 1024;
   const curve = new Float32Array(n);
   const k = drive;
   for (let i = 0; i < n; i++) {
     const x = (i * 2) / n - 1;
-    curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
+    const base = ((1 + k) * x) / (1 + k * Math.abs(x));
+    const asym = 0.05 * x * Math.exp(-x * x * 4);
+    curve[i] = base + asym;
   }
   return curve;
 }
 
 /**
- * Generate a staircase curve that quantizes signal amplitude.
- * Fewer bits = more aggressive quantization = more lo-fi crunch.
+ * Generate a staircase curve for bit-depth reduction.
+ * 65536 samples to minimize resampling artifacts (ported from mpump).
  */
 function makeBitcrushCurve(bits: number): Float32Array<ArrayBuffer> {
-  const n = 4096;
+  const n = 65536;
   const curve = new Float32Array(n);
   const steps = Math.pow(2, bits);
   for (let i = 0; i < n; i++) {
@@ -47,19 +49,109 @@ function makeBitcrushCurve(bits: number): Float32Array<ArrayBuffer> {
   return curve;
 }
 
+// Tiny seeded PRNG for reproducible IRs (ported from mpump).
+function seededRandom(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 0xffffffff;
+  };
+}
+
+// Per-type impulse response parameters for algorithmic reverb (from mpump).
+const REVERB_PRESETS: Record<ReverbType, {
+  erTimes: number[]; erGains: number[]; erStereo: number;
+  predelay: number; tailBright: number; diffStages: number;
+  apDelays: number[]; apGain: number; density: number;
+}> = {
+  room: {
+    erTimes: [0.007, 0.013, 0.019, 0.027, 0.037, 0.048, 0.061, 0.079],
+    erGains: [0.85, 0.72, 0.60, 0.50, 0.40, 0.32, 0.25, 0.18],
+    erStereo: 0.002, predelay: 0.06, tailBright: 0.6,
+    diffStages: 2, apDelays: [0.0037, 0.0113], apGain: 0.6, density: 2.0,
+  },
+  hall: {
+    erTimes: [0.012, 0.024, 0.038, 0.055, 0.074, 0.096, 0.121, 0.150, 0.183, 0.220],
+    erGains: [0.90, 0.78, 0.67, 0.57, 0.48, 0.40, 0.33, 0.27, 0.22, 0.17],
+    erStereo: 0.004, predelay: 0.10, tailBright: 0.4,
+    diffStages: 3, apDelays: [0.0047, 0.0137, 0.0211], apGain: 0.65, density: 2.5,
+  },
+  plate: {
+    erTimes: [0.002, 0.005, 0.008, 0.012, 0.017, 0.023],
+    erGains: [0.95, 0.85, 0.75, 0.65, 0.55, 0.45],
+    erStereo: 0.001, predelay: 0.01, tailBright: 0.85,
+    diffStages: 4, apDelays: [0.0013, 0.0037, 0.0067, 0.0097], apGain: 0.7, density: 3.0,
+  },
+  spring: {
+    erTimes: [0.003, 0.030, 0.033, 0.060, 0.063, 0.090],
+    erGains: [0.90, 0.70, 0.65, 0.50, 0.45, 0.35],
+    erStereo: 0.0005, predelay: 0.03, tailBright: 0.5,
+    diffStages: 2, apDelays: [0.0029, 0.0089], apGain: 0.55, density: 1.8,
+  },
+};
+
 /**
- * Generate a synthetic impulse response for convolution reverb.
- * Uses exponential decay of white noise — cheap but convincing.
- * The 0.3 factor in the exponent controls early-reflection density.
+ * Generate a synthetic impulse response for reverb (ported from mpump).
+ * Models early reflections, diffuse tail, allpass diffusion, and a
+ * DC-blocking filter. Replaces mloop's previous noise-decay IR.
  */
-function generateImpulseResponse(ctx: AudioContext, decay: number): AudioBuffer {
+function generateImpulseResponse(ctx: AudioContext, decay: number, type: ReverbType = "room"): AudioBuffer {
   const rate = ctx.sampleRate;
   const len = Math.ceil(rate * decay);
   const buf = ctx.createBuffer(2, len, rate);
+  const rand = seededRandom(7919);
+  const p = REVERB_PRESETS[type];
+
   for (let ch = 0; ch < 2; ch++) {
     const data = buf.getChannelData(ch);
+
+    // Early reflections
+    for (let r = 0; r < p.erTimes.length; r++) {
+      const offset = ch === 0 ? 0 : p.erStereo * (r % 3 === 0 ? 1 : -1);
+      const sampleIdx = Math.round((p.erTimes[r] + offset) * rate);
+      if (sampleIdx < len) {
+        data[sampleIdx] += p.erGains[r] * (ch === 0 ? 1 : -1 + 2 * (r % 2));
+      }
+    }
+
+    // Late diffuse tail
+    const predelay = Math.round(p.predelay * rate);
+    const decayRate = 1 / (rate * decay * 0.45);
+    for (let i = predelay; i < len; i++) {
+      data[i] += (rand() * 2 - 1) * p.density * Math.exp(-(i - predelay) * decayRate);
+    }
+
+    // Brightness filter (one-pole LP on tail)
+    if (p.tailBright < 1) {
+      let lpPrev = 0;
+      const alpha = p.tailBright;
+      for (let i = predelay; i < len; i++) {
+        data[i] = lpPrev = lpPrev + alpha * (data[i] - lpPrev);
+      }
+    }
+
+    // Allpass diffusion (Schroeder-style)
+    for (let stage = 0; stage < p.diffStages; stage++) {
+      const apDelay = Math.round(p.apDelays[stage] * rate);
+      const apBuf = new Float32Array(apDelay);
+      let apIdx = 0;
+      for (let i = 0; i < len; i++) {
+        const delayed = apBuf[apIdx];
+        const input = data[i];
+        const out = -input * p.apGain + delayed;
+        apBuf[apIdx] = input + delayed * p.apGain;
+        data[i] = out;
+        apIdx = (apIdx + 1) % apDelay;
+      }
+    }
+
+    // DC-blocking filter
+    let dcX1 = 0, dcY1 = 0;
     for (let i = 0; i < len; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (rate * decay * 0.3));
+      const x = data[i];
+      dcY1 = x - dcX1 + 0.995 * dcY1;
+      dcX1 = x;
+      data[i] = dcY1;
     }
   }
   return buf;
@@ -95,6 +187,7 @@ export class EffectsChain {
   private fxLFOs: OscillatorNode[] = [];
   private _bpm = 120;
   private lastReverbDecay = 2; // cache decay to detect when IR needs regeneration
+  private lastReverbType: ReverbType = "room"; // cache type to detect IR regen
   /**
    * Live node references for smooth parameter updates.
    * When a knob is dragged, we ramp AudioParams directly instead of
@@ -203,13 +296,14 @@ export class EffectsChain {
         return true;
       }
       case "reverb": {
-        // Decay change requires new impulse response (full rebuild)
-        if (this.fx.reverb.decay !== this.lastReverbDecay) return false;
-        // Mix-only change: smooth crossfade between dry and wet
+        // Decay or type change requires new impulse response (full rebuild)
+        const curType: ReverbType = this.fx.reverb.type ?? "room";
+        if (this.fx.reverb.decay !== this.lastReverbDecay || curType !== this.lastReverbType) return false;
+        // Mix-only change: smooth crossfade (mpump gain staging: dry=1-mix*0.5, wet=mix*1.5)
         const dry = nodes[0] as GainNode;
         const wet = nodes[1] as GainNode;
-        dry.gain.setTargetAtTime(1 - this.fx.reverb.mix, t, RAMP);
-        wet.gain.setTargetAtTime(this.fx.reverb.mix, t, RAMP);
+        dry.gain.setTargetAtTime(1 - this.fx.reverb.mix * 0.5, t, RAMP);
+        wet.gain.setTargetAtTime(this.fx.reverb.mix * 1.5, t, RAMP);
         return true;
       }
       case "compressor": {
@@ -219,18 +313,28 @@ export class EffectsChain {
         return true;
       }
       case "chorus": {
-        // Stereo chorus: dry=0, wetL=1, wetR=2
+        // 3-voice: dry=0, wetL=1, wetC=2, wetR=3
         const dry = nodes[0] as GainNode;
         const wetL = nodes[1] as GainNode;
-        const wetR = nodes[2] as GainNode;
-        dry.gain.setTargetAtTime(1 - this.fx.chorus.mix, t, RAMP);
-        wetL.gain.setTargetAtTime(this.fx.chorus.mix, t, RAMP);
-        wetR.gain.setTargetAtTime(this.fx.chorus.mix, t, RAMP);
+        const wetC = nodes[2] as GainNode;
+        const wetR = nodes[3] as GainNode;
+        const mix = this.fx.chorus.mix;
+        dry.gain.setTargetAtTime(1 - mix, t, RAMP);
+        wetL.gain.setTargetAtTime(mix * 0.7, t, RAMP);
+        wetC.gain.setTargetAtTime(mix * 0.5, t, RAMP);
+        wetR.gain.setTargetAtTime(mix * 0.7, t, RAMP);
         return true;
       }
       case "bitcrusher": {
         const ws = nodes[0] as WaveShaperNode;
+        const preGain = nodes[1] as GainNode | undefined;
+        const postGain = nodes[2] as GainNode | undefined;
         ws.curve = makeBitcrushCurve(this.fx.bitcrusher.bits);
+        if (preGain && postGain) {
+          const pre = 1 + (16 - this.fx.bitcrusher.bits) * 0.15;
+          preGain.gain.setTargetAtTime(pre, t, RAMP);
+          postGain.gain.setTargetAtTime(1 / pre, t, RAMP);
+        }
         return true;
       }
       case "phaser": {
@@ -343,48 +447,69 @@ export class EffectsChain {
         return comp;
       }
       case "bitcrusher": {
-        // WaveShaper with staircase curve simulates bit depth reduction
+        // WaveShaper with staircase curve simulates bit depth reduction.
+        // Pre/post gain compensates for perceived level loss at low bit counts (mpump).
+        const preGain = this.ctx.createGain();
+        preGain.gain.value = 1 + (16 - this.fx.bitcrusher.bits) * 0.15;
         const ws = this.ctx.createWaveShaper();
         ws.curve = makeBitcrushCurve(this.fx.bitcrusher.bits);
-        prev.connect(ws);
-        this.fxNodes.push(ws);
-        this.liveNodes.set("bitcrusher", [ws]);
-        return ws;
+        const postGain = this.ctx.createGain();
+        postGain.gain.value = 1 / preGain.gain.value;
+        prev.connect(preGain);
+        preGain.connect(ws);
+        ws.connect(postGain);
+        this.fxNodes.push(preGain, ws, postGain);
+        this.liveNodes.set("bitcrusher", [ws, preGain, postGain]);
+        return postGain;
       }
       case "chorus": {
-        // Stereo chorus: two delay lines with quadrature LFOs panned L/R
+        // 3-voice stereo chorus (ported from mpump): L/center/R delay lines
+        // with offset LFOs plus ~20% feedback for a richer ensemble.
         const { rate, depth, mix } = this.fx.chorus;
         const dry = this.ctx.createGain(); dry.gain.value = 1 - mix;
-        const wetL = this.ctx.createGain(); wetL.gain.value = mix;
-        const wetR = this.ctx.createGain(); wetR.gain.value = mix;
+        const wetL = this.ctx.createGain(); wetL.gain.value = mix * 0.7;
+        const wetC = this.ctx.createGain(); wetC.gain.value = mix * 0.5;
+        const wetR = this.ctx.createGain(); wetR.gain.value = mix * 0.7;
         const delayL = this.ctx.createDelay(0.05); delayL.delayTime.value = 0.012;
+        const delayC = this.ctx.createDelay(0.05); delayC.delayTime.value = 0.010;
         const delayR = this.ctx.createDelay(0.05); delayR.delayTime.value = 0.008;
+        // Feedback loops on L/R for denser ensemble
+        const fbL = this.ctx.createGain(); fbL.gain.value = 0.2;
+        const fbR = this.ctx.createGain(); fbR.gain.value = 0.2;
+        delayL.connect(fbL); fbL.connect(delayL);
+        delayR.connect(fbR); fbR.connect(delayR);
         // LFO L (sine)
         const lfoL = this.ctx.createOscillator(); lfoL.type = "sine"; lfoL.frequency.value = rate;
         const lfoGainL = this.ctx.createGain(); lfoGainL.gain.value = depth;
         lfoL.connect(lfoGainL); lfoGainL.connect(delayL.delayTime); lfoL.start();
-        // LFO R (quadrature — start with quarter-period offset for 90° phase)
+        // LFO Center (triangle, slightly slower for movement)
+        const lfoC = this.ctx.createOscillator(); lfoC.type = "triangle"; lfoC.frequency.value = rate * 0.7;
+        const lfoGainC = this.ctx.createGain(); lfoGainC.gain.value = depth * 0.6;
+        lfoC.connect(lfoGainC); lfoGainC.connect(delayC.delayTime); lfoC.start();
+        // LFO R (sine, quarter-period offset for 90° phase)
         const lfoR = this.ctx.createOscillator(); lfoR.type = "sine"; lfoR.frequency.value = rate;
         const lfoGainR = this.ctx.createGain(); lfoGainR.gain.value = depth;
         const quarterPeriod = 1 / (4 * Math.max(rate, 0.01));
         lfoR.connect(lfoGainR); lfoGainR.connect(delayR.delayTime);
         lfoR.start(this.ctx.currentTime + quarterPeriod);
-        this.fxLFOs.push(lfoL, lfoR);
-        // Pan wet signals L/R
+        this.fxLFOs.push(lfoL, lfoC, lfoR);
+        // Pan: L=-0.8, center=0, R=0.8
         const panL = this.ctx.createStereoPanner(); panL.pan.value = -0.8;
         const panR = this.ctx.createStereoPanner(); panR.pan.value = 0.8;
         prev.connect(dry);
         prev.connect(delayL); delayL.connect(wetL); wetL.connect(panL);
+        prev.connect(delayC); delayC.connect(wetC);
         prev.connect(delayR); delayR.connect(wetR); wetR.connect(panR);
         const merge = this.ctx.createGain();
-        dry.connect(merge); panL.connect(merge); panR.connect(merge);
-        this.fxNodes.push(dry, wetL, wetR, delayL, delayR, lfoGainL, lfoGainR, panL, panR, merge);
-        this.liveNodes.set("chorus", [dry, wetL, wetR]);
+        dry.connect(merge); panL.connect(merge); wetC.connect(merge); panR.connect(merge);
+        this.fxNodes.push(dry, wetL, wetC, wetR, delayL, delayC, delayR, fbL, fbR, lfoGainL, lfoGainC, lfoGainR, panL, panR, merge);
+        this.liveNodes.set("chorus", [dry, wetL, wetC, wetR]);
         return merge;
       }
       case "phaser": {
-        // Phaser: 4 cascaded allpass filters with LFO-modulated frequencies.
-        // Mixing dry + phase-shifted wet creates moving notches in the spectrum.
+        // 6-stage allpass phaser (ported from mpump).
+        // LFO depth scaled to 30% of each stage's center freq — prevents
+        // negative frequencies and keeps the sweep musical across the spectrum.
         const { rate, depth } = this.fx.phaser;
         const lfo = this.ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = rate; lfo.start();
         this.fxLFOs.push(lfo);
@@ -392,10 +517,11 @@ export class EffectsChain {
         const wet = this.ctx.createGain(); wet.gain.value = 0.5;
         prev.connect(dry);
         let apPrev: AudioNode = prev;
-        // Each allpass stage shifts phase at a different frequency
-        for (let i = 0; i < 4; i++) {
-          const ap = this.ctx.createBiquadFilter(); ap.type = "allpass"; ap.frequency.value = 1000 + i * 500;
-          const lg = this.ctx.createGain(); lg.gain.value = depth; lfo.connect(lg); lg.connect(ap.frequency);
+        const apFreqs = [200, 450, 1000, 2200, 4800, 10000];
+        for (let i = 0; i < 6; i++) {
+          const ap = this.ctx.createBiquadFilter(); ap.type = "allpass"; ap.frequency.value = apFreqs[i];
+          const lg = this.ctx.createGain(); lg.gain.value = apFreqs[i] * 0.3 * (depth / 1000);
+          lfo.connect(lg); lg.connect(ap.frequency);
           apPrev.connect(ap); apPrev = ap; this.fxNodes.push(ap, lg);
         }
         apPrev.connect(wet);
@@ -434,13 +560,16 @@ export class EffectsChain {
         return merge;
       }
       case "reverb": {
-        // Convolution reverb using a synthetic impulse response.
-        // IR is regenerated only when decay time changes.
+        // Convolution reverb with algorithmic IR (room/hall/plate/spring).
+        // Gain staging from mpump: dry=1-mix*0.5, wet=mix*1.5 for a louder wet tail.
         const { decay, mix } = this.fx.reverb;
+        const type: ReverbType = this.fx.reverb.type ?? "room";
         this.lastReverbDecay = decay;
-        const dry = this.ctx.createGain(); dry.gain.value = 1 - mix;
-        const wet = this.ctx.createGain(); wet.gain.value = mix;
-        const conv = this.ctx.createConvolver(); conv.buffer = generateImpulseResponse(this.ctx, decay);
+        this.lastReverbType = type;
+        const dry = this.ctx.createGain(); dry.gain.value = 1 - mix * 0.5;
+        const wet = this.ctx.createGain(); wet.gain.value = mix * 1.5;
+        const conv = this.ctx.createConvolver();
+        conv.buffer = generateImpulseResponse(this.ctx, decay, type);
         prev.connect(dry); prev.connect(conv); conv.connect(wet);
         const merge = this.ctx.createGain(); dry.connect(merge); wet.connect(merge);
         this.fxNodes.push(dry, wet, conv, merge);
