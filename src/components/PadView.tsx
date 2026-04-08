@@ -737,10 +737,35 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
 
       {/* Right: Scratchpad + Pad Detail + Step Sequencer */}
       <div className="pad-right">
-        <VuMeter
-          getAnalyser={() => engine?.getInputAnalyser() ?? engine?.getAnalyser() ?? null}
-          height={72}
-        />
+        {/* Top row: sequencer play button + master VU */}
+        <div style={{ display: "flex", alignItems: "stretch", gap: 8, marginBottom: 6 }}>
+          <button
+            onClick={() => {
+              if (!padEngine) return;
+              if (padEngine.isSeqPlaying) padEngine.stopSequencer();
+              else padEngine.startSequencer();
+              forceUpdate(n => n + 1);
+            }}
+            title="Play / Stop sequencer"
+            style={{
+              width: 72, height: 72, borderRadius: 10, flexShrink: 0,
+              fontSize: 24, fontWeight: 700,
+              background: padEngine?.isSeqPlaying ? "var(--playing)" : "var(--bg-cell)",
+              color: padEngine?.isSeqPlaying ? "#000" : "var(--text)",
+              border: "1px solid var(--border)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: padEngine?.isSeqPlaying ? "0 0 12px var(--playing)" : "none",
+            }}
+          >
+            {padEngine?.isSeqPlaying ? "■" : "▶"}
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <VuMeter
+              getAnalyser={() => engine?.getInputAnalyser() ?? engine?.getAnalyser() ?? null}
+              height={72}
+            />
+          </div>
+        </div>
         <ScratchpadRecorder engine={engine} />
         <PadDetail
           slot={selectedPad !== null ? slots[selectedPad] ?? null : null}

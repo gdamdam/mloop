@@ -193,18 +193,6 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
   }, [padEngine]);
 
   const [, forceRender] = useState(0);
-  // Start/stop sequencer
-  const handleSeqPlayStop = useCallback(() => {
-    if (!padEngine) return;
-    if (padEngine.isSeqPlaying) {
-      padEngine.stopSequencer();
-      setRecording(false);
-      setCurrentStep(-1);
-    } else {
-      padEngine.startSequencer();
-    }
-    forceRender(n => n + 1);
-  }, [padEngine]);
 
   // Pattern library handlers
   const handleSavePattern = useCallback(() => {
@@ -299,18 +287,6 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
     <div style={{ display: "flex", flexDirection: "column", gap: 4, height: "100%" }}>
       {/* Transport */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button
-          onClick={handleSeqPlayStop}
-          style={{
-            width: 32, height: 32, borderRadius: "50%", fontSize: 14,
-            background: playing ? "var(--playing)" : "var(--bg-cell)",
-            color: playing ? "#000" : "var(--text)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-          title="Play / Stop sequencer"
-        >
-          {playing ? "■" : "▶"}
-        </button>
         <button
           onClick={() => { if (!playing && padEngine) { padEngine.startSequencer(); forceRender(n => n + 1); } setRecording(!recording); }}
           style={{
