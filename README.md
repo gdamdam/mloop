@@ -2,7 +2,8 @@
 <p align="center">Browser-based loop station & MPC-style sampler.<br>Record, layer, slice, sequence, perform — no install, no subscription, no account.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-1.0.0--pre.49-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-1.0.0--pre.66-blue" alt="Version"></a>
+  <a href="https://mpump.live"><img src="https://img.shields.io/badge/companion-mpump-orange" alt="Companion to mpump"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-green" alt="License"></a>
   <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet?logo=anthropic&logoColor=white" alt="Built with Claude Code"></a>
   <br>
@@ -13,7 +14,7 @@
 
 Open **[mloop](https://mloop.mpump.live/)** and start making music — no MIDI device required. 16-pad sampler with step sequencer, 3 loop tracks with overdub, 9 real-time effects, KAOS XY pad, 7 synthesized drum kits (56 sounds), sample slicer, mic recording, and Link Bridge sync — all in the browser via Web Audio API.
 
-Companion to [mpump](https://mpump.live) — the browser-based drum machine & synth sequencer.
+Companion to **[mpump](https://mpump.live)** — the browser-based drum machine & synth sequencer. mloop and mpump share a design language, effects DSP (see `src/engine/EffectsChain.ts`, ported from mpump's `AudioPort.ts`), and the [Link Bridge](docs/LINK-BRIDGE.md) for Ableton Link sync. Engineering notes live in [`docs/`](docs/).
 
 ## Two Modes
 
