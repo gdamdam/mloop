@@ -372,6 +372,25 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
           ↩
         </button>
 
+        {/* Master record — captures everything that's playing as a WAV.
+            Lives in the header so it works from PAD / LOOPER / MIXER alike. */}
+        <button
+          className="header-btn"
+          onClick={handleMasterRec}
+          title={masterRec ? "Stop master recording" : "Record master output as WAV"}
+          style={{
+            fontSize: 10, fontWeight: 700, minWidth: masterRec ? 64 : 36,
+            padding: "4px 8px",
+            background: masterRec ? "var(--record)" : undefined,
+            color: masterRec ? "#000" : undefined,
+            animation: masterRec ? "pulse 1s ease-in-out infinite" : undefined,
+          }}
+        >
+          {masterRec
+            ? `■ ${Math.floor(masterRecTime / 60000)}:${String(Math.floor((masterRecTime / 1000) % 60)).padStart(2, "0")}`
+            : "● REC"}
+        </button>
+
         {/* Master volume — targets post-limiter output trim (Option B layout). */}
         <HeaderSlider label="VOL" min={0} max={1.5} step={0.01} initial={1}
           format={(v) => `${Math.round(v * 100)}%`}
@@ -486,23 +505,6 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
             <button className="header-btn" onClick={() => command({ type: "toggle_metronome" })}
               style={state.metronome ? { background: "var(--preview)", color: "#000" } : undefined} title="Metronome">♩</button>
             <button className="header-btn" onClick={() => command({ type: "tap_tempo" })} title="Tap Tempo" style={{ fontSize: 9 }}>T</button>
-            {/* Master record — captures full output as WAV */}
-            <button
-              className="header-btn"
-              onClick={handleMasterRec}
-              title={masterRec ? "Stop master recording" : "Record master output"}
-              style={{
-                fontSize: 10, fontWeight: 700, minWidth: masterRec ? 64 : 36,
-                padding: "4px 8px",
-                background: masterRec ? "var(--record)" : undefined,
-                color: masterRec ? "#000" : undefined,
-                animation: masterRec ? "pulse 1s ease-in-out infinite" : undefined,
-              }}
-            >
-              {masterRec
-                ? `■ ${Math.floor(masterRecTime / 60000)}:${String(Math.floor((masterRecTime / 1000) % 60)).padStart(2, "0")}`
-                : "REC"}
-            </button>
             {/* Analog needle VU meter — inline with master rec controls */}
             <div style={{ width: 70, height: 36, flexShrink: 0 }}>
               <NeedleMeter
