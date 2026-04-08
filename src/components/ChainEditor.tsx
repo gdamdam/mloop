@@ -7,14 +7,17 @@ import type { EffectName } from "../types";
 
 const LABELS: Record<EffectName, string> = {
   lowpass: "LPF",
-  compressor: "COMP",
   highpass: "HPF",
+  delay: "DELAY",
   distortion: "DIST",
-  bitcrusher: "CRUSH",
+  reverb: "REVERB",
+  compressor: "COMP",
+  flanger: "FLANG",
+  duck: "DUCK",
   chorus: "CHORUS",
   phaser: "PHASER",
-  delay: "DELAY",
-  reverb: "REVERB",
+  bitcrusher: "CRUSH",
+  tremolo: "TREM",
 };
 
 interface ChainEditorProps {

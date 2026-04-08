@@ -6,7 +6,20 @@ import { ChainEditor } from "./ChainEditor";
 import type { AudioEngine } from "../engine/AudioEngine";
 import { GestureRecorder } from "../engine/GestureRecorder";
 
-const DEFAULT_EFFECT_ORDER: EffectName[] = ["lowpass", "compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
+/**
+ * Default chain order — mirrors mpump. lowpass/highpass sit at the front
+ * (hidden from the visible grid, routed to by the XY pad). The rest are
+ * in mpump's GRID_EFFECTS order so the toggles match visually.
+ */
+const DEFAULT_EFFECT_ORDER: EffectName[] = [
+  "lowpass", "highpass",
+  "delay", "distortion", "reverb", "compressor", "flanger", "duck", "chorus", "phaser", "bitcrusher", "tremolo",
+];
+
+/** Effect IDs rendered in the kaos-fx grid, in mpump's order. */
+const GRID_EFFECTS: EffectName[] = [
+  "delay", "distortion", "reverb", "compressor", "flanger", "duck", "chorus", "phaser", "bitcrusher", "tremolo",
+];
 
 // ── XY target definitions ────────────────────────────────────────────────
 
@@ -46,17 +59,36 @@ function applyXYValue(target: XYTarget, value: number, engine: AudioEngine): voi
 
 // ── Effect labels ────────────────────────────────────────────────────────
 
-const EFFECT_LABELS: { name: EffectName; label: string }[] = [
-  { name: "lowpass", label: "LPF" },
-  { name: "compressor", label: "COMP" },
-  { name: "highpass", label: "HPF" },
-  { name: "distortion", label: "DIST" },
-  { name: "bitcrusher", label: "CRUSH" },
-  { name: "chorus", label: "CHOR" },
-  { name: "phaser", label: "PHAS" },
-  { name: "delay", label: "DLY" },
-  { name: "reverb", label: "VERB" },
-];
+/** Short labels used by the kaos-fx grid and the chain readout. Matches mpump. */
+const EFFECT_LABELS: Record<EffectName, string> = {
+  lowpass: "LPF",
+  highpass: "HPF",
+  delay: "DELAY",
+  distortion: "DIST",
+  reverb: "REVERB",
+  compressor: "COMP",
+  flanger: "FLANG",
+  duck: "DUCK",
+  chorus: "CHORUS",
+  phaser: "PHASER",
+  bitcrusher: "CRUSH",
+  tremolo: "TREM",
+};
+
+const EFFECT_FULL_NAMES: Record<EffectName, string> = {
+  lowpass: "Low-Pass Filter",
+  highpass: "High-Pass Filter",
+  delay: "Delay",
+  distortion: "Distortion",
+  reverb: "Reverb",
+  compressor: "Compressor",
+  flanger: "Flanger",
+  duck: "Sidechain Duck",
+  chorus: "Chorus",
+  phaser: "Phaser",
+  bitcrusher: "Bitcrusher",
+  tremolo: "Tremolo",
+};
 
 // ── Trail type ───────────────────────────────────────────────────────────
 
@@ -489,65 +521,42 @@ export function KaosPad({ engine }: KaosPadProps) {
       </div>
       </div>
 
-      {/* Right: Effects chain */}
+      {/* Right: Effects chain — markup mirrors mpump's kaos-fx layout. */}
       <div className="kaos-fx-col">
-      <div>
-        <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 4, letterSpacing: 1 }}>
-          EFFECTS <span style={{ opacity: 0.5, fontStyle: "italic" }}>tap on/off · hold to edit</span>
+      <div className="kaos-fx">
+        <div className="kaos-fx-label">
+          EFFECTS <span className="kaos-fx-hint">tap on/off · hold to edit</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
-          {EFFECT_LABELS.map(({ name, label }) => {
+        <div className="kaos-fx-grid">
+          {GRID_EFFECTS.map((name) => {
             const isOn = effects[name].on;
             const activeInOrder = effectOrder.filter(e => effects[e].on);
             const chainIdx = isOn ? activeInOrder.indexOf(name) : -1;
             return (
               <button
                 key={name}
-                style={{
-                  position: "relative",
-                  fontSize: 10, fontWeight: 700, padding: "8px 4px", borderRadius: 5,
-                  border: "1px solid var(--preview)",
-                  background: isOn ? "var(--preview)" : "transparent",
-                  color: isOn ? "#000" : "var(--preview)",
-                  opacity: isOn ? 1 : 0.5,
-                  boxShadow: isOn ? "0 0 10px color-mix(in srgb, var(--preview) 45%, transparent)" : "none",
-                  cursor: "pointer",
-                }}
+                className={`kaos-fx-btn ${isOn ? "active" : ""}`}
+                style={{ position: "relative" }}
                 onClick={() => { if (!didLongPress.current) toggleFx(name); }}
                 onPointerDown={() => fxPointerDown(name)}
                 onPointerUp={fxPointerUp}
                 onPointerLeave={fxPointerUp}
-                title={`Toggle ${label} · Hold to edit`}
+                title={`${EFFECT_FULL_NAMES[name]}: ${isOn ? "on" : "off"} (hold to edit)`}
               >
-                {label}
-                {chainIdx >= 0 && (
-                  <span style={{
-                    position: "absolute", top: -4, right: -4,
-                    width: 14, height: 14, borderRadius: "50%",
-                    background: "#000", color: "var(--preview)",
-                    fontSize: 8, fontWeight: 800,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    border: "1px solid var(--preview)",
-                  }}>
-                    {chainIdx + 1}
-                  </span>
-                )}
+                {EFFECT_LABELS[name]}
+                {chainIdx >= 0 && <span className="kaos-fx-badge">{chainIdx + 1}</span>}
               </button>
             );
           })}
         </div>
-        {/* Chain display — click to reorder */}
-        <div
-          onClick={() => setShowChainEditor(true)}
-          style={{
-            fontSize: 9, color: "var(--text-dim)", marginTop: 6,
-            textAlign: "center", cursor: "pointer",
-          }}
-          title="Click to reorder effect chain"
-        >
-          Chain: {effectOrder.filter(n => effects[n].on).map(n =>
-            EFFECT_LABELS.find(e => e.name === n)?.label
-          ).join(" → ") || "none"}
+        <div className="kaos-fx-chain-row">
+          <div
+            className="kaos-fx-chain"
+            onClick={() => setShowChainEditor(true)}
+            title="Click to reorder effect chain"
+          >
+            Chain: {effectOrder.filter(n => effects[n].on).map(n => EFFECT_LABELS[n]).join(" → ") || "none"}
+          </div>
         </div>
       </div>
 

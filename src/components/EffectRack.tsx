@@ -2,16 +2,22 @@ import { useState, useRef, useCallback } from "react";
 import type { EffectParams, EffectName } from "../types";
 import { EffectEditor } from "./EffectEditor";
 
+/**
+ * Per-track effect toggles — same 10 effects as the kaos grid (mpump
+ * parity). lowpass/highpass are hidden from this rack too; they stay in
+ * the engine for XY-pad routing but don't need dedicated buttons here.
+ */
 const EFFECT_LABELS: { name: EffectName; label: string }[] = [
-  { name: "lowpass", label: "LPF" },
-  { name: "compressor", label: "COMP" },
-  { name: "highpass", label: "HPF" },
+  { name: "delay", label: "DELAY" },
   { name: "distortion", label: "DIST" },
+  { name: "reverb", label: "REVERB" },
+  { name: "compressor", label: "COMP" },
+  { name: "flanger", label: "FLANG" },
+  { name: "duck", label: "DUCK" },
+  { name: "chorus", label: "CHORUS" },
+  { name: "phaser", label: "PHASER" },
   { name: "bitcrusher", label: "CRUSH" },
-  { name: "chorus", label: "CHOR" },
-  { name: "phaser", label: "PHAS" },
-  { name: "delay", label: "DLY" },
-  { name: "reverb", label: "VERB" },
+  { name: "tremolo", label: "TREM" },
 ];
 
 interface EffectRackProps {

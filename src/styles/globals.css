@@ -1092,3 +1092,203 @@ input[type="range"] {
   .about-line { font-size: 11px; letter-spacing: 1px; }
   .about-logo { font-size: 9px; }
 }
+
+/* ── Kaos effects grid (mpump-style) ────────────────────────────────── */
+.kaos-fx {
+  background: color-mix(in srgb, var(--preview) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--preview) 20%, transparent);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.kaos-fx-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--preview);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.kaos-fx-hint {
+  font-weight: 400;
+  color: var(--preview);
+  opacity: 0.5;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 6px;
+  font-size: 9px;
+}
+.kaos-fx-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+}
+.kaos-fx-btn {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 6px 2px;
+  border-radius: 5px;
+  border: 1px solid var(--preview);
+  background: transparent;
+  color: var(--preview);
+  cursor: pointer;
+  opacity: 0.5;
+  font-family: inherit;
+}
+.kaos-fx-btn.active {
+  background: var(--preview);
+  color: #000;
+  opacity: 1;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--preview) 45%, transparent);
+}
+.kaos-fx-badge {
+  font-size: 7px;
+  font-weight: 800;
+  background: #000;
+  color: var(--preview);
+  border-radius: 50%;
+  width: 13px;
+  height: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  border: 1px solid var(--preview);
+}
+.kaos-fx-chain-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 4px;
+}
+.kaos-fx-chain {
+  font-size: 9px;
+  color: var(--preview);
+  opacity: 0.6;
+  cursor: pointer;
+  text-align: center;
+}
+.kaos-fx-chain:hover {
+  opacity: 1;
+}
+
+/* ── Long-press FX editor (SVG vis + sliders, mpump-style) ──────────── */
+.fx-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.fx-editor {
+  background: var(--bg-panel);
+  border: 1px solid var(--preview);
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 280px;
+  max-width: 90vw;
+  box-shadow: 0 0 30px color-mix(in srgb, var(--preview) 25%, transparent);
+}
+.fx-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.fx-editor-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--preview);
+}
+.fx-editor-close {
+  font-size: 16px;
+  background: none;
+  border: none;
+  color: var(--preview);
+  opacity: 0.7;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fx-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.fx-editor-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--preview);
+  opacity: 0.7;
+  min-width: 60px;
+}
+.fx-editor-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+.fx-editor-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--preview);
+  cursor: pointer;
+}
+.fx-editor-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--preview);
+  border: none;
+  cursor: pointer;
+}
+.fx-editor-value {
+  font-size: 10px;
+  color: var(--preview);
+  opacity: 0.7;
+  min-width: 50px;
+  text-align: right;
+}
+.fx-editor-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-cell);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+}
+.fx-editor-pill.active {
+  background: var(--preview);
+  color: #000;
+  border-color: var(--preview);
+}
+.fx-editor-select {
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-cell);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+.fx-vis {
+  display: block;
+  margin: 4px auto 8px;
+  border-radius: 4px;
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+}

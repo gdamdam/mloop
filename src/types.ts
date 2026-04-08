@@ -113,16 +113,38 @@ export type LoopCommand =
 
 // ── Effects (ported from mpump) ──────────────────────────────────────────
 
-/** Available effect types — order matches the default chain routing. */
-export type EffectName = "lowpass" | "compressor" | "highpass" | "distortion" | "bitcrusher" | "chorus" | "phaser" | "delay" | "reverb";
+/**
+ * Available effect types.
+ *
+ * The visible kaos grid only shows 10 of these (see KaosPad's GRID_EFFECTS,
+ * matched to mpump). `lowpass` stays in the union because the XY pad routes
+ * cutoff/resonance to it internally — it just isn't rendered as a grid button.
+ */
+export type EffectName =
+  | "lowpass"
+  | "delay"
+  | "distortion"
+  | "reverb"
+  | "compressor"
+  | "flanger"
+  | "duck"
+  | "chorus"
+  | "phaser"
+  | "highpass"
+  | "bitcrusher"
+  | "tremolo";
 
 /** Reverb algorithm preset — controls IR shape (from mpump). */
 export type ReverbType = "room" | "hall" | "plate" | "spring";
 
+/** Tempo-synced delay divisions (matches mpump). */
+export const DELAY_DIVISIONS = ["1/2", "1/4", "1/8", "1/8d", "1/16", "1/32"] as const;
+export type DelayDivision = typeof DELAY_DIVISIONS[number];
+
 /** Type-safe parameter shapes for each effect. All effects have an `on` toggle. */
 export interface EffectParams {
   lowpass: { on: boolean; cutoff: number; q: number };
-  delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: string };
+  delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: DelayDivision };
   distortion: { on: boolean; drive: number };
   reverb: { on: boolean; decay: number; mix: number; type?: ReverbType };
   compressor: { on: boolean; threshold: number; ratio: number };
@@ -130,6 +152,13 @@ export interface EffectParams {
   chorus: { on: boolean; rate: number; depth: number; mix: number };
   phaser: { on: boolean; rate: number; depth: number };
   bitcrusher: { on: boolean; bits: number };
+  /** Sidechain duck — UI placeholder; engine-side it's currently a passthrough
+   *  (matches mpump, which also handles ducking outside the effect chain). */
+  duck: { on: boolean; depth: number; release: number };
+  /** Short-delay comb filter with feedback. */
+  flanger: { on: boolean; rate: number; depth: number; feedback: number; mix: number };
+  /** Amplitude-modulation wobble. */
+  tremolo: { on: boolean; rate: number; depth: number; shape: "sine" | "square" };
 }
 
 /** Sensible defaults — all effects start off with moderate settings. */
@@ -143,4 +172,7 @@ export const DEFAULT_EFFECTS: EffectParams = {
   chorus: { on: false, rate: 1.5, depth: 0.003, mix: 0.3 },
   phaser: { on: false, rate: 0.5, depth: 1000 },
   bitcrusher: { on: false, bits: 8 },
+  duck: { on: false, depth: 0.6, release: 0.1 },
+  flanger: { on: false, rate: 0.5, depth: 0.5, feedback: 0.5, mix: 0.5 },
+  tremolo: { on: false, rate: 4, depth: 0.5, shape: "sine" },
 };

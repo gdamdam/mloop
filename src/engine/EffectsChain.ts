@@ -200,7 +200,22 @@ export class EffectsChain {
     this.inputNode = inputNode;
     this.outputNode = outputNode;
     this.fx = structuredClone(DEFAULT_EFFECTS);
-    this.effectOrder = ["lowpass", "compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
+    // Chain order mirrors mpump's kaos grid order. lowpass + highpass sit at
+    // the front of the list (not rendered in the grid but used by the XY pad).
+    this.effectOrder = [
+      "lowpass",
+      "highpass",
+      "delay",
+      "distortion",
+      "reverb",
+      "compressor",
+      "flanger",
+      "duck",
+      "chorus",
+      "phaser",
+      "bitcrusher",
+      "tremolo",
+    ];
 
     // Initial chain: straight wire from input → output (no effects active)
     this.inputNode.connect(this.outputNode);
@@ -341,6 +356,32 @@ export class EffectsChain {
         // Can't smoothly update allpass chain — only handle via rebuild
         return false;
       }
+      case "flanger": {
+        // Node order: dry=0, wet=1, fb=2, lfoGain=3
+        const dry = nodes[0] as GainNode;
+        const wet = nodes[1] as GainNode;
+        const fb = nodes[2] as GainNode;
+        const lfoGain = nodes[3] as GainNode;
+        const p = this.fx.flanger;
+        dry.gain.setTargetAtTime(1 - p.mix, t, RAMP);
+        wet.gain.setTargetAtTime(p.mix, t, RAMP);
+        fb.gain.setTargetAtTime(Math.min(p.feedback, 0.95), t, RAMP);
+        lfoGain.gain.setTargetAtTime(p.depth * 0.003, t, RAMP);
+        // Rate changes need a new oscillator — fall through to rebuild
+        return false;
+      }
+      case "tremolo": {
+        // Depth can ramp; rate/shape need rebuild
+        const tremGain = nodes[0] as GainNode;
+        const lfoGain = nodes[1] as GainNode;
+        const p = this.fx.tremolo;
+        tremGain.gain.setTargetAtTime(1 - p.depth * 0.5, t, RAMP);
+        lfoGain.gain.setTargetAtTime(p.depth * 0.5, t, RAMP);
+        return false;
+      }
+      case "duck":
+        // Passthrough — nothing to update
+        return true;
       default:
         return false;
     }
@@ -558,6 +599,52 @@ export class EffectsChain {
         this.fxNodes.push(dry, wetGain, dlL, dlR, fbLR, fbRL, panL, panR, wetMerge, merge);
         this.liveNodes.set("delay", [dry, wetGain, dlL, fbLR, merge]);
         return merge;
+      }
+      case "flanger": {
+        // Flanger: short delay (~3ms) + LFO + high feedback = metallic sweep.
+        // Ported from mpump AudioPort.ts.
+        const { rate, depth, feedback, mix } = this.fx.flanger;
+        const dry = this.ctx.createGain(); dry.gain.value = 1 - mix;
+        const wet = this.ctx.createGain(); wet.gain.value = mix;
+        const delay = this.ctx.createDelay(0.02);
+        delay.delayTime.value = 0.003; // 3ms center
+        const fb = this.ctx.createGain(); fb.gain.value = Math.min(feedback, 0.95);
+        delay.connect(fb); fb.connect(delay); // feedback loop
+        const lfo = this.ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = rate;
+        const lfoGain = this.ctx.createGain(); lfoGain.gain.value = depth * 0.003; // ±3ms sweep
+        lfo.connect(lfoGain); lfoGain.connect(delay.delayTime); lfo.start();
+        this.fxLFOs.push(lfo);
+        prev.connect(dry); prev.connect(delay); delay.connect(wet);
+        const merge = this.ctx.createGain(); dry.connect(merge); wet.connect(merge);
+        this.fxNodes.push(dry, wet, delay, fb, lfoGain, merge);
+        this.liveNodes.set("flanger", [dry, wet, fb, lfoGain]);
+        return merge;
+      }
+      case "tremolo": {
+        // Tremolo: LFO modulates amplitude. Shape sine = smooth wobble,
+        // square = hard gate. Ported from mpump.
+        const { rate, depth, shape } = this.fx.tremolo;
+        const lfo = this.ctx.createOscillator();
+        lfo.type = shape === "square" ? "square" : "sine";
+        lfo.frequency.value = rate;
+        const lfoGain = this.ctx.createGain();
+        lfoGain.gain.value = depth * 0.5;
+        const tremGain = this.ctx.createGain();
+        tremGain.gain.value = 1 - depth * 0.5; // centre around (1 - depth/2)
+        lfo.connect(lfoGain); lfoGain.connect(tremGain.gain);
+        lfo.start();
+        this.fxLFOs.push(lfo);
+        prev.connect(tremGain);
+        this.fxNodes.push(lfoGain, tremGain);
+        this.liveNodes.set("tremolo", [tremGain, lfoGain]);
+        return tremGain;
+      }
+      case "duck": {
+        // Sidechain duck is a UI placeholder — mpump handles real ducking
+        // as gain automation outside the effect chain, and mloop has no
+        // kick reference to sidechain from in the looper. Rendered as a
+        // passthrough so chain reordering stays consistent.
+        return prev;
       }
       case "reverb": {
         // Convolution reverb with algorithmic IR (room/hall/plate/spring).
