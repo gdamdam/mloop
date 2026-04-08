@@ -580,9 +580,9 @@ export class AudioEngine {
   getDrive(): number { return this.drivePre.gain.value; }
 
   /** Build a tanh soft-clip curve for the master waveshaper. */
-  private static makeDriveCurve(amount: number): Float32Array {
+  private static makeDriveCurve(amount: number): Float32Array<ArrayBuffer> {
     const n = 1024;
-    const curve = new Float32Array(n);
+    const curve = new Float32Array(new ArrayBuffer(n * 4));
     const k = amount; // steeper = more clipping
     for (let i = 0; i < n; i++) {
       const x = (i * 2) / n - 1; // -1..1

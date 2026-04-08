@@ -97,7 +97,7 @@ export function useKeyboardShortcuts(
   command: (cmd: LoopCommand) => void,
   enabled: boolean,
   onSpaceBar?: () => void,
-  viewMode: "tracks" | "pads" = "pads",
+  viewMode: "tracks" | "pads" | "mixer" = "pads",
   onPadTrigger?: (padId: number) => void,
   onUndo?: () => void,
 ) {

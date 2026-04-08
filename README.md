@@ -120,3 +120,12 @@ Your music stays on your device. Always.
 ## License
 
 [AGPL-3.0-or-later](LICENSE).
+
+## Trademark
+
+"mloop" is an unregistered trademark of the author.
+Use of the name or logo for derivative projects or services may cause confusion and is not permitted.
+
+---
+
+Built with Claude Code. Design, architecture, UX, audio chain, and creative direction by [gdamdam](https://github.com/gdamdam).
