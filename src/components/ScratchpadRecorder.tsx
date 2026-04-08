@@ -340,6 +340,23 @@ export function ScratchpadRecorder({ engine }: ScratchpadRecorderProps) {
             }}>
               Trim
             </button>
+            <button
+              onClick={() => {
+                if (playing) stopPreview();
+                setBuffer(null);
+                setTrimStart(0);
+                setTrimEnd(1);
+              }}
+              title="Clear recording"
+              aria-label="Clear scratchpad recording"
+              style={{
+                fontSize: 8, fontWeight: 700, padding: "3px 6px", borderRadius: 3,
+                background: "var(--bg-cell)", color: "#f85149",
+                border: "none", cursor: "pointer",
+              }}
+            >
+              CLR
+            </button>
             <span style={{ fontSize: 8, color: "var(--text-dim)", marginLeft: "auto" }}>
               {trimmedDur.toFixed(1)}s
             </span>
