@@ -199,7 +199,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
 
   const toggleDarkLight = useCallback(() => {
     const current = PALETTES.find(x => x.id === palette)!;
-    const next = current.dark ? "minimal" : "midnight";
+    const next = current.dark ? "minimal" : "forest";
     handlePaletteChange(next);
   }, [palette, handlePaletteChange]);
 

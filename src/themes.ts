@@ -1,12 +1,18 @@
 /**
- * Theme system — 12 color palettes (6 dark, 6 light).
+ * Theme system — 6 color palettes (3 dark, 3 light).
+ *
+ * Palettes mirror mpump's six by ID (forest/ember/neon, minimal/cream/rose)
+ * so a fresh visit to either app feels like the same family, but every
+ * palette here has been nudged slightly in hue and accent to give mloop
+ * its own identity. The `preview` accent is always a sibling — not
+ * identical — to mpump's, typically shifted toward cyan/cool to cue
+ * "loops / flow" versus mpump's warmer "sequencing" voice.
  *
  * Palettes are applied by setting CSS custom properties on :root,
  * allowing all components to inherit colors without prop drilling.
- * Default palette is time-of-day aware: dark themes at night, light during day.
  */
 
-export type PaletteId = "midnight" | "neon" | "forest" | "ember" | "cobalt" | "violet" | "minimal" | "cream" | "artic" | "sand" | "rose" | "slate";
+export type PaletteId = "forest" | "ember" | "neon" | "minimal" | "cream" | "rose";
 
 /** Color palette definition — maps semantic roles to hex values. */
 export interface PaletteDef {
@@ -23,44 +29,33 @@ export interface PaletteDef {
 }
 
 export const PALETTES: PaletteDef[] = [
-  // Dark palettes
-  { id: "midnight", name: "Midnight", dark: true,
-    bg: "#0d1117", panel: "#161b22", cell: "#21262d", border: "#30363d",
-    text: "#e6edf3", dim: "#7d8590", preview: "#b388ff" },
-  { id: "neon", name: "Neon", dark: true,
-    bg: "#000000", panel: "#0a0a0a", cell: "#141414", border: "#222",
-    text: "#fff", dim: "#666", preview: "#ff00ff" },
+  // ── Dark palettes ────────────────────────────────────────────────────
+  // Forest — greens, but with a teal tilt and a cyan accent instead of mpump's mint.
   { id: "forest", name: "Forest", dark: true,
-    bg: "#0b1a0b", panel: "#122212", cell: "#1a2e1a", border: "#2a4a2a",
-    text: "#c8e6c8", dim: "#6a8a6a", preview: "#66ff99" },
+    bg: "#0a1815", panel: "#112420", cell: "#183028", border: "#284a40",
+    text: "#c8e6d8", dim: "#6a8a80", preview: "#5fddff" },
+  // Ember — warmer reds, pushed toward amber/orange vs mpump's red-tomato.
   { id: "ember", name: "Ember", dark: true,
-    bg: "#1a0a0a", panel: "#241010", cell: "#2e1818", border: "#4a2222",
-    text: "#f0d0c8", dim: "#8a5a50", preview: "#ff6644" },
-  { id: "cobalt", name: "Cobalt", dark: true,
-    bg: "#0a0e1a", panel: "#101828", cell: "#182238", border: "#283858",
-    text: "#c8d8f0", dim: "#5a70a0", preview: "#4488ff" },
-  { id: "violet", name: "Violet", dark: true,
-    bg: "#120a1a", panel: "#1a1024", cell: "#22182e", border: "#3a2850",
-    text: "#d8c8f0", dim: "#7a5aa0", preview: "#aa66ff" },
-  // Light palettes
+    bg: "#1a0d08", panel: "#241610", cell: "#2e1e14", border: "#4a2c1e",
+    text: "#f0d8c8", dim: "#8a6550", preview: "#ff8a3d" },
+  // Neon — pitch black with a hint of blue in the panels; cyan accent (mpump is magenta).
+  { id: "neon", name: "Neon", dark: true,
+    bg: "#000000", panel: "#080810", cell: "#14141c", border: "#1f1f2a",
+    text: "#ffffff", dim: "#666666", preview: "#00ffff" },
+
+  // ── Light palettes ───────────────────────────────────────────────────
+  // Minimal — cool off-white with a slate-blue accent (mpump's is neutral gray).
   { id: "minimal", name: "Minimal", dark: false,
-    bg: "#ffffff", panel: "#f0f0f0", cell: "#e0e0e0", border: "#aaa",
-    text: "#111111", dim: "#444", preview: "#777777" },
+    bg: "#f8f9fa", panel: "#e9ecef", cell: "#dde2e8", border: "#a5acb5",
+    text: "#111111", dim: "#444444", preview: "#4d5a6a" },
+  // Cream — warm paper, peach accent vs mpump's violet.
   { id: "cream", name: "Cream", dark: false,
-    bg: "#faf5eb", panel: "#f0e9d8", cell: "#e8dfc8", border: "#d4c9a8",
-    text: "#2a2520", dim: "#8a7a60", preview: "#7c4dff" },
-  { id: "artic", name: "Artic", dark: false,
-    bg: "#f0f4f8", panel: "#e4eaf0", cell: "#d8e0e8", border: "#c0ccd8",
-    text: "#1a2030", dim: "#6a7a8a", preview: "#2979ff" },
-  { id: "sand", name: "Sand", dark: false,
-    bg: "#f5f0e0", panel: "#e8e0cc", cell: "#ddd4b8", border: "#c8b890",
-    text: "#2a2418", dim: "#7a6a48", preview: "#c07020" },
+    bg: "#faf3e8", panel: "#efe5d0", cell: "#e5d8bc", border: "#cfc29a",
+    text: "#2a2218", dim: "#8a7558", preview: "#ff6e40" },
+  // Rose — soft pink, deeper rose accent vs mpump's brighter magenta-pink.
   { id: "rose", name: "Rose", dark: false,
-    bg: "#faf0f2", panel: "#f0e0e4", cell: "#e8d4da", border: "#d0b8c0",
-    text: "#2a1820", dim: "#8a5a6a", preview: "#d04080" },
-  { id: "slate", name: "Slate", dark: false,
-    bg: "#eceef0", panel: "#dfe2e6", cell: "#d2d6dc", border: "#b8bec8",
-    text: "#1a1e24", dim: "#5a6270", preview: "#4a6080" },
+    bg: "#fbecef", panel: "#f2dbe0", cell: "#ead0d6", border: "#d5b6bd",
+    text: "#2a1820", dim: "#8a5a6a", preview: "#b83280" },
 ];
 
 /** Apply a palette by setting CSS custom properties on :root. */
@@ -79,9 +74,9 @@ export function applyPalette(p: PaletteDef): void {
 
 /**
  * Load the saved palette ID from localStorage.
- * Defaults to "forest" to match mpump's default palette — mloop and
- * mpump share identical forest values so the two apps look like siblings
- * on a fresh visit.
+ * Defaults to "forest" to stay in the same family as mpump. If the user
+ * has an old, removed palette id cached (midnight, cobalt, violet, artic,
+ * sand, slate), the find() check will miss and fall back cleanly.
  */
 export function loadPaletteId(): PaletteId {
   const stored = localStorage.getItem("mloop-palette");
