@@ -28,6 +28,7 @@ export function PrivacyModal({ onClose }: Props) {
         <div className="sheet-body" style={{ fontSize: 13, lineHeight: 1.7 }}>
           <p style={{ marginBottom: 12 }}>mloop does not use accounts, cookies, ads, or personal tracking.</p>
           <p style={{ marginBottom: 12 }}>A tiny amount of anonymous page-count data does exist, because the project still needs to know whether anyone is actually using it.</p>
+          <p style={{ marginBottom: 12 }}>When you grant microphone access, mloop records and processes audio locally in your browser. We do not receive, upload, store, or monitor your microphone signal.</p>
 
           <p style={{ marginTop: 14, marginBottom: 6, fontWeight: 700, fontSize: 13 }}>What mloop does not collect</p>
           <ul style={{ paddingLeft: 18, margin: 0 }}>
