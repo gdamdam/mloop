@@ -33,7 +33,7 @@ describe("createInitialState", () => {
     expect(state.masterLoopLength).toBeNull();
     expect(state.bpm).toBe(120);
     expect(state.timingMode).toBe("free");
-    expect(state.syncMode).toBe("free");
+    expect(state.syncMode).toBe("lock");
     expect(state.metronome).toBe(false);
     expect(state.inputLevel).toBe(0);
   });
