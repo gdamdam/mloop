@@ -339,12 +339,19 @@ export class LoopTrack {
    * Schedule an auto-stop callback using the Web Audio clock.
    * Creates a silent buffer source that fires onended after the given duration.
    * This avoids JS setTimeout drift — timing is sample-accurate.
+   *
+   * The source MUST be looped. Without loop=true, the 2-sample buffer ends
+   * within ~45μs and onended fires almost immediately, before the scheduled
+   * stop() time has any effect. That was the root cause of tracks 2 and 3
+   * being unable to record once a master loop was set — their auto-stop
+   * fired the instant recording began.
    */
   private scheduleAutoStop(durationSec: number, callback: () => void): void {
     this.clearAutoStopTimer();
     const silent = this.ctx.createBuffer(1, 2, this.ctx.sampleRate);
     const src = this.ctx.createBufferSource();
     src.buffer = silent;
+    src.loop = true; // keep the source alive until stop() fires
     src.connect(this.ctx.destination); // must be connected to fire onended
     src.onended = callback;
     src.start(this.ctx.currentTime);
