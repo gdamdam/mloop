@@ -2,8 +2,8 @@
  * Async command runner for the loop engine.
  *
  * Takes a LoopCommand and runs the corresponding mutation on the
- * AudioEngine. Returns a promise that resolves when the operation is
- * complete (and the engine state is ready to be re-read).
+ * AudioEngine. Persistence and file I/O handlers live in
+ * `loopEnginePersistence.ts`; this module is only engine mutations.
  *
  * Extracted from useLoopEngine so the hook body stays focused on
  * React wiring, not side effects.
@@ -11,12 +11,15 @@
 
 import type { LoopCommand } from "../types";
 import type { AudioEngine } from "../engine/AudioEngine";
-import { saveSession, loadSession } from "../utils/storage";
-import type { SessionData } from "../utils/storage";
-import { encodeWav } from "../utils/wav";
-import { mixBuffers } from "../utils/bufferOps";
-import { saveFileAs, openFile } from "../utils/fileExport";
-import { encodeShareLink } from "../utils/shareLink";
+import {
+  handleSaveSession,
+  handleLoadSession,
+  handleExportWav,
+  handleExportSessionFile,
+  handleImportSessionFile,
+  handlePinSession,
+  handleShareLink,
+} from "./loopEnginePersistence";
 
 /** Retry mic connection — no-op if already connected or engine missing. */
 async function ensureMic(engine: AudioEngine): Promise<void> {
@@ -31,7 +34,8 @@ async function ensureMic(engine: AudioEngine): Promise<void> {
 /**
  * Run a command against the engine. Exhaustive over the command union;
  * unknown types are a no-op. Throws only on programmer error — user-facing
- * errors (session save, file I/O) are handled with alerts at the call site.
+ * errors (session save, file I/O) are handled with alerts inside the
+ * persistence helpers.
  */
 export async function runLoopCommand(engine: AudioEngine, cmd: LoopCommand): Promise<void> {
   switch (cmd.type) {
@@ -104,154 +108,20 @@ export async function runLoopCommand(engine: AudioEngine, cmd: LoopCommand): Pro
       }
       return;
     }
-    case "save_session": {
-      const session: SessionData = {
-        name: cmd.name,
-        savedAt: Date.now(),
-        bpm: engine.timing.bpm,
-        timingMode: engine.timingMode,
-        masterLoopLength: engine.masterLoopLength,
-        tracks: engine.tracks.map((t) => ({
-          layers: t.getLayers().map((l) => l.buffer.slice(0) as ArrayBuffer),
-          volume: t.volume,
-          isReversed: t.isReversed,
-          playbackRate: t.playbackRate,
-          loopLengthSamples: t.loopLengthSamples,
-        })),
-      };
-      try {
-        await saveSession(session);
-      } catch (e) {
-        console.error("Session save failed:", e);
-        alert("Failed to save session. Storage may be full.");
-      }
-      return;
-    }
-    case "load_session": {
-      const session = await loadSession(cmd.name);
-      if (!session) return;
-      engine.stopAll();
-      engine.masterLoopLength = session.masterLoopLength;
-      engine.timing.bpm = session.bpm;
-      engine.timingMode = session.timingMode;
-      for (let i = 0; i < engine.tracks.length; i++) {
-        const td = session.tracks[i];
-        if (!td) continue;
-        const layers = td.layers.map((ab) => new Float32Array(ab));
-        engine.tracks[i].restoreLayers(layers, td.loopLengthSamples);
-        engine.tracks[i].volume = td.volume;
-        engine.tracks[i].isReversed = td.isReversed;
-        engine.tracks[i].playbackRate = td.playbackRate;
-      }
-      return;
-    }
-    case "export_wav": {
-      const bufs: Float32Array[] = [];
-      for (const t of engine.tracks) {
-        const data = t.getMixedData();
-        if (data) bufs.push(data);
-      }
-      if (bufs.length > 0) {
-        const maxLen = Math.max(...bufs.map((b) => b.length));
-        const padded = bufs.map((b) => {
-          if (b.length === maxLen) return b;
-          const p = new Float32Array(maxLen);
-          p.set(b);
-          return p;
-        });
-        const mixed = mixBuffers(padded);
-        const wav = encodeWav(mixed, engine.ctx.sampleRate, {
-          title: "mloop mixdown",
-          software: "mloop — https://mloop.mpump.live",
-          date: new Date().toISOString().slice(0, 10),
-        });
-        await saveFileAs(new Blob([wav], { type: "audio/wav" }), "mloop-mixdown.wav");
-      }
-      return;
-    }
-    case "export_session_file": {
-      const sessionExport = {
-        version: 1,
-        bpm: engine.timing.bpm,
-        timingMode: engine.timingMode,
-        syncMode: engine.syncMode,
-        masterLoopLength: engine.masterLoopLength,
-        tracks: engine.tracks.map((t) => ({
-          layers: t.getLayers().map((l) => Array.from(l)),
-          volume: t.volume,
-          isReversed: t.isReversed,
-          playbackRate: t.playbackRate,
-          loopLengthSamples: t.loopLengthSamples,
-        })),
-      };
-      const json = JSON.stringify(sessionExport);
-      await saveFileAs(new Blob([json], { type: "application/json" }), "mloop-session.json");
-      return;
-    }
-    case "import_session_file": {
-      const file = await openFile(".json");
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        if (!data.version || !data.tracks) throw new Error("Invalid session file");
-        engine.stopAll();
-        engine.masterLoopLength = data.masterLoopLength ?? 0;
-        engine.timing.bpm = data.bpm ?? 120;
-        engine.timingMode = data.timingMode ?? "free";
-        engine.syncMode = data.syncMode ?? "free";
-        for (let i = 0; i < engine.tracks.length; i++) {
-          const td = data.tracks[i];
-          if (!td) continue;
-          const layers = td.layers.map((arr: number[]) => new Float32Array(arr));
-          engine.tracks[i].restoreLayers(layers, td.loopLengthSamples ?? 0);
-          engine.tracks[i].volume = td.volume ?? 0.8;
-          engine.tracks[i].isReversed = td.isReversed ?? false;
-          engine.tracks[i].playbackRate = td.playbackRate ?? 1;
-        }
-      } catch (e) {
-        alert("Failed to import session: " + (e instanceof Error ? e.message : "Unknown error"));
-      }
-      return;
-    }
-    case "pin_session": {
-      const pinData: SessionData = {
-        name: "__pinned__",
-        savedAt: Date.now(),
-        bpm: engine.timing.bpm,
-        timingMode: engine.timingMode,
-        masterLoopLength: engine.masterLoopLength,
-        tracks: engine.tracks.map((t) => ({
-          layers: t.getLayers().map((l) => l.buffer.slice(0) as ArrayBuffer),
-          volume: t.volume,
-          isReversed: t.isReversed,
-          playbackRate: t.playbackRate,
-          loopLengthSamples: t.loopLengthSamples,
-        })),
-      };
-      try {
-        await saveSession(pinData);
-      } catch {
-        alert("Failed to pin session.");
-      }
-      return;
-    }
-    case "share_link": {
-      const fx = engine.tracks[0]?.getEffects() ?? {};
-      const url = encodeShareLink({
-        bpm: engine.timing.bpm,
-        timingMode: engine.timingMode,
-        syncMode: engine.syncMode,
-        effects: fx as unknown as Record<string, unknown>,
-      });
-      try {
-        await navigator.clipboard.writeText(url);
-        alert("Share link copied to clipboard!");
-      } catch {
-        prompt("Share this link:", url);
-      }
-      return;
-    }
+    case "save_session":
+      return handleSaveSession(engine, cmd.name);
+    case "load_session":
+      return handleLoadSession(engine, cmd.name);
+    case "export_wav":
+      return handleExportWav(engine);
+    case "export_session_file":
+      return handleExportSessionFile(engine);
+    case "import_session_file":
+      return handleImportSessionFile(engine);
+    case "pin_session":
+      return handlePinSession(engine);
+    case "share_link":
+      return handleShareLink(engine);
     case "stop_all":
       engine.stopAll();
       return;

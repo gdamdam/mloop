@@ -54,17 +54,24 @@ export function EffectRack({ effects, onToggle, onSetParams }: EffectRackProps) 
 
   return (
     <>
-      <div style={{
-        display: "flex",
-        gap: 4,
-        marginTop: 8,
-        flexWrap: "wrap",
-      }}>
+      <div
+        role="toolbar"
+        aria-label="Effects"
+        style={{
+          display: "flex",
+          gap: 4,
+          marginTop: 8,
+          flexWrap: "wrap",
+        }}
+      >
         {EFFECT_LABELS.map(({ name, label }) => {
           const isOn = effects[name].on;
           return (
             <button
               key={name}
+              aria-label={`${label} effect (long-press to edit)`}
+              aria-pressed={isOn}
+              title={`${label} — tap to toggle, long-press to edit`}
               onPointerDown={() => handlePointerDown(name)}
               onPointerUp={() => handlePointerUp(name)}
               onPointerLeave={handlePointerLeave}

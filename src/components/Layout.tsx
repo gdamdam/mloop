@@ -13,6 +13,7 @@ import { ShortcutOverlay } from "./ShortcutOverlay";
 import { MidiMapper } from "./MidiMapper";
 import { HelpModal } from "./HelpModal";
 import { AboutModal } from "./AboutModal";
+import { AudioContextBanner } from "./AudioContextBanner";
 import { PrivacyModal } from "./PrivacyModal";
 import { MegaKaos } from "./MegaKaos";
 import { Tutorial } from "./Tutorial";
@@ -571,6 +572,7 @@ export function Layout({ state, command, engine }: LayoutProps) {
       )}
       {showOverlay && <ShortcutOverlay onClose={() => setShowOverlay(false)} />}
       {showMidi && midiRef.current && <MidiMapper controller={midiRef.current} onClose={() => setShowMidi(false)} />}
+      <AudioContextBanner getEngine={() => engine} />
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} onShowTutorial={() => { setShowHelp(false); setShowTutorial(true); }} onShowCredits={() => { setShowHelp(false); setShowAbout(true); }} />}
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} getAnalyser={() => engine?.getAnalyser() ?? null} />}
       {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}

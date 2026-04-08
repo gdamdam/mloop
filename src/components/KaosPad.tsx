@@ -362,6 +362,8 @@ export function KaosPad({ engine }: KaosPadProps) {
       >
         <canvas
           ref={canvasRef}
+          role="application"
+          aria-label={`KAOS XY pad, X axis ${XY_TARGETS.find(t => t.id === xTarget)?.label}, Y axis ${XY_TARGETS.find(t => t.id === yTarget)?.label}`}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
         />
         {/* Axis labels */}
