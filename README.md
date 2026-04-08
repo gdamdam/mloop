@@ -1,6 +1,6 @@
 <h1 align="center">mloop</h1>
 <p align="center">
-  A fast no-account live sampler and loop station on the web.<br>
+  Live sampler and loop station in your browser.<br>
   Record, layer, pad, sequence, destroy — no install, no subscription, no account.
 </p>
 
