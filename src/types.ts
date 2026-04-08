@@ -68,7 +68,7 @@ export function createInitialState(): EngineState {
     masterLoopLength: null,
     bpm: 120,
     timingMode: "free",
-    syncMode: "free",
+    syncMode: "lock",
     metronome: false,
     inputLevel: 0,
   };
