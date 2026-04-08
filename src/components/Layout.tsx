@@ -670,17 +670,18 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
       >
         {linkState.connected ? `L${linkState.peers}` : "L"}
       </button>
-      <button className="header-btn" onClick={toggleDarkLight} title={isDark ? "Light mode" : "Dark mode"}>{"\u25D1"}</button>
       <HeaderMoreMenu
         command={command}
         isPinned={isPinned}
         setIsPinned={setIsPinned}
+        isDark={isDark}
+        toggleDarkLight={toggleDarkLight}
         toggleFullscreen={toggleFullscreen}
         setShowSessions={setShowSessions}
         setShowMidi={setShowMidi}
         setShowOverlay={setShowOverlay}
+        setShowSettings={setShowSettings}
       />
-      <button className="header-btn" onClick={() => setShowSettings(true)} title="Settings">{"\u2699"}</button>
     </>
   );
 }
@@ -690,12 +691,14 @@ function HeaderOverflowButtons({ state, command, isPinned, setIsPinned, isDark, 
  * (Tap Tempo, Pin session, Sessions, Fullscreen, MIDI, Shortcuts). Mirrors
  * mpump's .header-more-menu so the two apps feel like siblings.
  */
-function HeaderMoreMenu({ command, isPinned, setIsPinned, toggleFullscreen, setShowSessions, setShowMidi, setShowOverlay }: {
+function HeaderMoreMenu({ command, isPinned, setIsPinned, isDark, toggleDarkLight, toggleFullscreen, setShowSessions, setShowMidi, setShowOverlay, setShowSettings }: {
   command: (cmd: LoopCommand) => void;
   isPinned: boolean; setIsPinned: (v: boolean) => void;
+  isDark: boolean; toggleDarkLight: () => void;
   toggleFullscreen: () => void;
   setShowSessions: (v: boolean) => void; setShowMidi: (v: boolean) => void;
   setShowOverlay: (v: boolean) => void;
+  setShowSettings: (v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -736,6 +739,9 @@ function HeaderMoreMenu({ command, isPinned, setIsPinned, toggleFullscreen, setS
             <button onClick={() => setShowMidi(true)}>🎹 MIDI</button>
           )}
           <button onClick={() => setShowOverlay(true)}>? Shortcuts</button>
+          <div className="more-menu-sep" />
+          <button onClick={toggleDarkLight}>{isDark ? "☀ Light mode" : "◐ Dark mode"}</button>
+          <button onClick={() => setShowSettings(true)}>⚙ Settings</button>
         </div>
       )}
     </div>
