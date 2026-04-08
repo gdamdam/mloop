@@ -219,7 +219,7 @@ Your music stays on your device. Always.
 
 ## Trademark
 
-"mpump" is an unregistered trademark of the author.
+"mloop" is an unregistered trademark of the author.
 Use of the name or logo for derivative projects or services may cause confusion and is not permitted.
 
 ---
