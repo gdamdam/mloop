@@ -79,10 +79,12 @@ export function applyPalette(p: PaletteDef): void {
 
 /**
  * Load the saved palette ID from localStorage.
- * Falls back to time-of-day default: "sand" during the day, "forest" at night.
+ * Defaults to "forest" to match mpump's default palette — mloop and
+ * mpump share identical forest values so the two apps look like siblings
+ * on a fresh visit.
  */
 export function loadPaletteId(): PaletteId {
   const stored = localStorage.getItem("mloop-palette");
   if (stored && PALETTES.find(p => p.id === stored)) return stored as PaletteId;
-  return "midnight";
+  return "forest";
 }

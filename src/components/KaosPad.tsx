@@ -109,6 +109,43 @@ export function KaosPad({ engine }: KaosPadProps) {
     }
   }, [anyTrackActive, gestureState]);
 
+  // Gesture loop duration — prefer master loop length, fall back to 4 bars at current BPM
+  const gestureDurationMs = useCallback(() => {
+    const bpm = engine?.timing.bpm ?? 120;
+    const masterLen = engine?.masterLoopLength ?? 0;
+    return masterLen > 0 ? (masterLen / 44100) * 1000 : (60 / bpm) * 4 * 4 * 1000;
+  }, [engine]);
+
+  const startGestureRec = useCallback(() => {
+    gestureRef.current.startRecording(gestureDurationMs());
+    setGestureState("recording");
+  }, [gestureDurationMs]);
+
+  const stopGestureRec = useCallback(() => {
+    gestureRef.current.stopRecording();
+    setGestureState("idle");
+  }, []);
+
+  const startGesturePlay = useCallback(() => {
+    gestureRef.current.onPlayback = (x, y) => {
+      if (!engine) return;
+      applyXYValue(xTarget, x, engine);
+      applyXYValue(yTarget, y, engine);
+    };
+    gestureRef.current.startPlayback(gestureDurationMs());
+    setGestureState("playing");
+  }, [engine, xTarget, yTarget, gestureDurationMs]);
+
+  const stopGesturePlay = useCallback(() => {
+    gestureRef.current.stopPlayback();
+    setGestureState("idle");
+  }, []);
+
+  const clearGesture = useCallback(() => {
+    gestureRef.current.clear();
+    setGestureState("idle");
+  }, []);
+
   // Get current effects from first track (they're synced)
   const effects: EffectParams = engine?.tracks[0]?.getEffects() ?? DEFAULT_EFFECTS;
 
@@ -373,6 +410,77 @@ export function KaosPad({ engine }: KaosPadProps) {
         <span style={{ position: "absolute", top: 8, left: 4, fontSize: 9, color: "var(--text-dim)", opacity: 0.5, pointerEvents: "none", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
           {XY_TARGETS.find(t => t.id === yTarget)?.label} →
         </span>
+        {/* Gesture REC / PLAY / CLR — inside pad, top-right (layout mirrors mpump's kaos-gesture). */}
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            display: "flex",
+            gap: 4,
+            zIndex: 2,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              gestureState === "recording" ? stopGestureRec() : startGestureRec();
+            }}
+            aria-pressed={gestureState === "recording"}
+            title={gestureState === "recording" ? "Stop recording gesture" : "Record XY gesture"}
+            style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+              padding: "4px 7px", borderRadius: 4,
+              border: "1px solid var(--preview)",
+              background: gestureState === "recording" ? "var(--record, #f85149)" : "rgba(0,0,0,0.4)",
+              color: gestureState === "recording" ? "#fff" : "var(--preview)",
+              cursor: "pointer",
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            {gestureState === "recording" ? "STOP" : "REC"}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              gestureState === "playing" ? stopGesturePlay() : startGesturePlay();
+            }}
+            disabled={!gestureRef.current.hasGesture && gestureState !== "playing"}
+            aria-pressed={gestureState === "playing"}
+            title={gestureState === "playing" ? "Stop gesture loop" : "Loop recorded gesture"}
+            style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+              padding: "4px 7px", borderRadius: 4,
+              border: "1px solid var(--preview)",
+              background: gestureState === "playing" ? "var(--preview)" : "rgba(0,0,0,0.4)",
+              color: gestureState === "playing" ? "#000" : "var(--preview)",
+              cursor: "pointer",
+              opacity: (!gestureRef.current.hasGesture && gestureState !== "playing") ? 0.4 : 1,
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            {gestureState === "playing" ? "STOP" : "PLAY"}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); clearGesture(); }}
+            disabled={!gestureRef.current.hasGesture && gestureState === "idle"}
+            title="Clear recorded gesture"
+            style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+              padding: "4px 7px", borderRadius: 4,
+              border: "1px solid var(--preview)",
+              background: "rgba(0,0,0,0.4)",
+              color: "var(--preview)",
+              cursor: "pointer",
+              opacity: (!gestureRef.current.hasGesture && gestureState === "idle") ? 0.4 : 1,
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            CLR
+          </button>
+        </div>
       </div>
       </div>
 
@@ -438,90 +546,7 @@ export function KaosPad({ engine }: KaosPadProps) {
         </div>
       </div>
 
-      {/* Gesture loop controls */}
-      <div style={{ display: "flex", gap: 4, marginTop: 6, justifyContent: "center" }}>
-        {gestureState === "idle" && (
-          <>
-            <button
-              onClick={() => {
-                // Use master loop length or default 4 bars at current BPM
-                const bpm = engine?.timing.bpm ?? 120;
-                const masterLen = engine?.masterLoopLength ?? 0;
-                const durationMs = masterLen > 0
-                  ? (masterLen / 44100) * 1000
-                  : (60 / bpm) * 4 * 4 * 1000; // 4 bars
-                gestureRef.current.startRecording(durationMs);
-                setGestureState("recording");
-              }}
-              style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--bg-cell)", color: "var(--text-dim)" }}
-              title="Record XY gesture"
-            >
-              ● REC GESTURE
-            </button>
-            {/* eslint-disable-next-line react-hooks/refs -- gestureRef is a stable class instance, reads are safe */}
-            {gestureRef.current.hasGesture && (
-              <button
-                onClick={() => {
-                  const bpm = engine?.timing.bpm ?? 120;
-                  const masterLen = engine?.masterLoopLength ?? 0;
-                  const durationMs = masterLen > 0
-                    ? (masterLen / 44100) * 1000
-                    : (60 / bpm) * 4 * 4 * 1000;
-                  gestureRef.current.onPlayback = (x, y) => {
-                    if (!engine) return;
-                    applyXYValue(xTarget, x, engine);
-                    applyXYValue(yTarget, y, engine);
-                  };
-                  gestureRef.current.startPlayback(durationMs);
-                  setGestureState("playing");
-                }}
-                style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--preview)", color: "#000" }}
-                title="Play recorded gesture"
-              >
-                ▶ PLAY GESTURE
-              </button>
-            )}
-          </>
-        )}
-        {gestureState === "recording" && (
-          <button
-            onClick={() => {
-              gestureRef.current.stopRecording();
-              setGestureState("idle");
-            }}
-            style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--record)", color: "#fff", animation: "pulse 0.8s infinite" }}
-            title="Stop"
-          >
-            {/* eslint-disable-next-line react-hooks/refs -- gestureRef is a stable class instance */}
-            ■ STOP REC ({gestureRef.current.points.length} pts)
-          </button>
-        )}
-        {gestureState === "playing" && (
-          <button
-            onClick={() => {
-              gestureRef.current.stopPlayback();
-              setGestureState("idle");
-            }}
-            style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--playing)", color: "#000" }}
-            title="Stop"
-          >
-            ■ STOP GESTURE
-          </button>
-        )}
-        {/* eslint-disable-next-line react-hooks/refs -- gestureRef is a stable class instance, reads are safe */}
-        {gestureRef.current.hasGesture && gestureState === "idle" && (
-          <button
-            onClick={() => {
-              gestureRef.current.clear();
-              setGestureState("idle");
-            }}
-            style={{ fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 4, background: "var(--bg-cell)", color: "#f85149" }}
-            title="Clear gesture"
-          >
-            ✕ CLEAR
-          </button>
-        )}
-      </div>
+      {/* Gesture controls now live inside the pad as a top-right overlay (mirrors mpump). */}
 
       {editingEffect && (
         <EffectEditor
