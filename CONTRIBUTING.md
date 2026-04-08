@@ -32,4 +32,4 @@ Short, imperative, lowercase subject. Example: `port mpump 3-voice chorus into e
 - No new dependencies without discussion.
 
 ## License
-GPL-3.0-or-later. By contributing you agree your code ships under the same license.
+AGPL-3.0-or-later. By contributing you agree your code ships under the same license.

@@ -4,8 +4,7 @@
 <p align="center">
   <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
   <a href="https://mpump.live"><img src="https://img.shields.io/badge/companion-mpump-orange" alt="Companion to mpump"></a>
-  <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-green" alt="License"></a>
-  <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet?logo=anthropic&logoColor=white" alt="Built with Claude Code"></a>
+  <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-green" alt="License"></a>
   <br>
   <a href="https://mloop.mpump.live/">https://mloop.mpump.live/</a>
 </p>
@@ -206,7 +205,6 @@ mloop respects your privacy.
 - **No fingerprinting** — no device or browser identification
 - **No third-party trackers** — no Google, no Facebook, no ad networks
 - **Local storage only** — presets, settings, and patterns stay in your browser
-- **Anonymous page views** — counted via [GoatCounter](https://goatcounter.com), a privacy-first analytics tool. It just increments a number every time someone loads the page — no cookies, no personal data, no fingerprinting. The counter shows total page loads across all visitors, not unique users or sessions
 - **Open source** — all code is public on GitHub
 
 Your music stays on your device. Always.
@@ -215,4 +213,4 @@ Your music stays on your device. Always.
 
 ## License
 
-[GPL-3.0](LICENSE) with Commons Clause (no commercial use) and attribution requirement.
+[AGPL-3.0-or-later](LICENSE).

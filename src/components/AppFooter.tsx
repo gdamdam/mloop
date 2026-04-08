@@ -1,19 +1,5 @@
-import { useState, useEffect } from "react";
 import { Recorder } from "../engine/Recorder";
 import { APP_VERSION } from "../config";
-
-/** Fetches total page views from GoatCounter. */
-function VisitCounter() {
-  const [count, setCount] = useState<string | null>(null);
-  useEffect(() => {
-    fetch("https://mloop99.goatcounter.com/counter/TOTAL.json")
-      .then(r => r.json())
-      .then(d => setCount(d.count))
-      .catch(() => {});
-  }, []);
-  if (!count) return null;
-  return <span title="Total page views (GoatCounter — no cookies, no personal data)">{count} visits</span>;
-}
 
 interface AppFooterProps {
   onShowHelp: () => void;
@@ -35,8 +21,6 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
       {" · "}
       <span>© 2026</span>
       {" · "}
-      <VisitCounter />
-      {" · "}
       <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener"
         style={{ color: "var(--text-dim)", textDecoration: "none" }}>
         github.com/gdamdam/mloop
@@ -48,9 +32,7 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
           style={{ color: "#ff4466", fontWeight: 700, textDecoration: "none" }}>Support ♥</a>
         {" · "}
         <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE" target="_blank" rel="noopener"
-          style={{ color: "var(--text-dim)", textDecoration: "none" }}>GPL-3.0</a>
-        {" · "}
-        Built with Claude Code
+          style={{ color: "var(--text-dim)", textDecoration: "none" }}>AGPL-3.0</a>
         {" · "}
         <a href="https://mpump.live/app.html" target="_blank" rel="noopener"
           style={{ color: "var(--preview)", textDecoration: "none", fontWeight: 700 }}>Try mpump →</a>

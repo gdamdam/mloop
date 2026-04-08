@@ -29,8 +29,7 @@ export function PrivacyModal({ onClose }: Props) {
             <li><strong style={{ color: "var(--text)" }}>No cookies</strong> — mloop does not set any cookies</li>
             <li><strong style={{ color: "var(--text)" }}>No personal data</strong> — no accounts, no emails, no tracking IDs</li>
             <li><strong style={{ color: "var(--text)" }}>No fingerprinting</strong> — no device or browser identification</li>
-            <li><strong style={{ color: "var(--text)" }}>No third-party trackers</strong> — no Google, no Facebook, no ad networks</li>
-            <li><strong style={{ color: "var(--text)" }}>Anonymous page views</strong> — we count visits using <a href="https://goatcounter.com" target="_blank" rel="noopener" style={{ color: "var(--preview)" }}>GoatCounter</a>, a privacy-first analytics tool that collects no personal data and sets no cookies</li>
+            <li><strong style={{ color: "var(--text)" }}>No third-party trackers</strong> — no Google, no Facebook, no ad networks, no analytics</li>
             <li><strong style={{ color: "var(--text)" }}>Local storage only</strong> — your sessions, samples, and settings are saved in your browser. Nothing is sent to any server</li>
             <li><strong style={{ color: "var(--text)" }}>Open source</strong> — all code is public at <a href="https://github.com/gdamdam/mloop" target="_blank" rel="noopener" style={{ color: "var(--preview)" }}>github.com/gdamdam/mloop</a></li>
           </ul>
