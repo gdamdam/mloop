@@ -18,7 +18,7 @@ import type { LoopCommand } from "../types";
  * the engine uses 0-indexed — this handles the translation.
  * For CC volume, scales the 0–127 MIDI range to 0–1.
  */
-function actionToCommand(action: MidiAction, value: number): LoopCommand | null {
+export function actionToCommand(action: MidiAction, value: number): LoopCommand | null {
   // Parse track-specific actions like "track_1_record"
   const trackMatch = action.match(/^track_(\d)_(\w+)$/);
   if (trackMatch) {

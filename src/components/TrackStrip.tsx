@@ -34,7 +34,7 @@ export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }:
   }, [command, id]);
 
   return (
-    <div className="track-strip">
+    <div className="track-strip" role="group" aria-label={`Track ${id + 1}`}>
       <div className="track-header">
         <div className="track-label">
           <div className={`track-status ${status}`} />
@@ -125,6 +125,8 @@ export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }:
               : { type: "track_record", trackId: id }
           )}
           title="Record"
+          aria-label={`Track ${id + 1} record`}
+          aria-pressed={status === "recording"}
           style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}
         >
           REC
@@ -138,6 +140,8 @@ export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }:
           )}
           disabled={layers === 0}
           title={status === "playing" ? "Pause" : "Play"}
+          aria-label={`Track ${id + 1} ${status === "playing" ? "pause" : "play"}`}
+          aria-pressed={status === "playing"}
         >
           {status === "playing" ? "❚❚" : "▶"}
         </button>
@@ -150,6 +154,8 @@ export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }:
           )}
           disabled={layers === 0}
           title="Overdub"
+          aria-label={`Track ${id + 1} overdub`}
+          aria-pressed={status === "overdubbing"}
         >
           ◎
         </button>
@@ -158,6 +164,8 @@ export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }:
           onClick={() => command({ type: "track_mute", trackId: id })}
           disabled={layers === 0}
           title="Mute"
+          aria-label={`Track ${id + 1} mute`}
+          aria-pressed={muted}
         >
           M
         </button>
@@ -166,6 +174,7 @@ export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }:
           onClick={() => command({ type: "track_undo", trackId: id })}
           disabled={layers < 2}
           title="Undo last layer"
+          aria-label={`Track ${id + 1} undo last layer`}
           style={{ fontSize: 14 }}
         >
           ↩
@@ -175,6 +184,7 @@ export function TrackStrip({ track, command, engine, padEngine, masterLoopSec }:
           onClick={() => command({ type: "track_clear", trackId: id })}
           disabled={layers === 0}
           title="Clear"
+          aria-label={`Track ${id + 1} clear`}
           style={{ fontSize: 14 }}
         >
           ✕

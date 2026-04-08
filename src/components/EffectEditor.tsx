@@ -1,4 +1,6 @@
-import type { EffectName } from "../types";
+import type { EffectName, ReverbType } from "../types";
+
+const REVERB_TYPES: ReverbType[] = ["room", "hall", "plate", "spring"];
 
 // Slider definitions per effect
 const EFFECT_SLIDERS: Record<string, { key: string; label: string; min: number; max: number; step: number }[]> = {
@@ -72,6 +74,44 @@ export function EffectEditor({ name, params, onClose, onChange }: EffectEditorPr
           <button className="sheet-close" onClick={onClose}>×</button>
         </div>
         <div className="sheet-body">
+          {name === "reverb" && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 12, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Type
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>
+                  {((params.type as ReverbType) ?? "room").toUpperCase()}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {REVERB_TYPES.map((t) => {
+                  const active = ((params.type as ReverbType) ?? "room") === t;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => onChange({ type: t })}
+                      aria-pressed={active}
+                      aria-label={`Reverb type ${t}`}
+                      style={{
+                        flex: 1,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "6px 4px",
+                        borderRadius: 4,
+                        background: active ? "var(--preview)" : "var(--bg-cell)",
+                        color: active ? "var(--bg)" : "var(--text-dim)",
+                        border: "none",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {sliders.map((slider) => {
             const value = (params[slider.key] as number) ?? slider.min;
             return (
