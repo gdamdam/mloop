@@ -10,8 +10,6 @@
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-green" alt="License"></a>
   <br><br>
   <strong><a href="https://mloop.mpump.live/">mloop.mpump.live</a></strong>
-  &nbsp;·&nbsp;
-  <a href="https://mloop.mpump.live/landing.html">Landing page</a>
 </p>
 
 ---
