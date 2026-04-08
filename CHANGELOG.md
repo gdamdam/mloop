@@ -2,9 +2,9 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] — 2026-04-08
+## [0.1.0] — 2026-04-08
 
-First stable release. Drops the `-pre` suffix after a full parity pass against the mpump companion project (P0–P4 of `misc/OPUS-REPORT.md`).
+First public release on the new versioning line. Resets the version after a full parity pass against the mpump companion project (P0–P4 of `misc/OPUS-REPORT.md`).
 
 ### Added
 - **Documentation structure mirrors mpump.** `docs/BUILD.md`, `docs/DEPLOY.md`, `docs/TROUBLESHOOTING.md`, `docs/PWA.md`, `docs/LINK-BRIDGE.md`, plus a tracked `CONTRIBUTING.md`. Local-only engineering notes under `misc/` (gitignored).
