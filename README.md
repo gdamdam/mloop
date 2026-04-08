@@ -16,14 +16,15 @@
 
 ---
 
-## Two Modes
+## Three Modes
 
 | Mode | What it does |
 |---|---|
 | **PAD** | 4×4 MPC-style sample pads · step sequencer (8/16/32/64 steps) with real-time step recording · sample slicer · chromatic mode · resample from looper · 7 built-in drum kits · keyboard finger drumming |
-| **LOOPER** | 3 independent loop tracks · record / overdub / undo / reverse / half-speed · KAOS XY pad with 9 live effects · destruction mode · tape reel UI |
+| **LOOPER** | 3 independent loop tracks · record / overdub / undo / reverse / half-speed · KAOS XY pad with 10 live effects · destruction mode · tape reel UI |
+| **MIXER** | Pro master-bus chain applied to everything: highpass rumble cut · 3-band EQ · glue compression · drive (soft-clip) · brick-wall limiter with adjustable ceiling · output trim · live clip LED |
 
-PAD and LOOPER share the same session — save, pin, and export both at once.
+PAD and LOOPER share the same session — save, pin, and export both at once. MIXER settings apply globally to the master bus.
 
 ---
 
@@ -35,7 +36,7 @@ PAD and LOOPER share the same session — save, pin, and export both at once.
 - **3 sync modes** — FREE (freeform), SYNC (phase-locked), LOCK (fixed time window, default)
 - **Metronome** with tap tempo
 - **KAOS XY pad** — 10 effects mapped to X/Y axes with gesture recording and replay
-- **9 effects** — delay (sync/free), reverb (room/hall/plate/spring), distortion, chorus, flanger, phaser, bitcrush, compressor, tremolo
+- **10 effects** — delay (sync/free), reverb (room/hall/plate/spring), distortion, chorus, flanger, phaser, bitcrush, compressor, duck, tremolo (plus LPF and HPF hidden behind the XY pad)
 - **Destruction mode** — progressive tape degradation (pitch drift, wow & flutter, bit reduction) per cycle
 - **Master record** — capture full output as WAV with live timer
 - **Tape reel animation** — spinning reels with color-coded record/play/stop states
@@ -52,6 +53,19 @@ PAD and LOOPER share the same session — save, pin, and export both at once.
 - **Sample slicer** — auto-chop a loop into pads
 - **Chromatic mode** — play pads as a pitched instrument
 - **Sound Browser** — audition and load single samples
+
+## Master Mixer (MIXER mode)
+
+Pro-style master bus chain applied globally to PAD hits, loops, and resamples alike.
+
+**Signal flow**: `masterGain → HPF → 3-band EQ → glue comp → drive → limiter → output trim → out`
+
+- **HPF** — highpass rumble cut cycling OFF / 20 / 30 / 40 Hz
+- **3-band EQ** — LOW (lowshelf @ 250 Hz), MID (peaking @ 1 kHz Q=1), HIGH (highshelf @ 4 kHz); ±18 dB each, centre tick at 0
+- **Glue compressor** — gentle 2:1 bus compression with a single AMOUNT knob (0..1 maps to threshold 0→−18 dB) and automatic makeup gain
+- **Drive** — tanh soft-clip waveshaper (1×–10×) with 2× oversampling and auto loudness compensation
+- **Limiter** — brick-wall compressor with ON/OFF toggle, adjustable output CEILING (−6 to 0 dB, default −1 dB), and a live CLIP LED that lights red on ±0.98 peaks with a 120 ms hold
+- **Output trim** — final user-facing VOL fader, post-limiter. The header VOL slider and the mixer VOL strip are the same control.
 
 ## Sessions
 
