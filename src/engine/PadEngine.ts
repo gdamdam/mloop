@@ -567,4 +567,125 @@ export class PadEngine {
       this.slots[i].pitch = semitones;
     }
   }
+
+  // ── Session snapshot / restore ───────────────────────────────────────
+
+  /**
+   * Serialize the pad engine's full runtime state into a plain JS object.
+   * Buffers are captured as Float32Array references (the caller decides
+   * whether to ship them as ArrayBuffer or number[] per persistence surface).
+   */
+  getSnapshot(): PadSnapshot {
+    return {
+      version: 1,
+      slots: this.slots.map<PadSlotSnapshot>((s) => ({
+        name: s.name,
+        buffer: s.buffer ? new Float32Array(s.buffer) : null,
+        volume: s.volume,
+        pan: s.pan,
+        pitch: s.pitch,
+        playMode: s.playMode,
+        trimStart: s.trimStart,
+        trimEnd: s.trimEnd,
+        loopBeats: s.loopBeats,
+        muteGroup: s.muteGroup,
+      })),
+      seqGrid: this.seqGrid.map((row) => [...row]),
+      seqNumSteps: this.seqNumSteps,
+      seqSwing: this.seqSwing,
+    };
+  }
+
+  /**
+   * Restore the pad engine from a snapshot. Stops the sequencer and any
+   * active sources first so the restore happens cleanly. Missing fields
+   * fall back to constructor defaults so legacy snapshots still load.
+   */
+  loadSnapshot(snap: PadSnapshot): void {
+    this.stopSequencer();
+    for (const [, src] of this.activeSources) {
+      try { src.stop(); src.disconnect(); } catch { /* ok */ }
+    }
+    this.activeSources.clear();
+
+    const slotCount = Math.min(this.slots.length, snap.slots.length);
+    for (let i = 0; i < slotCount; i++) {
+      const s = this.slots[i];
+      const snapSlot = snap.slots[i];
+      s.name = snapSlot.name ?? "";
+      s.volume = snapSlot.volume ?? 1;
+      s.pan = snapSlot.pan ?? 0;
+      s.pitch = snapSlot.pitch ?? 0;
+      s.playMode = snapSlot.playMode ?? "one";
+      s.trimStart = snapSlot.trimStart ?? 0;
+      s.trimEnd = snapSlot.trimEnd ?? 1;
+      s.loopBeats = snapSlot.loopBeats ?? 0;
+      s.muteGroup = snapSlot.muteGroup ?? 0;
+
+      if (snapSlot.buffer && snapSlot.buffer.length > 0) {
+        const data = new Float32Array(snapSlot.buffer);
+        s.buffer = data;
+        const audioBuf = this.ctx.createBuffer(1, data.length, this.ctx.sampleRate);
+        audioBuf.copyToChannel(data, 0);
+        s.audioBuffer = audioBuf;
+        s.status = "loaded";
+      } else {
+        s.buffer = null;
+        s.audioBuffer = null;
+        s.status = "empty";
+      }
+    }
+
+    if (Array.isArray(snap.seqGrid)) {
+      this.seqGrid = snap.seqGrid.map((row) => [...row]);
+    }
+    if (typeof snap.seqNumSteps === "number") {
+      this.seqNumSteps = snap.seqNumSteps;
+    }
+    if (typeof snap.seqSwing === "number") {
+      this.seqSwing = Math.max(0, Math.min(1, snap.seqSwing));
+    }
+
+    // Invalidate undo — the previous snapshot no longer matches.
+    this.undoSlots = null;
+    this.undoGrid = null;
+
+    this.onStateChange?.();
+  }
+}
+
+// ── Snapshot types ─────────────────────────────────────────────────────
+
+/** Single slot within a {@link PadSnapshot}. */
+export interface PadSlotSnapshot {
+  name: string;
+  /** Raw PCM samples for the slot, or null if empty. */
+  buffer: Float32Array | null;
+  volume: number;
+  pan: number;
+  pitch: number;
+  playMode: PadPlayMode;
+  trimStart: number;
+  trimEnd: number;
+  loopBeats: number;
+  muteGroup: number;
+}
+
+/** Full PAD-mode snapshot for session save / restore. */
+export interface PadSnapshot {
+  version: 1;
+  slots: PadSlotSnapshot[];
+  seqGrid: boolean[][];
+  seqNumSteps: number;
+  seqSwing: number;
+}
+
+/**
+ * Narrow interface that persistence helpers consume. PadEngine satisfies
+ * this structurally, so tests can supply a hand-rolled mock with just
+ * these two methods instead of standing up an entire AudioContext.
+ */
+export interface PadPersistencePort {
+  getSnapshot(): PadSnapshot;
+  loadSnapshot(snap: PadSnapshot): void;
 }

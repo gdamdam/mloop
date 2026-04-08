@@ -2,7 +2,7 @@
 <p align="center">Browser-based loop station & MPC-style sampler.<br>Record, layer, slice, sequence, perform — no install, no subscription, no account.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.1.0-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-0.2.0-blue" alt="Version"></a>
   <a href="https://mpump.live"><img src="https://img.shields.io/badge/companion-mpump-orange" alt="Companion to mpump"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-green" alt="License"></a>
   <br>

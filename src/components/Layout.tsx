@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { EngineState, LoopCommand } from "../types";
 import type { AudioEngine } from "../engine/AudioEngine";
 import { PadEngine } from "../engine/PadEngine";
@@ -37,9 +37,12 @@ interface LayoutProps {
   state: EngineState;
   command: (cmd: LoopCommand) => void;
   engine: AudioEngine | null;
+  /** Owned by the useLoopEngine hook — passed in so persistence + PAD UI
+   *  share the same instance. Null until startEngine completes. */
+  padEngine: PadEngine | null;
 }
 
-export function Layout({ state, command, engine }: LayoutProps) {
+export function Layout({ state, command, engine, padEngine }: LayoutProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("pads");
   const [showSessions, setShowSessions] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
@@ -141,15 +144,8 @@ export function Layout({ state, command, engine }: LayoutProps) {
     loadSession("__pinned__").then(s => setIsPinned(!!s && s.tracks.some(t => t.layers.length > 0))).catch(() => {});
   }, []);
 
-  // PadEngine — create synchronously on first render when engine exists.
-  // useMemo ensures it's created exactly once per engine instance, not async.
-  const padEngine = useMemo(() => {
-    if (!engine) return null;
-    const pe = new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
-    pe.countInBeats = parseInt(localStorage.getItem("mloop-count-in") || "4");
-    return pe;
-  }, [engine]);
-  // Keep ref in sync for rAF poll (declared before padEngine due to hook ordering)
+  // padEngine is owned by useLoopEngine (so persistence can reach it) and
+  // passed in as a prop. We just mirror it into the local rAF-poll ref.
   padEngineRef.current = padEngine;
 
   // Load 8 default drum samples into pads on first init

@@ -27,13 +27,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
 }
 
 function AppInner() {
-  const { state, command, startEngine, getEngine } = useLoopEngine();
+  const { state, command, startEngine, getEngine, getPadEngine } = useLoopEngine();
 
   if (!state.started) {
     return <StartGate onStart={startEngine} />;
   }
 
-  return <Layout state={state} command={command} engine={getEngine()} />;
+  return <Layout state={state} command={command} engine={getEngine()} padEngine={getPadEngine()} />;
 }
 
 export default function App() {

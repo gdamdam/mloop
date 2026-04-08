@@ -10,12 +10,43 @@ const DB_NAME = "mloop-sessions";
 const DB_VERSION = 1;
 const STORE_NAME = "sessions";
 
-/** Serializable session data — stored directly in IndexedDB. */
+/** A single PAD slot as stored on disk (binary / IDB shape). */
+export interface PadSlotStored {
+  name: string;
+  /** PCM samples as an ArrayBuffer for structured-clone efficiency. */
+  buffer: ArrayBuffer | null;
+  volume: number;
+  pan: number;
+  pitch: number;
+  playMode: "one" | "gate" | "loop";
+  trimStart: number;
+  trimEnd: number;
+  loopBeats: number;
+  muteGroup: number;
+}
+
+/** Full PAD workspace as stored on disk. */
+export interface PadStateStored {
+  slots: PadSlotStored[];
+  seqGrid: boolean[][];
+  seqNumSteps: number;
+  seqSwing: number;
+}
+
+/**
+ * Serializable session data — stored directly in IndexedDB.
+ *
+ * `syncMode` and `pad` are optional so sessions saved by older versions
+ * (v0.1.0 and earlier, before PAD persistence) continue to load cleanly.
+ * Loaders must default missing fields sensibly.
+ */
 export interface SessionData {
   name: string;            // session identifier (also the IndexedDB key)
   savedAt: number;         // timestamp for sorting
   bpm: number;
   timingMode: "free" | "quantized";
+  /** Added in v0.2.0 — optional for backwards compatibility. */
+  syncMode?: "free" | "sync" | "lock";
   masterLoopLength: number;
   tracks: {
     layers: ArrayBuffer[];  // raw Float32 data as ArrayBuffers (structured-cloneable)
@@ -24,6 +55,8 @@ export interface SessionData {
     playbackRate: number;
     loopLengthSamples: number;
   }[];
+  /** Added in v0.2.0 — optional for backwards compatibility. */
+  pad?: PadStateStored;
 }
 
 /**

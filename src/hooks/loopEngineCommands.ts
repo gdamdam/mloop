@@ -11,6 +11,7 @@
 
 import type { LoopCommand } from "../types";
 import type { AudioEngine } from "../engine/AudioEngine";
+import type { PadPersistencePort } from "../engine/PadEngine";
 import {
   handleSaveSession,
   handleLoadSession,
@@ -32,12 +33,16 @@ async function ensureMic(engine: AudioEngine): Promise<void> {
 }
 
 /**
- * Run a command against the engine. Exhaustive over the command union;
- * unknown types are a no-op. Throws only on programmer error — user-facing
- * errors (session save, file I/O) are handled with alerts inside the
- * persistence helpers.
+ * Run a command against the engine pair (looper + PAD). Exhaustive over
+ * the command union; unknown types are a no-op. Throws only on programmer
+ * error — user-facing errors (session save, file I/O) are handled with
+ * alerts inside the persistence helpers.
+ *
+ * `padEngine` can be null (e.g. before PAD is initialized) — persistence
+ * commands still run but will omit the pad section from the serialized
+ * session.
  */
-export async function runLoopCommand(engine: AudioEngine, cmd: LoopCommand): Promise<void> {
+export async function runLoopCommand(engine: AudioEngine, padEngine: PadPersistencePort | null, cmd: LoopCommand): Promise<void> {
   switch (cmd.type) {
     case "track_record":
       await ensureMic(engine);
@@ -109,17 +114,17 @@ export async function runLoopCommand(engine: AudioEngine, cmd: LoopCommand): Pro
       return;
     }
     case "save_session":
-      return handleSaveSession(engine, cmd.name);
+      return handleSaveSession(engine, padEngine, cmd.name);
     case "load_session":
-      return handleLoadSession(engine, cmd.name);
+      return handleLoadSession(engine, padEngine, cmd.name);
     case "export_wav":
       return handleExportWav(engine);
     case "export_session_file":
-      return handleExportSessionFile(engine);
+      return handleExportSessionFile(engine, padEngine);
     case "import_session_file":
-      return handleImportSessionFile(engine);
+      return handleImportSessionFile(engine, padEngine);
     case "pin_session":
-      return handlePinSession(engine);
+      return handlePinSession(engine, padEngine);
     case "share_link":
       return handleShareLink(engine);
     case "stop_all":

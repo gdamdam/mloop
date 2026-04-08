@@ -1,6 +1,6 @@
 // mloop service worker — network-first with versioned cache fallback.
 // The cache version is bumped via the deploy process (version.json check).
-const CACHE_NAME = "mloop-v6";
+const CACHE_NAME = "mloop-v7";
 
 // Files to pre-cache on install
 const PRECACHE = ["./index.html", "./manifest.json", "./favicon.svg"];

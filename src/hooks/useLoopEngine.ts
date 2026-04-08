@@ -1,24 +1,27 @@
 /**
- * useLoopEngine — React hook that bridges the AudioEngine (real-time audio)
- * with React state (UI rendering).
+ * useLoopEngine — React hook that owns both the AudioEngine (looper)
+ * and the PadEngine (PAD mode) and bridges them to React state.
  *
  * Uses an optimistic-update pattern: the reducer immediately updates UI
  * state, then the async engine operation runs and syncs the real state
  * back. This keeps the UI responsive even when audio operations have
  * latency.
  *
- * The reducer logic lives in `loopEngineReducer.ts` and the async
- * command runner in `loopEngineCommands.ts`, so this file is just the
- * React wiring: state, refs, dispatch, engine init.
+ * The reducer logic lives in `loopEngineReducer.ts`, the async command
+ * runner in `loopEngineCommands.ts`, and the persistence helpers in
+ * `loopEnginePersistence.ts`. This file is just the React wiring:
+ * state, refs, dispatch, engine init, and pinned-session restore.
  */
 
 import { useReducer, useRef, useCallback, useEffect } from "react";
 import type { LoopCommand } from "../types";
 import { createInitialState } from "../types";
 import { AudioEngine } from "../engine/AudioEngine";
+import { PadEngine } from "../engine/PadEngine";
 import { loadSession } from "../utils/storage";
 import { loopEngineReducer, syncFromEngine } from "./loopEngineReducer";
 import { runLoopCommand } from "./loopEngineCommands";
+import { applySessionData } from "./loopEnginePersistence";
 
 /**
  * Main hook for the loop engine — provides state, command dispatch,
@@ -27,6 +30,7 @@ import { runLoopCommand } from "./loopEngineCommands";
 export function useLoopEngine() {
   const [state, dispatch] = useReducer(loopEngineReducer, undefined, createInitialState);
   const engineRef = useRef<AudioEngine | null>(null);
+  const padEngineRef = useRef<PadEngine | null>(null);
   // Guards against setState after unmount — async engine ops may resolve late.
   const mountedRef = useRef(true);
 
@@ -41,7 +45,7 @@ export function useLoopEngine() {
   const syncState = useCallback(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    if (!mountedRef.current) return; // component went away mid-op — don't dispatch
+    if (!mountedRef.current) return;
     dispatch({ type: "state_sync", state: syncFromEngine(engine) });
   }, []);
 
@@ -51,14 +55,12 @@ export function useLoopEngine() {
    */
   const command = useCallback(
     (cmd: LoopCommand) => {
-      // Optimistic UI update — keeps buttons feeling instant
       dispatch(cmd);
 
       const engine = engineRef.current;
       if (!engine) return;
 
-      // Run the real engine operation, then sync state back
-      runLoopCommand(engine, cmd)
+      runLoopCommand(engine, padEngineRef.current, cmd)
         .then(() => syncState())
         .catch((e) => console.error("Loop command failed:", cmd.type, e));
     },
@@ -66,14 +68,14 @@ export function useLoopEngine() {
   );
 
   /**
-   * Initialize the audio engine — requests mic permission, creates
-   * AudioContext, and restores any pinned session from IndexedDB.
+   * Initialize the audio engine and PAD engine — requests mic permission,
+   * creates the AudioContext, wires callbacks, and restores any pinned
+   * session (looper + PAD) from IndexedDB.
    */
   const startEngine = useCallback(async () => {
     if (engineRef.current) return;
 
     const engine = new AudioEngine();
-    // Mic access is optional — app works without it (pads, file import, sessions).
     try {
       await engine.initMic();
     } catch (e) {
@@ -87,7 +89,6 @@ export function useLoopEngine() {
     }
 
     if (!mountedRef.current) {
-      // Unmounted during init — release audio resources and bail
       try { await engine.ctx.close(); } catch { /* ok */ }
       return;
     }
@@ -101,23 +102,25 @@ export function useLoopEngine() {
       };
     }
 
+    // PadEngine lives alongside AudioEngine — it has to share the same
+    // AudioContext so routing and timing stay aligned. Creating it here
+    // (rather than in Layout) means session persistence can reach it.
+    const padEngine = new PadEngine(engine.ctx, engine.getInputNode(), engine.getMasterNode());
+    padEngine.countInBeats = parseInt(localStorage.getItem("mloop-count-in") ?? "4", 10);
+    padEngineRef.current = padEngine;
+
     engineRef.current = engine;
     dispatch({ type: "state_sync", state: { started: true, ...syncFromEngine(engine) } });
 
-    // Auto-load pinned session if one exists (session recovery)
+    // Auto-load pinned session if one exists (session recovery).
+    // Restores BOTH looper and PAD state through the shared applier so
+    // there is exactly one code path for "hydrate engines from session".
     try {
       const pinned = await loadSession("__pinned__");
-      if (pinned && pinned.tracks.some((t) => t.layers.length > 0)) {
-        engine.masterLoopLength = pinned.masterLoopLength;
-        engine.timing.bpm = pinned.bpm;
-        engine.timingMode = pinned.timingMode;
-        for (let i = 0; i < engine.tracks.length; i++) {
-          const td = pinned.tracks[i];
-          if (!td || td.layers.length === 0) continue;
-          const layers = td.layers.map((ab) => new Float32Array(ab));
-          engine.tracks[i].restoreLayers(layers, td.loopLengthSamples);
-          engine.tracks[i].volume = td.volume;
-        }
+      const looperHasContent = !!pinned && pinned.tracks.some((t) => t.layers.length > 0);
+      const padHasContent = !!pinned?.pad?.slots.some((s) => !!s.buffer);
+      if (pinned && (looperHasContent || padHasContent)) {
+        applySessionData(engine, padEngine, pinned);
         if (mountedRef.current) {
           dispatch({ type: "state_sync", state: syncFromEngine(engine) });
         }
@@ -129,6 +132,8 @@ export function useLoopEngine() {
 
   /** Direct access to the engine instance (for visualizers, pad engine, etc). */
   const getEngine = useCallback(() => engineRef.current, []);
+  /** Direct access to the pad engine instance. */
+  const getPadEngine = useCallback(() => padEngineRef.current, []);
 
-  return { state, command, startEngine, getEngine };
+  return { state, command, startEngine, getEngine, getPadEngine };
 }

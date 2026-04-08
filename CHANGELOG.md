@@ -2,6 +2,32 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-04-08
+
+Fixes verified persistence gaps around PAD-mode and session round-tripping.
+
+### Added
+- **PAD-mode session persistence.** `PadEngine` gains `getSnapshot()` / `loadSnapshot()` and a narrow `PadPersistencePort` interface. Full PAD workspace (all 16 slots with buffers, per-pad settings, sequencer grid, step count, swing) now round-trips through every persistence surface.
+- **Shared `applySessionData` applier.** Pinned autoload and regular "load session" now use one code path, so there is no way for one to quietly diverge from the other.
+- **13 new persistence tests** covering `serializeSessionData` / `serializeSessionExport` / `applySessionData` / `applySessionExport` / `handleSaveSession` / `handleLoadSession` / pad-snapshot converters.
+- **`src/hooks/useLoopEngine.ts`** now owns the `PadEngine` instance (was previously created ad-hoc in `Layout`). This closes the structural gap that kept persistence out of PAD state.
+
+### Changed
+- **`SessionData`** (IndexedDB shape) gains optional `syncMode` and `pad` fields. Missing fields default safely so legacy sessions keep loading.
+- **`SessionExport`** (JSON `.mloop-session.json`) gains version bump to `2` when a pad section is present; version `1` files still load.
+- **Regular save/load now round-trips `syncMode`** — previously dropped.
+- **Pinned autoload** now restores everything that regular load restores: `syncMode`, `isReversed`, `playbackRate`, and the PAD workspace — not just looper layers/BPM/volume.
+- **`runLoopCommand` signature**: `(engine, padEngine, cmd)`. All persistence commands thread through both engines.
+- **Layout no longer creates its own `PadEngine`.** It receives one as a prop from `useLoopEngine` and only mirrors it into the local rAF-poll ref.
+
+### Backwards compatibility
+- Sessions saved by v0.1.0 (no `syncMode`, no `pad`) still load. `syncMode` is left at the current engine value; the pad workspace is left untouched so the user's current pads / default kit survive.
+- JSON exports emitted by v0.1.0 (`version: 1`, no `pad`) still load.
+
+### Fixed
+- Pinned autoload used to silently drop `syncMode`, `isReversed`, and `playbackRate` on restore.
+- PAD workspace (samples, pad settings, sequencer grid) was never persisted — a fresh visit always booted the default kit and lost any user-loaded samples.
+
 ## [0.1.0] — 2026-04-08
 
 First public release on the new versioning line. Resets the version after a full parity pass against the mpump companion project (P0–P4 of `misc/OPUS-REPORT.md`).
