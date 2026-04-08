@@ -26,3 +26,6 @@ dist-ssr
 
 # Local-only project knowledge (not tracked — mirror of mpump/misc/ pattern)
 misc/
+
+# Local Claude Code settings
+.claude/
