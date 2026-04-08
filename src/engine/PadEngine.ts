@@ -597,9 +597,13 @@ export class PadEngine {
   }
 
   /**
-   * Restore the pad engine from a snapshot. Stops the sequencer and any
-   * active sources first so the restore happens cleanly. Missing fields
-   * fall back to constructor defaults so legacy snapshots still load.
+   * Restore the pad engine from a snapshot.
+   *
+   * The restore is a FULL reset: every slot (including ones the snapshot
+   * doesn't mention) and every sequencer field are brought back to either
+   * the snapshot's value or the constructor default. That guarantees no
+   * "ghost" samples or stale patterns leak through after importing a
+   * partial / legacy / malformed snapshot.
    */
   loadSnapshot(snap: PadSnapshot): void {
     this.stopSequencer();
@@ -608,43 +612,58 @@ export class PadEngine {
     }
     this.activeSources.clear();
 
-    const slotCount = Math.min(this.slots.length, snap.slots.length);
-    for (let i = 0; i < slotCount; i++) {
+    const snapSlots = Array.isArray(snap.slots) ? snap.slots : [];
+    for (let i = 0; i < this.slots.length; i++) {
       const s = this.slots[i];
-      const snapSlot = snap.slots[i];
-      s.name = snapSlot.name ?? "";
-      s.volume = snapSlot.volume ?? 1;
-      s.pan = snapSlot.pan ?? 0;
-      s.pitch = snapSlot.pitch ?? 0;
-      s.playMode = snapSlot.playMode ?? "one";
-      s.trimStart = snapSlot.trimStart ?? 0;
-      s.trimEnd = snapSlot.trimEnd ?? 1;
-      s.loopBeats = snapSlot.loopBeats ?? 0;
-      s.muteGroup = snapSlot.muteGroup ?? 0;
+      const snapSlot = snapSlots[i];
+      if (snapSlot) {
+        s.name = snapSlot.name ?? "";
+        s.volume = snapSlot.volume ?? 1;
+        s.pan = snapSlot.pan ?? 0;
+        s.pitch = snapSlot.pitch ?? 0;
+        s.playMode = snapSlot.playMode ?? "one";
+        s.trimStart = snapSlot.trimStart ?? 0;
+        s.trimEnd = snapSlot.trimEnd ?? 1;
+        s.loopBeats = snapSlot.loopBeats ?? 0;
+        s.muteGroup = snapSlot.muteGroup ?? 0;
 
-      if (snapSlot.buffer && snapSlot.buffer.length > 0) {
-        const data = new Float32Array(snapSlot.buffer);
-        s.buffer = data;
-        const audioBuf = this.ctx.createBuffer(1, data.length, this.ctx.sampleRate);
-        audioBuf.copyToChannel(data, 0);
-        s.audioBuffer = audioBuf;
-        s.status = "loaded";
+        if (snapSlot.buffer && snapSlot.buffer.length > 0) {
+          const data = new Float32Array(snapSlot.buffer);
+          s.buffer = data;
+          const audioBuf = this.ctx.createBuffer(1, data.length, this.ctx.sampleRate);
+          audioBuf.copyToChannel(data, 0);
+          s.audioBuffer = audioBuf;
+          s.status = "loaded";
+        } else {
+          s.buffer = null;
+          s.audioBuffer = null;
+          s.status = "empty";
+        }
       } else {
+        // Snapshot doesn't mention this slot — reset to constructor defaults.
+        s.name = "";
+        s.volume = 1;
+        s.pan = 0;
+        s.pitch = 0;
+        s.playMode = "one";
+        s.trimStart = 0;
+        s.trimEnd = 1;
+        s.loopBeats = 0;
+        s.muteGroup = 0;
         s.buffer = null;
         s.audioBuffer = null;
         s.status = "empty";
       }
     }
 
-    if (Array.isArray(snap.seqGrid)) {
-      this.seqGrid = snap.seqGrid.map((row) => [...row]);
-    }
-    if (typeof snap.seqNumSteps === "number") {
-      this.seqNumSteps = snap.seqNumSteps;
-    }
-    if (typeof snap.seqSwing === "number") {
-      this.seqSwing = Math.max(0, Math.min(1, snap.seqSwing));
-    }
+    // Sequencer state is always fully reset. Missing fields fall back to
+    // constructor defaults (empty grid, 16 steps, no swing) rather than
+    // leaking whatever the previous session had.
+    this.seqGrid = Array.isArray(snap.seqGrid) ? snap.seqGrid.map((row) => [...row]) : [];
+    this.seqNumSteps = typeof snap.seqNumSteps === "number" ? snap.seqNumSteps : 16;
+    this.seqSwing = typeof snap.seqSwing === "number"
+      ? Math.max(0, Math.min(1, snap.seqSwing))
+      : 0;
 
     // Invalidate undo — the previous snapshot no longer matches.
     this.undoSlots = null;

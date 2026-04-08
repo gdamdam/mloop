@@ -17,7 +17,24 @@ class StubAudioContext {
   createBiquadFilter() { return { frequency: { value: 0, setTargetAtTime: () => {} }, Q: { value: 0, setTargetAtTime: () => {} }, type: "lowpass", connect: () => {}, disconnect: () => {} }; }
   createMediaStreamSource() { return { connect: () => {}, disconnect: () => {} }; }
   createMediaStreamDestination() { return { stream: new MediaStream() }; }
-  createBuffer() { return { getChannelData: () => new Float32Array(0) }; }
+  createBuffer(_channels = 1, length = 0, sampleRate = 44100) {
+    void _channels;
+    const data = new Float32Array(length);
+    return {
+      length,
+      sampleRate,
+      numberOfChannels: 1,
+      getChannelData: () => data,
+      copyToChannel: (src: Float32Array, _channel: number, startInChannel = 0) => {
+        void _channel;
+        data.set(src.subarray(0, Math.min(src.length, data.length - startInChannel)), startInChannel);
+      },
+      copyFromChannel: (dst: Float32Array, _channel: number, startInChannel = 0) => {
+        void _channel;
+        dst.set(data.subarray(startInChannel, startInChannel + dst.length));
+      },
+    };
+  }
   createBufferSource() { return { buffer: null, loop: false, playbackRate: { value: 1 }, connect: () => {}, start: () => {}, stop: () => {}, disconnect: () => {} }; }
   createStereoPanner() { return { pan: { value: 0, setValueAtTime: () => {} }, connect: () => {}, disconnect: () => {} }; }
   createWaveShaper() { return { curve: null, oversample: "none", connect: () => {}, disconnect: () => {} }; }

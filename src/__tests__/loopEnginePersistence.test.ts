@@ -10,10 +10,11 @@ import {
   padStoredToSnapshot,
   padSnapshotToExport,
   padExportToSnapshot,
+  sessionHasContent,
   type SessionExport,
 } from "../hooks/loopEnginePersistence";
 import type { AudioEngine } from "../engine/AudioEngine";
-import type { PadPersistencePort, PadSnapshot, PadSlotSnapshot } from "../engine/PadEngine";
+import { PadEngine, type PadPersistencePort, type PadSnapshot, type PadSlotSnapshot } from "../engine/PadEngine";
 import type { SessionData } from "../utils/storage";
 import * as storage from "../utils/storage";
 
@@ -535,6 +536,221 @@ describe("handleLoadSession + handleSaveSession (IDB path)", () => {
     await handleLoadSession(engine, pad, "nope");
     expect(engine.syncMode).toBe("lock");
     expect(pad.loadCount).toBe(0);
+  });
+});
+
+// ── Converter helpers ────────────────────────────────────────────────────
+
+// ── sessionHasContent (pinned-indicator predicate) ──────────────────────
+
+describe("sessionHasContent", () => {
+  const makeBase = (): SessionData => ({
+    name: "s",
+    savedAt: 0,
+    bpm: 120,
+    timingMode: "free",
+    masterLoopLength: 0,
+    tracks: [
+      { layers: [], volume: 0.8, isReversed: false, playbackRate: 1, loopLengthSamples: 0 },
+      { layers: [], volume: 0.8, isReversed: false, playbackRate: 1, loopLengthSamples: 0 },
+      { layers: [], volume: 0.8, isReversed: false, playbackRate: 1, loopLengthSamples: 0 },
+    ],
+  });
+
+  it("returns false for undefined / null", () => {
+    expect(sessionHasContent(undefined)).toBe(false);
+    expect(sessionHasContent(null)).toBe(false);
+  });
+
+  it("returns false for empty sessions", () => {
+    expect(sessionHasContent(makeBase())).toBe(false);
+  });
+
+  it("returns true when a looper track has layers", () => {
+    const s = makeBase();
+    s.tracks[0].layers = [new Float32Array([0.5]).buffer];
+    expect(sessionHasContent(s)).toBe(true);
+  });
+
+  it("returns true for PAD-only sessions (no looper layers)", () => {
+    const s = makeBase();
+    s.pad = {
+      slots: [
+        { name: "Kick", buffer: new Float32Array([0.9]).buffer, volume: 1, pan: 0, pitch: 0, playMode: "one", trimStart: 0, trimEnd: 1, loopBeats: 0, muteGroup: 0 },
+        ...Array.from({ length: 15 }, () => ({ name: "", buffer: null, volume: 1, pan: 0, pitch: 0, playMode: "one" as const, trimStart: 0, trimEnd: 1, loopBeats: 0, muteGroup: 0 })),
+      ],
+      seqGrid: [],
+      seqNumSteps: 16,
+      seqSwing: 0,
+    };
+    expect(sessionHasContent(s)).toBe(true);
+  });
+
+  it("returns false when PAD section exists but every slot is empty", () => {
+    const s = makeBase();
+    s.pad = {
+      slots: Array.from({ length: 16 }, () => ({ name: "", buffer: null, volume: 1, pan: 0, pitch: 0, playMode: "one" as const, trimStart: 0, trimEnd: 1, loopBeats: 0, muteGroup: 0 })),
+      seqGrid: [],
+      seqNumSteps: 16,
+      seqSwing: 0,
+    };
+    expect(sessionHasContent(s)).toBe(false);
+  });
+});
+
+// ── PadEngine.loadSnapshot — full-reset semantics ───────────────────────
+// Uses the real PadEngine with the stub AudioContext from __tests__/setup.ts.
+
+describe("PadEngine.loadSnapshot", () => {
+  function makePadEngine(): PadEngine {
+    const ctx = new window.AudioContext();
+    const input = ctx.createGain();
+    const master = ctx.createGain();
+    return new PadEngine(ctx as unknown as AudioContext, input, master);
+  }
+
+  function loadedSlot(name: string, data: number[]): PadSlotSnapshot {
+    return {
+      name,
+      buffer: new Float32Array(data),
+      volume: 0.75,
+      pan: 0.2,
+      pitch: 1,
+      playMode: "loop",
+      trimStart: 0.1,
+      trimEnd: 0.9,
+      loopBeats: 2,
+      muteGroup: 1,
+    };
+  }
+
+  it("resets slots not mentioned in a short snapshot back to defaults", () => {
+    const pad = makePadEngine();
+    // Pre-populate all 16 slots with non-default state via a full snapshot.
+    const full: PadSnapshot = {
+      version: 1,
+      slots: Array.from({ length: 16 }, (_, i) => loadedSlot(`Pad ${i}`, [0.1 * (i + 1)])),
+      seqGrid: [[true]],
+      seqNumSteps: 32,
+      seqSwing: 0.5,
+    };
+    pad.loadSnapshot(full);
+    expect(pad.slots[10].status).toBe("loaded");
+    expect(pad.slots[10].name).toBe("Pad 10");
+    expect(pad.slots[10].muteGroup).toBe(1);
+
+    // Now restore from a snapshot that only mentions the first 3 slots.
+    const partial: PadSnapshot = {
+      version: 1,
+      slots: [loadedSlot("One", [0.5]), loadedSlot("Two", [0.5]), loadedSlot("Three", [0.5])],
+      seqGrid: [[true, false]],
+      seqNumSteps: 16,
+      seqSwing: 0.1,
+    };
+    pad.loadSnapshot(partial);
+
+    // First 3 slots follow the snapshot.
+    expect(pad.slots[0].name).toBe("One");
+    expect(pad.slots[2].status).toBe("loaded");
+
+    // Slots 3..15 are reset to constructor defaults — no ghost samples.
+    for (let i = 3; i < 16; i++) {
+      expect(pad.slots[i].status, `slot ${i} status`).toBe("empty");
+      expect(pad.slots[i].name, `slot ${i} name`).toBe("");
+      expect(pad.slots[i].buffer, `slot ${i} buffer`).toBeNull();
+      expect(pad.slots[i].audioBuffer, `slot ${i} audioBuffer`).toBeNull();
+      expect(pad.slots[i].volume, `slot ${i} volume`).toBe(1);
+      expect(pad.slots[i].pan, `slot ${i} pan`).toBe(0);
+      expect(pad.slots[i].pitch, `slot ${i} pitch`).toBe(0);
+      expect(pad.slots[i].playMode, `slot ${i} playMode`).toBe("one");
+      expect(pad.slots[i].trimStart, `slot ${i} trimStart`).toBe(0);
+      expect(pad.slots[i].trimEnd, `slot ${i} trimEnd`).toBe(1);
+      expect(pad.slots[i].loopBeats, `slot ${i} loopBeats`).toBe(0);
+      expect(pad.slots[i].muteGroup, `slot ${i} muteGroup`).toBe(0);
+    }
+  });
+
+  it("resets sequencer fields to defaults when the snapshot omits them", () => {
+    const pad = makePadEngine();
+    // Establish non-default sequencer state.
+    pad.loadSnapshot({
+      version: 1,
+      slots: Array.from({ length: 16 }, () => loadedSlot("x", [0.1])),
+      seqGrid: [[true, true], [false, true]],
+      seqNumSteps: 64,
+      seqSwing: 0.8,
+    });
+    expect(pad.getSnapshot().seqNumSteps).toBe(64);
+    expect(pad.getSnapshot().seqSwing).toBeCloseTo(0.8, 5);
+
+    // Restore from a snapshot with missing sequencer fields (cast through
+    // unknown to simulate a legacy / malformed snapshot shape).
+    const malformed = {
+      version: 1,
+      slots: [],
+      // seqGrid / seqNumSteps / seqSwing intentionally missing
+    } as unknown as PadSnapshot;
+    pad.loadSnapshot(malformed);
+
+    const after = pad.getSnapshot();
+    expect(after.seqGrid).toEqual([]);
+    expect(after.seqNumSteps).toBe(16);
+    expect(after.seqSwing).toBe(0);
+    // And every slot is back to defaults.
+    for (const s of pad.slots) {
+      expect(s.status).toBe("empty");
+      expect(s.buffer).toBeNull();
+    }
+  });
+
+  it("clamps seqSwing into [0, 1]", () => {
+    const pad = makePadEngine();
+    pad.loadSnapshot({
+      version: 1,
+      slots: [],
+      seqGrid: [],
+      seqNumSteps: 16,
+      seqSwing: 5,
+    });
+    expect(pad.getSnapshot().seqSwing).toBe(1);
+
+    pad.loadSnapshot({
+      version: 1,
+      slots: [],
+      seqGrid: [],
+      seqNumSteps: 16,
+      seqSwing: -1,
+    });
+    expect(pad.getSnapshot().seqSwing).toBe(0);
+  });
+
+  it("round-trips through getSnapshot → loadSnapshot without state drift", () => {
+    const pad = makePadEngine();
+    const original: PadSnapshot = {
+      version: 1,
+      slots: Array.from({ length: 16 }, (_, i) => i < 4 ? loadedSlot(`Slot ${i}`, [0.2 * i, -0.2 * i]) : {
+        name: "", buffer: null, volume: 1, pan: 0, pitch: 0, playMode: "one",
+        trimStart: 0, trimEnd: 1, loopBeats: 0, muteGroup: 0,
+      }),
+      seqGrid: [[true, false], [false, true]],
+      seqNumSteps: 16,
+      seqSwing: 0.33,
+    };
+    pad.loadSnapshot(original);
+    const snap = pad.getSnapshot();
+
+    // Mutate the pad, then restore — should be indistinguishable.
+    pad.loadSnapshot({ version: 1, slots: [], seqGrid: [], seqNumSteps: 16, seqSwing: 0 });
+    pad.loadSnapshot(snap);
+
+    expect(pad.slots[0].name).toBe("Slot 0");
+    expect(pad.slots[3].playMode).toBe("loop");
+    expect(pad.slots[3].muteGroup).toBe(1);
+    expect(pad.slots[15].status).toBe("empty");
+    const out = pad.getSnapshot();
+    expect(out.seqNumSteps).toBe(16);
+    expect(out.seqSwing).toBeCloseTo(0.33, 5);
+    expect(out.seqGrid).toEqual([[true, false], [false, true]]);
   });
 });
 

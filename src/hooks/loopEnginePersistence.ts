@@ -167,6 +167,21 @@ export function padExportToSnapshot(exp: PadStateExport): PadSnapshot {
   };
 }
 
+// ── Session introspection ───────────────────────────────────────────────
+
+/**
+ * True if a stored session carries any meaningful content — either looper
+ * layers or PAD sample buffers. Used by the UI (pinned-session indicator)
+ * and the pinned autoload path so PAD-only pinned sessions count as "has
+ * content" even when the looper is empty.
+ */
+export function sessionHasContent(session: SessionData | undefined | null): boolean {
+  if (!session) return false;
+  if (session.tracks.some((t) => t.layers.length > 0)) return true;
+  if (session.pad?.slots.some((s) => !!s.buffer)) return true;
+  return false;
+}
+
 // ── Engine → persistence (serialize) ────────────────────────────────────
 
 /**

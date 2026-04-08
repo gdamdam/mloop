@@ -26,6 +26,7 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useMidiMapping } from "../hooks/useMidiMapping";
 import { MidiController } from "../engine/MidiController";
 import { loadSession } from "../utils/storage";
+import { sessionHasContent } from "../hooks/loopEnginePersistence";
 import { generateDefaultSamples } from "../engine/BuiltInSamples";
 import { useLinkBridge } from "../hooks/useLinkBridge";
 
@@ -141,7 +142,10 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
 
   // Check if a pinned session exists on mount
   useEffect(() => {
-    loadSession("__pinned__").then(s => setIsPinned(!!s && s.tracks.some(t => t.layers.length > 0))).catch(() => {});
+    // PAD-only pinned sessions (no looper layers) still count as pinned —
+    // use the shared sessionHasContent predicate so the header affordance
+    // matches the autoload path in useLoopEngine.
+    loadSession("__pinned__").then(s => setIsPinned(sessionHasContent(s))).catch(() => {});
   }, []);
 
   // padEngine is owned by useLoopEngine (so persistence can reach it) and

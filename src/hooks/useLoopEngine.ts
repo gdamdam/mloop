@@ -21,7 +21,7 @@ import { PadEngine } from "../engine/PadEngine";
 import { loadSession } from "../utils/storage";
 import { loopEngineReducer, syncFromEngine } from "./loopEngineReducer";
 import { runLoopCommand } from "./loopEngineCommands";
-import { applySessionData } from "./loopEnginePersistence";
+import { applySessionData, sessionHasContent } from "./loopEnginePersistence";
 
 /**
  * Main hook for the loop engine — provides state, command dispatch,
@@ -115,11 +115,10 @@ export function useLoopEngine() {
     // Auto-load pinned session if one exists (session recovery).
     // Restores BOTH looper and PAD state through the shared applier so
     // there is exactly one code path for "hydrate engines from session".
+    // `sessionHasContent` treats PAD-only sessions as valid.
     try {
       const pinned = await loadSession("__pinned__");
-      const looperHasContent = !!pinned && pinned.tracks.some((t) => t.layers.length > 0);
-      const padHasContent = !!pinned?.pad?.slots.some((s) => !!s.buffer);
-      if (pinned && (looperHasContent || padHasContent)) {
+      if (pinned && sessionHasContent(pinned)) {
         applySessionData(engine, padEngine, pinned);
         if (mountedRef.current) {
           dispatch({ type: "state_sync", state: syncFromEngine(engine) });
