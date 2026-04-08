@@ -27,7 +27,7 @@
       --border:     #102030;
       --text:       #c8dde8;
       --dim:        #5a8898;
-      --accent:     #5fddff;
+      --accent:     #3ddc97;
       --mono:       "SF Mono", "Fira Code", "Cascadia Code", monospace;
       --ui:         system-ui, -apple-system, sans-serif;
       --shadow:     0 20px 60px rgba(0, 0, 0, 0.5);
@@ -37,8 +37,8 @@
       font-family: var(--ui);
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(95,221,255,0.09), transparent 28%),
-        radial-gradient(circle at 85% 8%, rgba(95,221,255,0.05), transparent 22%),
+        radial-gradient(circle at top left, rgba(61,220,151,0.09), transparent 28%),
+        radial-gradient(circle at 85% 8%, rgba(61,220,151,0.05), transparent 22%),
         linear-gradient(180deg, #040c10 0%, #060e10 100%);
     }
     a { color: inherit; text-decoration: none; }
@@ -62,7 +62,7 @@
       font-size: 7px;
       line-height: 1.2;
       white-space: pre;
-      text-shadow: 0 0 8px rgba(95,221,255,0.35);
+      text-shadow: 0 0 8px rgba(61,220,151,0.35);
       flex-shrink: 0;
     }
     .pad-mini {
@@ -79,8 +79,8 @@
       border: 1px solid var(--border);
       transition: background 0.1s, box-shadow 0.1s;
     }
-    .pad-cell.dim-on { background: rgba(95,221,255,0.30); border-color: rgba(95,221,255,0.2); }
-    .pad-cell.on     { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px rgba(95,221,255,0.5); }
+    .pad-cell.dim-on { background: rgba(61,220,151,0.30); border-color: rgba(61,220,151,0.2); }
+    .pad-cell.on     { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px rgba(61,220,151,0.5); }
 
     /* ── Layout ──────────────────────────────────────── */
     .shell {
@@ -103,8 +103,8 @@
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(90deg, transparent 0, rgba(95,221,255,0.02) 50%, transparent 100%),
-        repeating-linear-gradient(180deg, transparent 0 28px, rgba(95,221,255,0.015) 28px 29px);
+        linear-gradient(90deg, transparent 0, rgba(61,220,151,0.02) 50%, transparent 100%),
+        repeating-linear-gradient(180deg, transparent 0 28px, rgba(61,220,151,0.015) 28px 29px);
       pointer-events: none;
     }
     .card-body {
@@ -129,7 +129,7 @@
       font-family: var(--mono);
       font-size: clamp(9px, 1.9vw, 13px);
       line-height: 1.15;
-      text-shadow: 0 0 12px rgba(95,221,255,0.3);
+      text-shadow: 0 0 12px rgba(61,220,151,0.3);
       margin-bottom: 20px;
     }
     .beta {
@@ -177,9 +177,9 @@
     }
     .proof-pill {
       padding: 7px 12px;
-      border: 1px solid rgba(95,221,255,0.22);
+      border: 1px solid rgba(61,220,151,0.22);
       border-radius: 999px;
-      background: rgba(95,221,255,0.07);
+      background: rgba(61,220,151,0.07);
       color: var(--text);
       font-family: var(--mono);
       font-size: 11px;
@@ -204,14 +204,14 @@
       transition: 0.2s ease;
     }
     .cta-link {
-      border: 2px solid rgba(95,221,255,0.5);
+      border: 2px solid rgba(61,220,151,0.5);
       color: var(--accent);
       font-weight: 700;
-      box-shadow: 0 0 18px rgba(95,221,255,0.16);
+      box-shadow: 0 0 18px rgba(61,220,151,0.16);
     }
     .cta-link:hover {
       border-color: rgba(180,242,255,1);
-      box-shadow: 0 0 32px rgba(95,221,255,0.3);
+      box-shadow: 0 0 32px rgba(61,220,151,0.3);
     }
     .cta-link-sec {
       border: 1px solid var(--border);
@@ -333,7 +333,7 @@
       text-transform: uppercase;
       margin-bottom: 14px;
     }
-    .mode-badge.pad    { background: rgba(95,221,255,0.15); color: var(--accent); border: 1px solid rgba(95,221,255,0.3); }
+    .mode-badge.pad    { background: rgba(61,220,151,0.15); color: var(--accent); border: 1px solid rgba(61,220,151,0.3); }
     .mode-badge.looper { background: rgba(200,140,255,0.1); color: #c88cff;       border: 1px solid rgba(200,140,255,0.25); }
 
     /* ── Privacy strip ───────────────────────────────── */
