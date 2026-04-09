@@ -12,6 +12,10 @@
   <strong><a href="https://mloop.mpump.live/">mloop.mpump.live</a></strong>
 </p>
 
+<p align="center">
+  <img src="public/mloop_screenshot.png" alt="mloop screenshot" width="1200">
+</p>
+
 ---
 
 ## Three Modes
