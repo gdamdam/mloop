@@ -90,6 +90,8 @@ export function StartGate({ onStart }: StartGateProps) {
       )}
 
       <span style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.4, marginTop: 8 }}>v{APP_VERSION}</span>
+
+      <a href="landing.html" style={{ fontSize: 10, color: "var(--text-dim)", opacity: 0.5, marginTop: 8, textDecoration: "underline" }}>what is mloop?</a>
     </div>
   );
 }

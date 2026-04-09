@@ -1,12 +1,12 @@
 {
   "name": "mloop",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Browser-based loop station and MPC-style sampler — companion to mpump.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/post-build.cjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist --dotfiles",
