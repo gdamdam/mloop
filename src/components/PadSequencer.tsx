@@ -375,7 +375,7 @@ export function PadSequencer({ slots, bpm, onTrigger: _onTrigger, padEngine, rec
       </div>
 
       {/* Step grid */}
-      <div style={{ flex: "1 1 0", overflow: "auto", minHeight: 0 }}>
+      <div style={{ flex: "1 1 auto", overflow: "auto", minHeight: 0 }}>
         {loadedSlots.map((slot) => (
           <div key={slot.id} style={{ display: "flex", alignItems: "center", gap: 2, marginBottom: 2 }}>
             <button
