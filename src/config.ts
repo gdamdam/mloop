@@ -6,7 +6,7 @@
  */
 
 /** App version — single source of truth. Keep in sync with package.json, public/version.json, and the README badge. */
-export const APP_VERSION = "1.0.1";
+export const APP_VERSION = "1.1.0";
 
 /** Number of loop tracks in the app. */
 export const NUM_TRACKS = 3;
