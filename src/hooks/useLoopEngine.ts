@@ -38,6 +38,9 @@ export function useLoopEngine() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      // Tear down audio resources and document resume-event listeners on
+      // unmount. shutdown() is idempotent so a double unmount is safe.
+      engineRef.current?.shutdown();
     };
   }, []);
 

@@ -412,7 +412,7 @@ export class EffectsChain {
    */
   private rebuildFxChain(): void {
     // Disconnect old chain
-    this.inputNode.disconnect();
+    try { this.inputNode.disconnect(); } catch { /* already disconnected */ }
     for (const n of this.fxNodes) {
       try { n.disconnect(); } catch { /* already disconnected */ }
     }

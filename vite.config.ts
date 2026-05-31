@@ -10,6 +10,16 @@ export default defineConfig({
     // including Firefox. Vite 8 defaults to "esnext" which can emit syntax
     // that older Firefox versions don't support.
     target: "es2020",
+    rollupOptions: {
+      output: {
+        // Split the React runtime (and other deps) into a vendor chunk. It
+        // changes far less often than app code, so browsers keep it cached
+        // across app deploys.
+        manualChunks(id) {
+          if (id.includes("node_modules")) return "vendor";
+        },
+      },
+    },
   },
   test: {
     environment: "jsdom",

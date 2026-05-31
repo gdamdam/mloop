@@ -321,6 +321,9 @@ export class LoopTrack {
       this.destructionTimer = null;
     }
     if (this.destructionSource) {
+      // Null out onended FIRST so a pending callback cannot fire after we
+      // stop the source and overwrite this.sourceNode with a stale source.
+      this.destructionSource.onended = null;
       try { this.destructionSource.stop(); this.destructionSource.disconnect(); } catch { /* ok */ }
       this.destructionSource = null;
     }

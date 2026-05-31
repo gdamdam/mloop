@@ -69,6 +69,7 @@ export function useMidiMapping(command: (cmd: LoopCommand) => void, enabled: boo
     ctrl.init();
 
     return () => {
+      ctrl.dispose();
       controllerRef.current = null;
     };
   }, [command, enabled]);

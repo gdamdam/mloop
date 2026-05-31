@@ -12,7 +12,7 @@
  * conflicts with typing (e.g., session name input).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LoopCommand } from "../types";
 
 interface ShortcutMap {
@@ -103,6 +103,16 @@ export function useKeyboardShortcuts(
 ) {
   const [showOverlay, setShowOverlay] = useState(false);
 
+  // Keep latest callbacks in refs so the keydown handler always calls the
+  // current version without re-binding the listener every render. Refs are
+  // updated in an effect (not during render) to satisfy react-hooks/refs.
+  const onSpaceBarRef = useRef(onSpaceBar);
+  const onUndoRef = useRef(onUndo);
+  useEffect(() => {
+    onSpaceBarRef.current = onSpaceBar;
+    onUndoRef.current = onUndo;
+  });
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -125,7 +135,7 @@ export function useKeyboardShortcuts(
       // Cmd+Z (Mac) / Ctrl+Z (Windows) → undo
       if (key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault();
-        onUndo?.();
+        onUndoRef.current?.();
         return;
       }
 
@@ -139,7 +149,7 @@ export function useKeyboardShortcuts(
       // Space bar gets special handling
       if (key === " ") {
         e.preventDefault();
-        if (onSpaceBar) onSpaceBar();
+        if (onSpaceBarRef.current) onSpaceBarRef.current();
         else command({ type: "stop_all" });
         return;
       }
@@ -161,7 +171,8 @@ export function useKeyboardShortcuts(
 
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSpaceBar is a useCallback, but adding it causes re-binds on every render cycle
+    // onSpaceBar/onUndo are read via refs (above) to avoid re-binding the
+    // listener every render while still calling the latest callback.
   }, [command, enabled, viewMode, onPadTrigger]);
 
   return { showOverlay, setShowOverlay };

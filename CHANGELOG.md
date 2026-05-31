@@ -2,6 +2,25 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Reliability pass from a full code review: error handling, lifecycle teardown, and audio-clock race fixes. No public API breaks.
+
+### Fixed
+- **Audio import no longer fails silently.** `FileImport` and `SampleSlicer` now catch `decodeAudioData` errors and surface them (new optional `onError` prop / inline message) instead of throwing an unhandled rejection. The file picker also filters by audio MIME type, matching the drag-and-drop path.
+- **`AudioEngine` is now torn down on unmount.** `useLoopEngine` calls `engine.shutdown()` in its unmount cleanup; `shutdown()` is idempotent and removes the document resume-event listeners that previously leaked for the page lifetime.
+- **MIDI handlers are detached on teardown.** New `MidiController.dispose()` nulls `onstatechange` and every input's `onmidimessage`; `useMidiMapping` calls it on cleanup, so a disabled/replaced controller stops firing stale callbacks.
+- **Keyboard undo no longer uses a stale callback.** `useKeyboardShortcuts` reads `onUndo`/`onSpaceBar` through refs (updated in an effect), so the latest handler always fires without re-binding the listener.
+- **Destruction-cycle race.** `LoopTrack` cancels the pending loop-boundary `onended` on stop, so a late callback can no longer overwrite/resurrect the active source after playback stops.
+- **Double `Recorder.stop()`** is now a no-op that doesn't orphan the first promise or stack a second safety timeout.
+- **Defensive `disconnect()`/`close()`.** Remaining unguarded `AudioNode.disconnect()` and `ctx.close()` calls (`switchDevice`, `rebuildFxChain`) are wrapped in try/catch — Safari/Firefox throw on already-disconnected nodes or closed contexts.
+
+### Changed
+- **Build splits the React runtime into a cacheable `vendor` chunk** (Vite `manualChunks`), so app-code deploys don't invalidate the vendor bundle.
+
+### Added
+- **19 new tests** covering engine teardown/idempotency, the destruction-cycle and double-stop races, throwing-disconnect non-propagation, `MidiController.dispose()`, the keyboard-undo ref fix, and the audio-import error paths.
+
 ## [0.2.0] — 2026-04-08
 
 Fixes verified persistence gaps around PAD-mode and session round-tripping.

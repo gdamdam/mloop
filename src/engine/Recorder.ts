@@ -20,6 +20,8 @@ export class Recorder {
   private scriptNode: ScriptProcessorNode | null = null;
   private inputNode: AudioNode;
   private resolveBuffer: ((buf: Float32Array) => void) | null = null;
+  /** Guards against a second concurrent stop() clobbering resolveBuffer / stacking timeouts. */
+  private stopping = false;
   private static workletReady = false;
   private static workletFailed = false;
   private chunks: Float32Array[] = [];
@@ -102,8 +104,17 @@ export class Recorder {
   /** Stop recording and return the captured buffer. */
   stop(): Promise<Float32Array> {
     return new Promise((resolve) => {
+      // A second concurrent stop() while the worklet is still draining would
+      // overwrite resolveBuffer (orphaning the first promise) and stack a
+      // second 3s timeout. Make the redundant call a no-op.
+      if (this.stopping) {
+        resolve(new Float32Array(0));
+        return;
+      }
+
       // AudioWorklet path
       if (this.workletNode) {
+        this.stopping = true;
         this.resolveBuffer = resolve;
 
         // Safety timeout — if worklet doesn't respond in 3s, resolve with empty buffer
@@ -162,6 +173,7 @@ export class Recorder {
       } catch { /* already disconnected */ }
       this.workletNode = null;
     }
+    this.stopping = false;
     this.mode = "none";
   }
 }

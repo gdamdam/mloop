@@ -22,24 +22,31 @@ export function SampleSlicer({ padEngine, onClose }: SampleSlicerProps) {
   const [sliceMode, setSliceMode] = useState<SliceMode>("equal");
   const [sensitivity, setSensitivity] = useState(0.5);
   const [autoPoints, setAutoPoints] = useState<number[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   /** Load audio file and decode to mono Float32Array. */
   const handleFile = useCallback(async (file: File) => {
+    setError(null);
     setFileName(file.name.replace(/\.[^.]+$/, ""));
-    const arrayBuffer = await file.arrayBuffer();
-    const offlineCtx = new OfflineAudioContext(1, 1, 44100);
-    const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
-    // Mono downmix
-    const numCh = audioBuffer.numberOfChannels;
-    const len = audioBuffer.length;
-    const mono = new Float32Array(len);
-    for (let ch = 0; ch < numCh; ch++) {
-      const data = audioBuffer.getChannelData(ch);
-      for (let i = 0; i < len; i++) mono[i] += data[i];
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const offlineCtx = new OfflineAudioContext(1, 1, 44100);
+      const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+      // Mono downmix
+      const numCh = audioBuffer.numberOfChannels;
+      const len = audioBuffer.length;
+      const mono = new Float32Array(len);
+      for (let ch = 0; ch < numCh; ch++) {
+        const data = audioBuffer.getChannelData(ch);
+        for (let i = 0; i < len; i++) mono[i] += data[i];
+      }
+      if (numCh > 1) for (let i = 0; i < len; i++) mono[i] /= numCh;
+      setBuffer(mono);
+    } catch {
+      // Corrupt / non-audio file — surface to the user instead of failing silently.
+      setError("Couldn't decode that audio file.");
     }
-    if (numCh > 1) for (let i = 0; i < len; i++) mono[i] /= numCh;
-    setBuffer(mono);
   }, []);
 
   /** Draw waveform with slice markers. */
@@ -145,8 +152,11 @@ export function SampleSlicer({ padEngine, onClose }: SampleSlicerProps) {
                 <span style={{ color: "var(--preview)" }}>Choose audio file</span>
                 <br /><span style={{ fontSize: 10 }}>WAV, MP3, OGG, FLAC</span>
                 <input type="file" accept="audio/*" style={{ display: "none" }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f && f.type.startsWith("audio/")) handleFile(f); }} />
               </label>
+              {error && (
+                <p style={{ fontSize: 11, color: "var(--record)", marginTop: 8, textAlign: "center" }}>{error}</p>
+              )}
             </>
           ) : (
             <>

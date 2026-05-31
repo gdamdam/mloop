@@ -114,6 +114,23 @@ export class MidiController {
     }, 30000);
   }
 
+  /**
+   * Detach all event handlers and clear access state.
+   * Call this when MIDI is disabled or the controller is replaced, so the
+   * old handlers stop firing stale callbacks after teardown.
+   */
+  dispose(): void {
+    this.cancelLearn();
+    if (this.access) {
+      this.access.onstatechange = null;
+      for (const input of this.access.inputs.values()) {
+        input.onmidimessage = null;
+      }
+    }
+    this.access = null;
+    this.onAction = null;
+  }
+
   /** Cancel an in-progress MIDI learn. */
   cancelLearn(): void {
     this.learnCallback = null;

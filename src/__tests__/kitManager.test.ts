@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadSavedKits, saveKit, deleteKit, padsToKit } from "../utils/kitManager";
+import { loadSavedKits, saveKit, deleteKit, padsToKit, loadUserKits } from "../utils/kitManager";
 
 // Mock localStorage
 const storage: Record<string, string> = {};
@@ -31,6 +31,17 @@ describe("loadSavedKits", () => {
   it("handles corrupt JSON", () => {
     localStorageMock.setItem("mloop-saved-kits", "not-json");
     expect(loadSavedKits()).toEqual([]);
+  });
+});
+
+describe("loadUserKits", () => {
+  it("returns empty array when nothing stored", () => {
+    expect(loadUserKits()).toEqual([]);
+  });
+
+  it("returns empty array on corrupt JSON instead of throwing", () => {
+    localStorageMock.setItem("mloop-user-kits", "{not valid json");
+    expect(loadUserKits()).toEqual([]);
   });
 });
 

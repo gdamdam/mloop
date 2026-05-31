@@ -62,6 +62,7 @@ export class AudioEngine {
   private monitorGain: GainNode;
   private resumeHandler: (() => void) | null = null;
   private resumeEvents = ["pointerdown", "keydown", "touchstart"];
+  private isShutdown = false;
 
   constructor() {
     // Safari compat: fall back to webkitAudioContext if needed
@@ -434,7 +435,7 @@ export class AudioEngine {
   async switchDevice(deviceId: string): Promise<void> {
     // Tear down existing input
     if (this.inputSource) {
-      this.inputSource.disconnect();
+      try { this.inputSource.disconnect(); } catch { /* already disconnected */ }
       this.inputSource = null;
     }
     if (this.inputStream) {
@@ -650,9 +651,15 @@ export class AudioEngine {
 
   /** Tear down everything — stops metronome, releases mic, closes AudioContext. */
   shutdown(): void {
+    // Idempotent — guard against double-close (e.g. React strict-mode double
+    // unmount or an explicit shutdown followed by unmount cleanup).
+    if (this.isShutdown) return;
+    this.isShutdown = true;
+
     this.timing.stop();
     if (this.resumeTimer !== null) {
       clearInterval(this.resumeTimer);
+      this.resumeTimer = null;
     }
     if (this.resumeHandler) {
       for (const e of this.resumeEvents) {
@@ -664,7 +671,8 @@ export class AudioEngine {
       for (const track of this.inputStream.getTracks()) {
         track.stop();
       }
+      this.inputStream = null;
     }
-    this.ctx.close();
+    try { this.ctx.close(); } catch { /* already closed */ }
   }
 }
