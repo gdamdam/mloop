@@ -2,7 +2,7 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.1] — 2026-05-31
 
 Reliability pass from a full code review: error handling, lifecycle teardown, and audio-clock race fixes. No public API breaks.
 
