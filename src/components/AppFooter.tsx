@@ -37,6 +37,9 @@ export function AppFooter({ onShowHelp, onShowCredits, onShowPrivacy }: AppFoote
         <a href="https://mpump.live/app.html" target="_blank" rel="noopener"
           style={{ color: "var(--preview)", textDecoration: "none", fontWeight: 700 }}>Try mpump →</a>
         {" · "}
+        <a href="https://mdrone.org" target="_blank" rel="noopener"
+          style={{ color: "var(--preview)", textDecoration: "none", fontWeight: 700 }}>Try mdrone →</a>
+        {" · "}
         <span style={{ cursor: "pointer", textDecoration: "underline dotted" }} onClick={onShowPrivacy}>No cookies · No personal data</span>
         {Recorder.isFallback && (
           <span> · <span title="AudioWorklet unavailable — using ScriptProcessorNode (slightly lower recording quality)" style={{ color: "#f0883e" }}>
