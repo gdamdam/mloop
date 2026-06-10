@@ -79,3 +79,40 @@ describe("AudioEngine teardown disconnect guards", () => {
     engine.shutdown();
   });
 });
+
+describe("playAll master clock anchoring", () => {
+  it("keeps later playTrack calls phase-aligned after playAll", () => {
+    const engine = new AudioEngine();
+    engine.syncMode = "sync";
+    engine.masterLoopLength = 44100; // 1s loop
+    engine.tracks[0].importBuffer(new Float32Array(44100), 0);
+
+    const ctx = engine.ctx as unknown as { currentTime: number };
+    ctx.currentTime = 10;
+    engine.playAll(); // establishes the master clock
+
+    ctx.currentTime = 10.6;
+    engine.playAll(); // restarts everything 0.6s into the loop
+
+    // A track joining later must align to the same phase the running
+    // tracks actually have (0.7), not to a clock that was reset to "now".
+    const spy = vi.spyOn(engine.tracks[0], "play");
+    ctx.currentTime = 10.7;
+    engine.playTrack(0);
+    expect(spy).toHaveBeenCalledWith(expect.closeTo(0.7, 5));
+    engine.shutdown();
+  });
+});
+
+describe("master record destination reuse", () => {
+  it("does not connect a fresh MediaStreamAudioDestinationNode per recording", () => {
+    const engine = new AudioEngine();
+    const spy = vi
+      .spyOn(engine.ctx, "createMediaStreamDestination")
+      .mockImplementation(() => ({ stream: {} } as unknown as MediaStreamAudioDestinationNode));
+    engine.startMasterRecord();
+    engine.startMasterRecord();
+    expect(spy).toHaveBeenCalledTimes(1);
+    engine.shutdown();
+  });
+});

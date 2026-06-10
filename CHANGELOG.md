@@ -2,6 +2,28 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-06-09
+
+Correctness pass from a full engine review: loop-length conformance, overdub alignment, sync math, and lifecycle/resource fixes. Saved sessions gain an optional `layerVolumes` field; older sessions still load.
+
+### Fixed
+- **Quantized/LOCK loop lengths no longer corrupt the mix.** Snapping the loop length after recording left layers shorter than the loop; the next rebuild (overdub/reverse/undo) read past the layer end and filled the buffer with NaN, which could permanently silence the master chain. Layers are now re-padded/truncated via `LoopTrack.setLoopLength()` and playback restarts on the snapped buffer (no more drift against the metronome).
+- **Overdubs land where you played them.** Overdubs started mid-loop were written at buffer position 0, rotating the layer by the start phase; playback also jumped back to the loop start when the overdub ended. The layer is now rotated to the captured playhead phase and playback resumes from the current position.
+- **Recording limits are actually enforced.** The configured max recording time now auto-stops free-length track recordings (audio-clock accurate) and pad recordings; previously only the settings UI read the limits and a forgotten recording grew until the tab ran out of memory.
+- **`playAll` keeps later tracks in phase.** The master clock is anchored at the offset tracks actually start at, so a track started later in SYNC/LOCK no longer joins misaligned.
+- **Default drum kit can't overwrite a restored session.** The kit loader re-checks pad/grid content after its async gap, closing the race with the pinned-session autoload.
+- **Recorder worklet processors terminate after stop** instead of running on the audio thread forever (one leak per recording).
+- **Modifier chords are no longer bare-key shortcuts.** Cmd+R reversed a track (and blocked reload), Ctrl+C cleared one; Cmd/Ctrl+Z and Cmd/Ctrl+S keep working.
+- **Pad count-in re-taps are guarded.** A second tap during count-in spawned a second recorder, leaking the first and sticking the slot on "recording"; `cancelCountIn` also resets the armed slot now.
+- **Resample decode failures reset state** instead of leaving `isResampling` stuck true.
+- **Mic is released when unmounting during init** — the cleanup path now runs the full `shutdown()` instead of only closing the AudioContext.
+- **Session restore applies reverse before the rebuild** (audio matched the UI only after the next rebuild before) and **per-layer volumes round-trip** through both IndexedDB and JSON sessions instead of resetting to 1.
+- **Racing stop calls** (manual stop vs auto-stop) no longer transiently flag a track "empty"; `getNextBarBoundary` now computes from the beat grid instead of wall-clock now.
+- **Master recording reuses one capture node** instead of connecting a fresh `MediaStreamAudioDestinationNode` to the analyser per recording.
+
+### Added
+- **27 new tests** covering quantize conformance, overdub rotation/resume, the stop race, recording caps, playAll anchoring, master-record node reuse, worklet lifecycle, modifier-chord shortcuts, pad arming/resample failure, unmount-during-init shutdown, persistence round-trips, and bar-boundary math.
+
 ## [1.0.1] — 2026-05-31
 
 Reliability pass from a full code review: error handling, lifecycle teardown, and audio-clock race fixes. No public API breaks.

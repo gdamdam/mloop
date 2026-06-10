@@ -13,6 +13,7 @@ class RecorderWorkletProcessor extends AudioWorkletProcessor {
     this.current = new Float32Array(CHUNK_SIZE);
     this.writePos = 0;
     this.recording = false;
+    this.stopped = false;
     this.totalSamples = 0;
 
     this.port.onmessage = (e) => {
@@ -35,11 +36,15 @@ class RecorderWorkletProcessor extends AudioWorkletProcessor {
         this.chunks = [];
         this.current = new Float32Array(CHUNK_SIZE);
         this.writePos = 0;
+        // Each recording gets a fresh node; let this processor die —
+        // returning true forever would pin it on the audio thread.
+        this.stopped = true;
       }
     };
   }
 
   process(inputs) {
+    if (this.stopped) return false;
     if (!this.recording) return true;
 
     const input = inputs[0];

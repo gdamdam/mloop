@@ -74,6 +74,8 @@ export interface SessionExport {
     isReversed: boolean;
     playbackRate: number;
     loopLengthSamples: number;
+    /** Per-layer volume multipliers — optional so older files still load. */
+    layerVolumes?: number[];
   }>;
   /** Added in version 2 (v0.2.0). Optional so version-1 files still load. */
   pad?: PadStateExport;
@@ -203,6 +205,7 @@ export function serializeSessionExport(engine: AudioEngine, padEngine: PadPersis
       isReversed: t.isReversed,
       playbackRate: t.playbackRate,
       loopLengthSamples: t.loopLengthSamples,
+      layerVolumes: t.getLayerVolumes(),
     })),
   };
   if (padEngine) {
@@ -226,6 +229,7 @@ export function serializeSessionData(engine: AudioEngine, padEngine: PadPersiste
       isReversed: t.isReversed,
       playbackRate: t.playbackRate,
       loopLengthSamples: t.loopLengthSamples,
+      layerVolumes: t.getLayerVolumes(),
     })),
   };
   if (padEngine) {
@@ -254,9 +258,14 @@ export function applySessionData(engine: AudioEngine, padEngine: PadPersistenceP
     const td = data.tracks[i];
     if (!td) continue;
     const layers = td.layers.map((ab) => new Float32Array(ab));
-    engine.tracks[i].restoreLayers(layers, td.loopLengthSamples ?? 0);
+    // Reverse/volumes go through restoreLayers so the rebuilt buffer
+    // reflects them — assigning isReversed afterwards left the audio
+    // playing forward while the UI showed reversed.
+    engine.tracks[i].restoreLayers(layers, td.loopLengthSamples ?? 0, {
+      isReversed: td.isReversed ?? false,
+      layerVolumes: td.layerVolumes,
+    });
     engine.tracks[i].volume = td.volume ?? 0.8;
-    engine.tracks[i].isReversed = td.isReversed ?? false;
     engine.tracks[i].playbackRate = td.playbackRate ?? 1;
   }
 
@@ -283,9 +292,11 @@ export function applySessionExport(engine: AudioEngine, padEngine: PadPersistenc
     const td = d.tracks[i];
     if (!td) continue;
     const layers = td.layers.map((arr) => new Float32Array(arr));
-    engine.tracks[i].restoreLayers(layers, td.loopLengthSamples ?? 0);
+    engine.tracks[i].restoreLayers(layers, td.loopLengthSamples ?? 0, {
+      isReversed: td.isReversed ?? false,
+      layerVolumes: td.layerVolumes,
+    });
     engine.tracks[i].volume = td.volume ?? 0.8;
-    engine.tracks[i].isReversed = td.isReversed ?? false;
     engine.tracks[i].playbackRate = td.playbackRate ?? 1;
   }
 

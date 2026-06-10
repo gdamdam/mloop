@@ -128,8 +128,9 @@ export class LoopTrack {
   /**
    * Start recording a new layer.
    * @param masterLength Master loop length in samples. 0 = first recording (free length).
+   * @param maxLengthSamples Safety cap for free-length recordings (0 = unlimited).
    */
-  async startRecording(masterLength: number): Promise<void> {
+  async startRecording(masterLength: number, maxLengthSamples = 0): Promise<void> {
     this.recorder = new Recorder(this.ctx, this.inputNode);
     await this.recorder.start();
     this.status = "recording";
@@ -145,6 +146,15 @@ export class LoopTrack {
           this.stopRecording(masterLength);
         }
       });
+    } else if (maxLengthSamples > 0) {
+      // Safety cap: finalize as if the user had stopped manually at the
+      // limit, so a forgotten recording can't grow until the tab OOMs.
+      this.clearAutoStopTimer();
+      this.scheduleAutoStop(maxLengthSamples / this.ctx.sampleRate, () => {
+        if (this.status === "recording") {
+          this.stopRecording(0);
+        }
+      });
     }
   }
 
@@ -154,10 +164,13 @@ export class LoopTrack {
    * @returns The final loop length in samples (0 if recording was empty).
    */
   async stopRecording(masterLength: number): Promise<number> {
-    if (!this.recorder) return 0;
-
-    const raw = await this.recorder.stop();
+    // Detach the recorder synchronously so a racing stop (manual stop vs
+    // auto-stop) sees null and no-ops instead of finalizing an empty take.
+    const recorder = this.recorder;
+    if (!recorder) return 0;
     this.recorder = null;
+
+    const raw = await recorder.stop();
 
     if (raw.length === 0) {
       this.status = "empty";
@@ -205,6 +218,13 @@ export class LoopTrack {
 
     this.recorder = new Recorder(this.ctx, this.inputNode);
     await this.recorder.start();
+    // Capture the playhead phase: sample 0 of the recording corresponds to
+    // this buffer position, so the finished layer must be rotated to here —
+    // writing it at position 0 would shift it by the phase at which the
+    // overdub began (played against beat 3, heard at beat 1).
+    this.overdubStartSamples = this.loopLengthSamples > 0
+      ? Math.round(this.getPlayheadSeconds() * this.ctx.sampleRate) % this.loopLengthSamples
+      : 0;
     this.status = "overdubbing";
     this.notifyChange();
 
@@ -220,28 +240,36 @@ export class LoopTrack {
 
   /** Stop overdub, merge the new layer into the stack, and restart playback. */
   async stopOverdub(): Promise<void> {
-    if (!this.recorder) return;
-
-    const raw = await this.recorder.stop();
+    // Same race guard as stopRecording — the losing concurrent call no-ops.
+    const recorder = this.recorder;
+    if (!recorder) return;
     this.recorder = null;
+
+    const raw = await recorder.stop();
 
     if (raw.length > 0) {
       // Latency compensation: trim leading samples caused by audio pipeline delay
       const offset = Math.min(this.latencyTrimSamples, raw.length - 1);
       const compensated = offset > 0 ? raw.subarray(offset) : raw;
-      // Pad to exact loop length for seamless alignment
+      // Pad to exact loop length, rotated to the phase at which the overdub
+      // started so the new layer lines up with what the user heard.
       const trimmed = new Float32Array(this.loopLengthSamples);
       const copyLen = Math.min(compensated.length, this.loopLengthSamples);
-      trimmed.set(compensated.subarray(0, copyLen));
+      const phase = this.overdubStartSamples;
+      for (let i = 0; i < copyLen; i++) {
+        trimmed[(phase + i) % this.loopLengthSamples] = compensated[i];
+      }
       this.layers.push(trimmed);
       this.layerVolumes.push(1);
       this.degradedData = null;
       this.rebuildMixedBuffer();
     }
 
-    // Restart playback with updated mix (includes new layer)
+    // Restart playback with updated mix from the current playhead so the
+    // base loop doesn't audibly jump back to the loop start.
+    const resumeSec = this.getPlayheadSeconds();
     this.stopSource();
-    this.startPlayback();
+    this.startPlayback(resumeSec);
   }
 
   // ── Playback ───────────────────────────────────────────────────────────
@@ -249,6 +277,20 @@ export class LoopTrack {
   private destructionTimer: number | null = null;
   /** Audio-clock destruction cycle source — fires onended at loop boundary. */
   private destructionSource: AudioBufferSourceNode | null = null;
+  /** AudioContext time at which the current playback source started. */
+  private playbackStartTime = 0;
+  /** Buffer offset (seconds) the current playback source started at. */
+  private playbackStartOffsetSec = 0;
+  /** Buffer position (samples) at which the active overdub began. */
+  private overdubStartSamples = 0;
+
+  /** Current playhead position within the loop, in buffer-time seconds. */
+  private getPlayheadSeconds(): number {
+    if (!this.sourceNode || this.loopLengthSamples <= 0) return 0;
+    const loopDur = this.loopLengthSamples / this.ctx.sampleRate;
+    const elapsed = (this.ctx.currentTime - this.playbackStartTime) * this.playbackRate;
+    return (this.playbackStartOffsetSec + elapsed) % loopDur;
+  }
 
   /**
    * Start looped playback of the mixed buffer.
@@ -265,7 +307,13 @@ export class LoopTrack {
     source.playbackRate.value = this.playbackRate;
     source.connect(this.outputGain);
     // Modulo prevents offset > duration when syncing to master
-    source.start(0, offsetSeconds % (this.mixedBuffer.duration || 1));
+    const startOffset = offsetSeconds % (this.mixedBuffer.duration || 1);
+    source.start(0, startOffset);
+
+    // Record where/when playback started so the playhead can be derived
+    // later (overdub alignment, seamless restarts).
+    this.playbackStartTime = this.ctx.currentTime;
+    this.playbackStartOffsetSec = startOffset;
 
     this.sourceNode = source;
     this.status = "playing";
@@ -451,6 +499,32 @@ export class LoopTrack {
     this.mixedBuffer = buf;
   }
 
+  /**
+   * Conform the loop length after the fact (quantize/lock snapping).
+   * Re-pads or truncates every layer to the new length so mixdown never
+   * reads past a layer's end (which would fill the buffer with NaN),
+   * then rebuilds and — if playing — restarts so the audible loop
+   * actually uses the new length instead of drifting against the master.
+   */
+  setLoopLength(lengthSamples: number): void {
+    if (lengthSamples <= 0) return;
+    if (lengthSamples === this.loopLengthSamples) return;
+    this.loopLengthSamples = lengthSamples;
+    this.layers = this.layers.map((layer) => {
+      if (layer.length === lengthSamples) return layer;
+      const resized = new Float32Array(lengthSamples);
+      resized.set(layer.subarray(0, Math.min(layer.length, lengthSamples)));
+      return resized;
+    });
+    this.degradedData = null;
+    this.rebuildMixedBuffer();
+    if (this.status === "playing") {
+      this.stopSource();
+      this.startPlayback();
+    }
+    this.notifyChange();
+  }
+
   /** Toggle reverse — rebuilds buffer and restarts playback seamlessly. */
   toggleReverse(): void {
     this.isReversed = !this.isReversed;
@@ -541,12 +615,22 @@ export class LoopTrack {
     return this.layers;
   }
 
-  /** Restore layers from saved session data. Leaves track stopped (not auto-playing). */
-  restoreLayers(layers: Float32Array[], loopLength: number): void {
+  /**
+   * Restore layers from saved session data. Leaves track stopped (not
+   * auto-playing). Reverse and per-layer volumes must be supplied here —
+   * setting them after the fact would miss the rebuild below, leaving the
+   * audible buffer out of sync with the restored flags.
+   */
+  restoreLayers(
+    layers: Float32Array[],
+    loopLength: number,
+    opts?: { isReversed?: boolean; layerVolumes?: number[] },
+  ): void {
     this.clear();
     this.layers = layers;
-    this.layerVolumes = layers.map(() => 1);
+    this.layerVolumes = layers.map((_, i) => opts?.layerVolumes?.[i] ?? 1);
     this.loopLengthSamples = loopLength;
+    this.isReversed = opts?.isReversed ?? false;
     if (layers.length > 0) {
       this.rebuildMixedBuffer();
       this.status = "stopped";

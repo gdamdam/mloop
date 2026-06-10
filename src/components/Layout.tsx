@@ -158,8 +158,12 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
   useEffect(() => {
     if (!padEngine) return;
     // Only load defaults if all pads are empty (don't overwrite user samples)
-    if (padEngine.slots.some(s => s.status === "loaded")) return;
+    if (padEngine.hasContent) return;
     generateDefaultSamples().then(samples => {
+      // Re-check after the async gap — the pinned-session restore runs
+      // concurrently and may have populated the pads/grid by now; applying
+      // the defaults here would overwrite the restored session.
+      if (padEngine.hasContent) return;
       for (let i = 0; i < samples.length && i < 16; i++) {
         padEngine.importBuffer(i, samples[i].buffer, samples[i].name);
         if (samples[i].pan !== undefined) padEngine.slots[i].pan = samples[i].pan!;

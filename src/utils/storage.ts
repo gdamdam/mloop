@@ -54,6 +54,8 @@ export interface SessionData {
     isReversed: boolean;
     playbackRate: number;
     loopLengthSamples: number;
+    /** Per-layer volume multipliers — optional for backwards compatibility. */
+    layerVolumes?: number[];
   }[];
   /** Added in v0.2.0 — optional for backwards compatibility. */
   pad?: PadStateStored;

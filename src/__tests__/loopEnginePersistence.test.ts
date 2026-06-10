@@ -22,14 +22,23 @@ import * as storage from "../utils/storage";
 // The persistence layer only touches a well-defined slice of each engine;
 // hand-rolling the surface keeps tests independent of AudioContext.
 
+interface RestoreOpts {
+  isReversed?: boolean;
+  layerVolumes?: number[];
+}
+
 interface MockTrack {
   _layers: Float32Array[];
   volume: number;
   isReversed: boolean;
   playbackRate: number;
   loopLengthSamples: number;
+  layerVolumes: number[];
+  /** Opts captured from the last restoreLayers call (for assertions). */
+  restoredOpts?: RestoreOpts;
   getLayers(): Float32Array[];
-  restoreLayers(layers: Float32Array[], loopLengthSamples: number): void;
+  getLayerVolumes(): number[];
+  restoreLayers(layers: Float32Array[], loopLengthSamples: number, opts?: RestoreOpts): void;
   getEffects(): Record<string, unknown>;
 }
 
@@ -40,10 +49,17 @@ function makeTrack(initial?: Partial<MockTrack>): MockTrack {
     isReversed: false,
     playbackRate: 1,
     loopLengthSamples: 0,
+    layerVolumes: [],
     getLayers() { return this._layers; },
-    restoreLayers(layers, len) {
+    getLayerVolumes() { return [...this.layerVolumes]; },
+    restoreLayers(layers, len, opts) {
       this._layers = layers;
       this.loopLengthSamples = len;
+      this.restoredOpts = opts;
+      // Mirror the real LoopTrack: reverse/volumes take effect during the
+      // restore-time rebuild, not afterwards.
+      this.isReversed = opts?.isReversed ?? false;
+      this.layerVolumes = layers.map((_, i) => opts?.layerVolumes?.[i] ?? 1);
     },
     getEffects() { return {}; },
     ...initial,
@@ -786,5 +802,50 @@ describe("pad snapshot converters", () => {
     const restored = padExportToSnapshot(viaJson);
     expect(restored.slots[0].name).toBe("B");
     expect(Array.from(restored.slots[0].buffer!)).toEqual([0.25, -0.25, 0.75]);
+  });
+});
+
+describe("layer volumes and reverse round-trip", () => {
+  it("round-trips per-layer volumes through SessionData", () => {
+    const t = makeTrack({
+      _layers: [new Float32Array(4), new Float32Array(4)],
+      layerVolumes: [0.5, 0.9],
+      loopLengthSamples: 4,
+    });
+    const data = serializeSessionData(makeEngine([t]), null, "vols");
+
+    const restored = makeTrack();
+    applySessionData(makeEngine([restored]), null, data);
+    expect(restored.layerVolumes).toEqual([0.5, 0.9]);
+  });
+
+  it("round-trips per-layer volumes through SessionExport", () => {
+    const t = makeTrack({
+      _layers: [new Float32Array(4), new Float32Array(4)],
+      layerVolumes: [0.25, 1],
+      loopLengthSamples: 4,
+    });
+    const exported = serializeSessionExport(makeEngine([t]), null);
+
+    const restored = makeTrack();
+    applySessionExport(makeEngine([restored]), null, exported);
+    expect(restored.layerVolumes).toEqual([0.25, 1]);
+  });
+
+  it("applies isReversed during restoreLayers, not after the rebuild", () => {
+    const t = makeTrack({
+      _layers: [new Float32Array(4)],
+      isReversed: true,
+      loopLengthSamples: 4,
+    });
+    const data = serializeSessionData(makeEngine([t]), null, "rev");
+
+    const restored = makeTrack();
+    applySessionData(makeEngine([restored]), null, data);
+    // The reverse flag must reach restoreLayers so the buffer is built
+    // reversed — setting it afterwards leaves audio playing forward while
+    // the UI shows reversed.
+    expect(restored.restoredOpts?.isReversed).toBe(true);
+    expect(restored.isReversed).toBe(true);
   });
 });

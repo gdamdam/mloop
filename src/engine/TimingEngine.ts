@@ -87,10 +87,11 @@ export class TimingEngine {
   /** Get the AudioContext time of the next bar boundary (for quantized start/stop). */
   getNextBarBoundary(): number {
     if (!this.running) return this.ctx.currentTime;
-    const now = this.ctx.currentTime;
+    // Walk from the next scheduled beat (which sits on the grid) — mixing
+    // in wall-clock `now` would return a time off the beat grid.
     const beatsIntoBar = this.beatIndex % this.beatsPerBar;
-    const beatsUntilBar = beatsIntoBar === 0 ? 0 : this.beatsPerBar - beatsIntoBar;
-    return now + beatsUntilBar * this.beatDuration;
+    const beatsUntilBar = (this.beatsPerBar - beatsIntoBar) % this.beatsPerBar;
+    return this.nextBeatTime + beatsUntilBar * this.beatDuration;
   }
 
   /** Get the AudioContext time of the next beat boundary. */

@@ -8,6 +8,7 @@
  */
 
 import { Recorder } from "./Recorder";
+import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
 
 /** Represents a single pad slot's state and audio data. */
 export type PadPlayMode = "one" | "gate" | "loop";
@@ -42,6 +43,8 @@ export class PadEngine {
   private recorder: Recorder | null = null;
   /** Which slot is currently recording (null = none). */
   private recordingSlot: number | null = null;
+  /** Slot armed during count-in (null = none) — guards re-entrant taps. */
+  private armingSlot: number | null = null;
   /** Track active one-shot sources so we can stop them on re-trigger. */
   // Sets per slot so multiple one-shot hits can overlap and ring out
   // independently. stopSlot() stops every source for a slot; onended
@@ -116,6 +119,16 @@ export class PadEngine {
 
   get hasUndo(): boolean { return this.undoSlots !== null; }
 
+  /**
+   * True if any pad holds a sample or the sequencer grid has any active
+   * step. Used to decide whether loading the default kit would overwrite
+   * user/restored content.
+   */
+  get hasContent(): boolean {
+    return this.slots.some((s) => s.status === "loaded")
+      || this.seqGrid.some((row) => row.some(Boolean));
+  }
+
   /** Play a metronome click (for count-in). */
   private playClick(when: number, isDownbeat: boolean): void {
     const osc = this.ctx.createOscillator();
@@ -139,6 +152,16 @@ export class PadEngine {
       try { this._countInSource.stop(); this._countInSource.disconnect(); } catch { /* ok */ }
       this._countInSource = null;
     }
+    // Release the arming guard and undo the early "recording" status the
+    // count-in put on the slot.
+    if (this.armingSlot !== null) {
+      const slot = this.slots[this.armingSlot];
+      if (slot && slot.status === "recording") {
+        slot.status = slot.buffer ? "loaded" : "empty";
+      }
+      this.armingSlot = null;
+      this.onStateChange?.();
+    }
     this.onCountIn?.(0);
   }
 
@@ -149,7 +172,10 @@ export class PadEngine {
    * If countInBeats is 0, starts immediately.
    */
   async startRecording(slotId: number, bpm = 120): Promise<void> {
-    if (this.recordingSlot !== null) return;
+    // armingSlot covers the count-in window, during which recordingSlot is
+    // still null — without it a second tap spawned a second count-in and
+    // leaked the first recorder.
+    if (this.recordingSlot !== null || this.armingSlot !== null) return;
     const slot = this.slots[slotId];
     if (!slot) return;
 
@@ -163,6 +189,7 @@ export class PadEngine {
     const totalBeats = this.countInBeats;
 
     // Notify UI of count-in start
+    this.armingSlot = slotId;
     slot.status = "recording"; // show visual early so user knows it's armed
     this.onCountIn?.(totalBeats);
     this.onStateChange?.();
@@ -196,6 +223,8 @@ export class PadEngine {
 
   private _countInSource: AudioBufferSourceNode | null = null;
 
+  private recordCapTimer: number | null = null;
+
   /** Actually start recording (after count-in). */
   private async startRecordingNow(slotId: number): Promise<void> {
     const slot = this.slots[slotId];
@@ -203,13 +232,28 @@ export class PadEngine {
     this.recorder = new Recorder(this.ctx, this.inputNode);
     await this.recorder.start();
     this.recordingSlot = slotId;
+    this.armingSlot = null; // count-in over — recordingSlot guards from here
     slot.status = "recording";
     this.onCountIn?.(0); // signal UI that recording is active
     this.onStateChange?.();
+
+    // Enforce the configured max recording time (0 = unlimited) so a
+    // forgotten pad recording can't grow without bound.
+    const cap = maxRecordingSamples(loadLimits(), this.ctx.sampleRate);
+    if (cap > 0) {
+      this.recordCapTimer = window.setTimeout(() => {
+        this.recordCapTimer = null;
+        if (this.recordingSlot === slotId) this.stopRecording();
+      }, (cap / this.ctx.sampleRate) * 1000);
+    }
   }
 
   /** Stop recording and save the captured buffer to the slot. */
   async stopRecording(): Promise<void> {
+    if (this.recordCapTimer !== null) {
+      clearTimeout(this.recordCapTimer);
+      this.recordCapTimer = null;
+    }
     if (this.recordingSlot === null || !this.recorder) return;
 
     const raw = await this.recorder.stop();
@@ -547,25 +591,32 @@ export class PadEngine {
 
     try { this.masterNode.disconnect(dest); } catch { /* ok */ }
 
-    // Decode the recorded blob
-    const blob = new Blob(this.resampleChunks, { type: "audio/webm" });
-    const arrayBuf = await blob.arrayBuffer();
-    const audioBuf = await this.ctx.decodeAudioData(arrayBuf);
-    // Mono downmix
-    const len = audioBuf.length;
-    const mono = new Float32Array(len);
-    for (let ch = 0; ch < audioBuf.numberOfChannels; ch++) {
-      const data = audioBuf.getChannelData(ch);
-      for (let i = 0; i < len; i++) mono[i] += data[i];
-    }
-    if (audioBuf.numberOfChannels > 1) {
-      for (let i = 0; i < len; i++) mono[i] /= audioBuf.numberOfChannels;
-    }
+    // Decode the recorded blob. A decode failure must still reset the
+    // resample state — otherwise isResampling sticks true forever.
+    try {
+      const blob = new Blob(this.resampleChunks, { type: "audio/webm" });
+      const arrayBuf = await blob.arrayBuffer();
+      const audioBuf = await this.ctx.decodeAudioData(arrayBuf);
+      // Mono downmix
+      const len = audioBuf.length;
+      const mono = new Float32Array(len);
+      for (let ch = 0; ch < audioBuf.numberOfChannels; ch++) {
+        const data = audioBuf.getChannelData(ch);
+        for (let i = 0; i < len; i++) mono[i] += data[i];
+      }
+      if (audioBuf.numberOfChannels > 1) {
+        for (let i = 0; i < len; i++) mono[i] /= audioBuf.numberOfChannels;
+      }
 
-    this.importBuffer(this.resampleSlotId, mono, `Resample ${this.resampleSlotId + 1}`);
-    this.resampleRecorder = null;
-    this.resampleDest = null;
-    this.resampleChunks = [];
+      this.importBuffer(this.resampleSlotId, mono, `Resample ${this.resampleSlotId + 1}`);
+    } catch (err) {
+      console.warn("[mloop] resample decode failed:", err);
+      this.onStateChange?.();
+    } finally {
+      this.resampleRecorder = null;
+      this.resampleDest = null;
+      this.resampleChunks = [];
+    }
   }
 
   get isResampling(): boolean { return this.resampleRecorder !== null; }

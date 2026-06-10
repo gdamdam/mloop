@@ -23,6 +23,7 @@
 import { LoopTrack } from "./LoopTrack";
 import { TimingEngine } from "./TimingEngine";
 import { encodeWavStereo } from "../utils/wav";
+import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
 import { NUM_TRACKS } from "../types";
 import type { TimingMode, SyncMode } from "../types";
 
@@ -215,7 +216,14 @@ export class AudioEngine {
       ? this.getLockLength()
       : this.masterLoopLength;
 
-    await track.startRecording(recLength);
+    // Free-length recordings get the user-configured safety cap —
+    // without it a forgotten recording grows until the tab runs out
+    // of memory.
+    const capSamples = recLength === 0
+      ? maxRecordingSamples(loadLimits(), this.ctx.sampleRate)
+      : 0;
+
+    await track.startRecording(recLength, capSamples);
   }
 
   /**
@@ -238,13 +246,13 @@ export class AudioEngine {
       // so subsequent overdubs land on musical subdivisions
       if (this.masterLoopLength === 0 && len > 0 && this.timingMode === "quantized") {
         len = this.timing.quantizeToBar(len);
-        track.loopLengthSamples = len;
+        track.setLoopLength(len);
       }
 
       // In LOCK mode, force recording to exactly the lock length
       if (this.syncMode === "lock" && len > 0) {
         const lockLen = this.getLockLength();
-        track.loopLengthSamples = lockLen;
+        track.setLoopLength(lockLen);
         len = lockLen;
       }
 
@@ -307,9 +315,12 @@ export class AudioEngine {
     const offset = (this.syncMode === "sync" || this.syncMode === "lock")
       ? this.getMasterOffset() : 0;
 
-    // Reset master clock so all tracks start from the same reference point
+    // Reset master clock so all tracks start from the same reference point.
+    // Anchor it at (now - offset) — the tracks below start `offset` deep
+    // into the loop, so a clock reset to plain `now` would leave every
+    // later playTrack misaligned by exactly `offset`.
     if (this.syncMode !== "free" && this.masterLoopLength > 0) {
-      this.masterStartTime = this.ctx.currentTime;
+      this.masterStartTime = this.ctx.currentTime - offset;
     }
 
     for (const track of this.tracks) {
@@ -468,12 +479,18 @@ export class AudioEngine {
 
   private masterRecorder: MediaRecorder | null = null;
   private masterChunks: Blob[] = [];
+  private masterRecDest: MediaStreamAudioDestinationNode | null = null;
   masterRecording = false;
 
   /** Start recording the master output (everything going to speakers). */
   startMasterRecord(): void {
-    const dest = this.ctx.createMediaStreamDestination();
-    this.analyser.connect(dest);
+    // Reuse a single destination node — connecting a fresh one per
+    // recording accumulates nodes on the analyser for the session.
+    if (!this.masterRecDest) {
+      this.masterRecDest = this.ctx.createMediaStreamDestination();
+      this.analyser.connect(this.masterRecDest);
+    }
+    const dest = this.masterRecDest;
     this.masterChunks = [];
     this.masterRecorder = new MediaRecorder(dest.stream, { mimeType: "audio/webm" });
     this.masterRecorder.ondataavailable = (e) => {

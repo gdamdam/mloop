@@ -92,7 +92,10 @@ export function useLoopEngine() {
     }
 
     if (!mountedRef.current) {
-      try { await engine.ctx.close(); } catch { /* ok */ }
+      // Unmounted while initializing — release everything. ctx.close()
+      // alone leaves the MediaStream live (mic indicator stays on);
+      // shutdown() stops the stream tracks and listeners too.
+      engine.shutdown();
       return;
     }
 

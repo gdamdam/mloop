@@ -122,16 +122,6 @@ export function useKeyboardShortcuts(
 
       const key = e.key;
 
-      // In PAD mode, check pad trigger keys first
-      if (viewMode === "pads" && onPadTrigger) {
-        const padId = PAD_KEY_MAP[key.toLowerCase()];
-        if (padId !== undefined) {
-          e.preventDefault();
-          onPadTrigger(padId);
-          return;
-        }
-      }
-
       // Cmd+Z (Mac) / Ctrl+Z (Windows) → undo
       if (key === "z" && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
         e.preventDefault();
@@ -144,6 +134,20 @@ export function useKeyboardShortcuts(
         e.preventDefault();
         command({ type: "save_session", name: "__quicksave__" });
         return;
+      }
+
+      // Any other modifier chord belongs to the browser/OS (Cmd+R reload,
+      // Ctrl+C copy, …) — never treat it as a bare-key shortcut.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // In PAD mode, check pad trigger keys first
+      if (viewMode === "pads" && onPadTrigger) {
+        const padId = PAD_KEY_MAP[key.toLowerCase()];
+        if (padId !== undefined) {
+          e.preventDefault();
+          onPadTrigger(padId);
+          return;
+        }
       }
 
       // Space bar gets special handling
