@@ -10,8 +10,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import {
   onLinkState, enableLinkBridge, autoDetectLinkBridge,
   sendLinkTempo, sendLinkPlaying, getLinkState, type LinkState,
+  followTransportDecision, joinOnConnect,
 } from "../utils/linkBridge";
 import type { LoopCommand } from "../types";
+
+/** Ignore sub-milli-BPM jitter so fractional Link tempo is preserved without
+ *  spamming set_bpm on every 20Hz frame. */
+const BPM_EPSILON = 1e-6;
 
 export function useLinkBridge(
   command: (cmd: LoopCommand) => void,
@@ -22,6 +27,13 @@ export function useLinkBridge(
   const [linkState, setLinkState] = useState<LinkState>(getLinkState);
   const prevPlaying = useRef<boolean | null>(null);
   const prevBpm = useRef<number>(0);
+  /**
+   * The playing state we last pushed to the session ourselves. When the bridge
+   * echoes that state back at 20Hz we must consume it WITHOUT re-triggering our
+   * own transport — otherwise a local Play double-starts (echo loop). Cleared
+   * once the matching echo is observed.
+   */
+  const selfPushedPlaying = useRef<boolean | null>(null);
 
   // Use refs for callbacks so the effect doesn't re-subscribe when they change
   const onPlayRef = useRef(onLinkPlay);
@@ -38,21 +50,36 @@ export function useLinkBridge(
   useEffect(() => {
     const unsub = onLinkState((state) => {
       setLinkState(state);
-      if (state.connected && state.tempo > 0) {
-        // Sync BPM — only when it actually changes
-        const roundedBpm = Math.round(state.tempo);
-        if (roundedBpm !== prevBpm.current) {
-          prevBpm.current = roundedBpm;
-          commandRef.current({ type: "set_bpm", bpm: roundedBpm });
+
+      // On disconnect, reset follow/echo guards so a later reconnect re-joins
+      // cleanly rather than acting on a stale prior state.
+      if (!state.connected) {
+        prevPlaying.current = null;
+        selfPushedPlaying.current = null;
+        return;
+      }
+
+      if (state.tempo > 0) {
+        // Sync BPM — keep fractional Link tempo; only send on a real change.
+        if (prevBpm.current === 0 || Math.abs(state.tempo - prevBpm.current) > BPM_EPSILON) {
+          prevBpm.current = state.tempo;
+          commandRef.current({ type: "set_bpm", bpm: state.tempo });
         }
 
-        // Sync play/stop — only react to changes
-        if (prevPlaying.current !== null && state.playing !== prevPlaying.current) {
-          if (state.playing) {
-            onPlayRef.current?.();
-          } else {
-            onStopRef.current?.();
-          }
+        // Transport follow.
+        if (joinOnConnect(prevPlaying.current, state.connected, state.playing)) {
+          // Connected into an already-playing session: start locally aligned to
+          // the next shared bar. onPlay must NOT send a Play command back.
+          onPlayRef.current?.();
+        } else if (selfPushedPlaying.current === state.playing) {
+          // This state reflects a transport change we caused — consume the echo
+          // without re-triggering local transport. Clear the guard now that the
+          // matching echo has been observed.
+          selfPushedPlaying.current = null;
+        } else {
+          const follow = followTransportDecision(prevPlaying.current, state.playing);
+          if (follow === "start") onPlayRef.current?.();
+          else if (follow === "stop") onStopRef.current?.();
         }
         prevPlaying.current = state.playing;
       }
@@ -78,6 +105,9 @@ export function useLinkBridge(
   }, []);
 
   const pushPlaying = useCallback((playing: boolean) => {
+    // Remember what we sent so the bridge's echo of this state doesn't loop
+    // back and re-trigger our own transport (see selfPushedPlaying).
+    selfPushedPlaying.current = playing;
     sendLinkPlaying(playing);
   }, []);
 

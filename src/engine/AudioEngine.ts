@@ -26,6 +26,7 @@ import { encodeWavStereo } from "../utils/wav";
 import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
 import { NUM_TRACKS } from "../types";
 import type { TimingMode, SyncMode } from "../types";
+import { projectBeat, nowMs, type LinkClock } from "../utils/linkBridge";
 
 /** How often to check if AudioContext got suspended (mobile browsers do this aggressively). */
 const RESUME_INTERVAL_MS = 5000;
@@ -40,6 +41,12 @@ export class AudioEngine {
   lockBars: number = 4; // how many bars in LOCK mode (1, 2, 4, 8)
   inputLatencySamples = 0; // measured input latency for trim compensation
   private masterStartTime = 0;
+  /**
+   * Current shared Link clock, or null when Link is disabled/disconnected.
+   * When set, transport starts align the master loop to the shared bar grid;
+   * when null, timing is unchanged from standalone behavior.
+   */
+  private linkClock: LinkClock | null = null;
   private inputStream: MediaStream | null = null;
   private inputSource: MediaStreamAudioSourceNode | null = null;
   private inputGain: GainNode;
@@ -308,10 +315,37 @@ export class AudioEngine {
   }
 
   /**
+   * Position (seconds) within the master loop that the shared Link timeline is
+   * currently at, or null when Link isn't driving transport / there's no loop.
+   * An existing loop started at this offset is phase-locked to peers: it plays
+   * from the point it *would* be at had it been running on the shared grid.
+   */
+  private linkedLoopOffset(): number | null {
+    if (!this.linkClock || this.masterLoopLength === 0) return null;
+    const loopDur = this.masterLoopLength / this.ctx.sampleRate;
+    if (!(loopDur > 0) || !(this.linkClock.tempo > 0)) return null;
+    const secPerBeat = 60 / this.linkClock.tempo;
+    const sharedSec = projectBeat(this.linkClock, nowMs()) * secPerBeat;
+    return ((sharedSec % loopDur) + loopDur) % loopDur;
+  }
+
+  /**
    * Play all tracks that have content.
    * In sync/lock modes, resets master start time so all tracks align from beat 1.
+   * When a Link clock is present, tracks instead align to the shared bar grid.
    */
   playAll(): void {
+    // Link-driven: align the master loop to the shared Link timeline so an
+    // existing loop begins at a shared boundary with the correct loop offset.
+    const linkOffset = this.linkedLoopOffset();
+    if (linkOffset !== null) {
+      this.masterStartTime = this.ctx.currentTime - linkOffset;
+      for (const track of this.tracks) {
+        if (track.layerCount > 0) track.play(linkOffset);
+      }
+      return;
+    }
+
     const offset = (this.syncMode === "sync" || this.syncMode === "lock")
       ? this.getMasterOffset() : 0;
 
@@ -328,6 +362,16 @@ export class AudioEngine {
         track.play(this.syncMode === "free" ? 0 : offset);
       }
     }
+  }
+
+  /**
+   * Set (or clear, with null) the shared Link clock that drives transport
+   * alignment. Called on each bridge update; storing it is a cheap assignment
+   * that never restarts playback — alignment is only applied when a transport
+   * start (playAll) actually runs. Passing null restores standalone timing.
+   */
+  setLinkClock(clock: LinkClock | null): void {
+    this.linkClock = clock;
   }
 
   // ── Timing ─────────────────────────────────────────────────────────────

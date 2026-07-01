@@ -9,6 +9,15 @@
 
 import { Recorder } from "./Recorder";
 import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
+import { secondsUntilNextBar, nowMs, type LinkClock } from "../utils/linkBridge";
+
+/**
+ * How far behind the audio clock a scheduled step may fall before it's dropped
+ * instead of fired. Guards against catch-up bursts: if the JS scheduler stalls
+ * (tab backgrounded) or Link phase jumps forward, missed steps are skipped
+ * silently rather than replayed as a stack of stacked past-dated notes.
+ */
+const STEP_SKIP_TOLERANCE_SEC = 0.02;
 
 /** Represents a single pad slot's state and audio data. */
 export type PadPlayMode = "one" | "gate" | "loop";
@@ -377,6 +386,17 @@ export class PadEngine {
   private seqSwing = 0;
   /** Roll interval timer for repeat mode. */
   private rollTimer: number | null = null;
+  /**
+   * Shared Link clock, or null when Link is disabled/disconnected. When set,
+   * startSequencer aligns step 0 to the next shared bar downbeat. Storing it is
+   * a cheap assignment — it never restarts a running sequencer.
+   */
+  private linkClock: LinkClock | null = null;
+
+  /** Set (or clear, with null) the shared Link clock for bar-aligned starts. */
+  setLinkClock(clock: LinkClock | null): void {
+    this.linkClock = clock;
+  }
 
   /** Callback to notify UI of current step (for visual indicator). */
   onStepChange: ((step: number) => void) | null = null;
@@ -390,12 +410,21 @@ export class PadEngine {
   setSeqSwing(swing: number): void { this.seqSwing = Math.max(0, Math.min(1, swing)); }
   getSeqSwing(): number { return this.seqSwing; }
 
-  /** Start sequencer with Web Audio look-ahead scheduling. */
+  /**
+   * Start sequencer with Web Audio look-ahead scheduling.
+   *
+   * When a Link clock is present, step 0 is anchored to the next shared bar
+   * downbeat so the pattern is phase-locked to peers (joining an already-
+   * playing session lands on the next safe bar rather than starting mid-bar).
+   * Without Link, it starts immediately — unchanged standalone behavior.
+   */
   startSequencer(): void {
     if (this.seqPlaying) return;
     this.seqPlaying = true;
     this.seqStepIndex = 0;
-    this.seqNextStepTime = this.ctx.currentTime;
+    this.seqNextStepTime = this.linkClock
+      ? this.ctx.currentTime + secondsUntilNextBar(this.linkClock, nowMs())
+      : this.ctx.currentTime;
     this.seqSchedule(); // schedule first batch immediately
     this.seqSchedulerId = window.setInterval(() => this.seqSchedule(), this.seqIntervalMs);
   }
@@ -427,6 +456,16 @@ export class PadEngine {
       const swingOffset = (step % 2 === 1) ? stepDur * this.seqSwing * 0.7 : 0;
       const when = this.seqNextStepTime + swingOffset;
 
+      // Forward drift correction: if this step's time already fell behind the
+      // audio clock (scheduler stall or a forward Link phase jump), skip it
+      // silently. Advancing the counters without scheduling audio drops the
+      // missed step rather than firing a stacked catch-up burst of past notes.
+      if (when < this.ctx.currentTime - STEP_SKIP_TOLERANCE_SEC) {
+        this.seqStepIndex = (step + 1) % this.seqNumSteps;
+        this.seqNextStepTime += stepDur;
+        continue;
+      }
+
       // Schedule pad triggers at exact audio time
       const row = this.seqGrid[step];
       const triggered: number[] = [];
@@ -445,6 +484,20 @@ export class PadEngine {
       this.seqStepIndex = (step + 1) % this.seqNumSteps;
       this.seqNextStepTime += stepDur;
     }
+  }
+
+  /**
+   * Stop every ringing voice across all pads at once. Used to flush notes when
+   * a remote Link stop arrives (playing→stopped) so nothing sustains past the
+   * transport stop.
+   */
+  flushVoices(): void {
+    for (const [, set] of this.activeSources) {
+      for (const source of set) {
+        try { source.stop(); source.disconnect(); } catch { /* ok */ }
+      }
+    }
+    this.activeSources.clear();
   }
 
   /** Stop all currently-playing instances of a pad slot. */

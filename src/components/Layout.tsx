@@ -29,6 +29,7 @@ import { loadSession } from "../utils/storage";
 import { sessionHasContent } from "../hooks/loopEnginePersistence";
 import { generateDefaultSamples } from "../engine/BuiltInSamples";
 import { useLinkBridge } from "../hooks/useLinkBridge";
+import { shouldSendPlaying, getLinkState } from "../utils/linkBridge";
 
 const LOGO = "█▀▄▀█ █   █▀█ █▀█ █▀█\n█ ▀ █ █▄▄ █▄█ █▄█ █▀▀";
 
@@ -222,17 +223,22 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
   // (no reader for the value — setter is used by the space shortcut and the looper play button)
   const [, setSeqPlaying] = useState(false);
   const handleMainPlayStop = useCallback(() => {
+    // Only push a set_playing that actually changes the session's transport —
+    // pressing local Play while the Link session already plays sends nothing.
+    const sendPlaying = (desired: boolean) => {
+      if (shouldSendPlaying(linkPlayingRef.current, desired)) pushPlayingRef.current?.(desired);
+    };
     if (viewMode === "pads") {
       // PAD mode: toggle sequencer
       if (padEngine) {
         if (padEngine.isSeqPlaying) {
           padEngine.stopSequencer();
           setSeqPlaying(false);
-          pushPlayingRef.current?.(false);
+          sendPlaying(false);
         } else {
           padEngine.startSequencer();
           setSeqPlaying(true);
-          pushPlayingRef.current?.(true);
+          sendPlaying(true);
         }
       }
     } else {
@@ -243,11 +249,11 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
             command({ type: "track_stop", trackId: t.id });
           }
         }
-        pushPlayingRef.current?.(false);
+        sendPlaying(false);
       } else {
         const anyPlaying = state.tracks.some(t => t.status === "playing");
         command({ type: anyPlaying ? "stop_all" : "play_all" });
-        pushPlayingRef.current?.(!anyPlaying);
+        sendPlaying(!anyPlaying);
       }
     }
   }, [viewMode, padEngine, anyRecording, state.tracks, command]);
@@ -280,17 +286,31 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
   const midiRef = useMidiMapping(command, true);
   const [linkEnabled, setLinkEnabled] = useState(false);
   const pushPlayingRef = useRef<((playing: boolean) => void) | null>(null);
+  // Session's current playing state (false when disconnected) — read by the
+  // redundant-send guard in handleMainPlayStop without adding a 20Hz-changing
+  // dependency to that callback.
+  const linkPlayingRef = useRef(false);
   // Link play/stop sync — start/stop sequencer (PAD) or looper (LOOPER)
   const linkPlay = useCallback(() => {
+    // Refresh the engines' clock from the freshest snapshot *before* starting.
+    // This fires synchronously inside the bridge listener, ahead of the 20Hz
+    // setLinkClock effect commit, so the very first join-on-connect still
+    // aligns to the shared bar instead of starting from a stale/null clock.
+    const clock = getLinkState();
+    const linkClock = clock.connected ? clock : null;
+    engine?.setLinkClock(linkClock);
+    padEngine?.setLinkClock(linkClock);
     if (viewMode === "pads") {
       if (padEngine && !padEngine.isSeqPlaying) { padEngine.startSequencer(); setSeqPlaying(true); }
     } else {
       command({ type: "play_all" });
     }
-  }, [viewMode, padEngine, command]);
+  }, [viewMode, padEngine, engine, command]);
   const linkStop = useCallback(() => {
     if (viewMode === "pads") {
-      if (padEngine && padEngine.isSeqPlaying) { padEngine.stopSequencer(); setSeqPlaying(false); }
+      // Remote stop: stop the sequencer AND flush ringing one-shots so nothing
+      // sustains past the shared transport stop.
+      if (padEngine) { padEngine.stopSequencer(); padEngine.flushVoices(); setSeqPlaying(false); }
     } else {
       command({ type: "stop_all" });
     }
@@ -299,6 +319,17 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
   const pushTempoRef = useRef<((bpm: number) => void) | null>(null);
   pushTempoRef.current = pushTempo;
   pushPlayingRef.current = pushPlaying;
+  linkPlayingRef.current = linkState.connected && linkState.playing;
+
+  // Feed the shared Link clock into both engines so their transport starts
+  // (looper playAll, pad startSequencer) align to the shared bar grid. Cheap
+  // assignment on each 20Hz update — never restarts running playback. Cleared
+  // to null when disconnected, restoring standalone timing (behavior preserved).
+  useEffect(() => {
+    const clock = linkState.connected ? linkState : null;
+    engine?.setLinkClock(clock);
+    padEngine?.setLinkClock(clock);
+  }, [engine, padEngine, linkState]);
 
   // Wrap command so BPM changes also push to Link when connected
   const linkedCommand = useCallback((cmd: LoopCommand) => {
