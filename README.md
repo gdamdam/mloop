@@ -44,6 +44,7 @@ PAD and LOOPER share the same session — save, pin, and export both at once. MI
 - **Tape reel animation** — spinning reels with color-coded record/play/stop states
 - **Analog needle VU meter** — input (idle), output (playing), red zone (recording)
 - **Audio input selector** — choose mic or line-in device
+- **mbus input** — record another m-suite tab's live output over the local link-bridge (WebRTC, peer-to-peer); harmless without the bridge
 - **Low-signal detection** with auto-gain suggestion
 
 ## PAD Mode

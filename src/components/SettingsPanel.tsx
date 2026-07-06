@@ -12,6 +12,8 @@ import {
   loadLimits, saveLimits, TIME_OPTIONS, SIZE_OPTIONS,
   type RecordingLimits,
 } from "../utils/recordingLimits";
+import type { InputSourceKind } from "../engine/AudioEngine";
+import type { SourceInfo } from "../transport/mbus";
 // Pad layout removed from settings — drag to rearrange instead
 
 const VELOCITY_KEY = "mloop-velocity";
@@ -39,7 +41,16 @@ interface SettingsPanelProps {
   command: (cmd: LoopCommand) => void;
   latencyMs: number;
   sessionSizeMB: number;
-  engine?: { lockBars: number; switchDevice: (id: string) => Promise<void> } | null;
+  engine?: {
+    lockBars: number;
+    switchDevice: (id: string) => Promise<void>;
+    inputSourceKind: InputSourceKind;
+    setInputSource: (kind: InputSourceKind) => void;
+    getMbusSources: () => SourceInfo[];
+    mbusSelectedSourceId: string | null;
+    setMbusSource: (id: string) => void;
+    subscribeMbusSources: (cb: (s: SourceInfo[]) => void) => () => void;
+  } | null;
 }
 
 export function SettingsPanel({ palette, onPaletteChange, onClose, command, latencyMs, sessionSizeMB, engine }: SettingsPanelProps) {
@@ -49,12 +60,33 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
   const [lockBars, setLockBars] = useState<LockBars>(loadLockBars);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState(() => localStorage.getItem("mloop-audio-device") || "");
+  const [inputKind, setInputKind] = useState<InputSourceKind>(() => engine?.inputSourceKind ?? "mic");
+  const [mbusSources, setMbusSources] = useState<SourceInfo[]>(() => engine?.getMbusSources() ?? []);
+  const [mbusSourceId, setMbusSourceId] = useState<string | null>(() => engine?.mbusSelectedSourceId ?? null);
 
   useEffect(() => {
     navigator.mediaDevices?.enumerateDevices()
       .then(all => setDevices(all.filter(d => d.kind === "audioinput")))
       .catch(() => {});
   }, []);
+
+  // Track the mbus source directory for the picker. Subscribing never creates
+  // the client — that only happens when the mbus input is actually selected.
+  useEffect(() => {
+    if (!engine) return;
+    return engine.subscribeMbusSources((sources) => {
+      setMbusSources(sources);
+      setMbusSourceId(engine.mbusSelectedSourceId ?? sources[0]?.sourceId ?? null);
+    });
+  }, [engine]);
+
+  const handleInputSource = (kind: InputSourceKind) => {
+    setInputKind(kind);
+    if (!engine) return;
+    engine.setInputSource(kind);
+    setMbusSources(engine.getMbusSources());
+    setMbusSourceId(engine.mbusSelectedSourceId);
+  };
 
   const handleDeviceChange = async (deviceId: string) => {
     setSelectedDevice(deviceId);
@@ -129,21 +161,54 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
         </div>
 
         {/* ── Audio Input ───────────────────────────────────── */}
-        {devices.length > 0 && (
+        {(devices.length > 0 || engine) && (
           <div className="settings-section">
             <div className="settings-label">Audio Input</div>
-            <select value={selectedDevice} onChange={(e) => handleDeviceChange(e.target.value)}
-              style={{
-                width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: 11,
-                background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer",
-              }}>
-              <option value="">Default</option>
-              {devices.map(d => (
-                <option key={d.deviceId} value={d.deviceId}>
-                  {d.label || `Input ${d.deviceId.slice(0, 8)}…`}
-                </option>
-              ))}
-            </select>
+            {engine && (
+              <div className="settings-toggles" style={{ marginBottom: 6 }}>
+                {(["mic", "mbus"] as const).map(kind => (
+                  <button key={kind} className={`settings-toggle${inputKind === kind ? " on" : ""}`}
+                    onClick={() => handleInputSource(kind)}
+                    style={{ justifyContent: "center" }}>
+                    {kind === "mic" ? "Mic / Line" : "mbus"}
+                  </button>
+                ))}
+              </div>
+            )}
+            {inputKind === "mic" && devices.length > 0 && (
+              <select value={selectedDevice} onChange={(e) => handleDeviceChange(e.target.value)}
+                style={{
+                  width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: 11,
+                  background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer",
+                }}>
+                <option value="">Default</option>
+                {devices.map(d => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label || `Input ${d.deviceId.slice(0, 8)}…`}
+                  </option>
+                ))}
+              </select>
+            )}
+            {inputKind === "mbus" && (
+              mbusSources.length > 0 ? (
+                <select value={mbusSourceId ?? ""} aria-label="mbus source"
+                  onChange={(e) => { setMbusSourceId(e.target.value); engine?.setMbusSource(e.target.value); }}
+                  style={{
+                    width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: 11,
+                    background: "var(--bg-cell)", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer",
+                  }}>
+                  {mbusSources.map(s => (
+                    <option key={s.sourceId} value={s.sourceId}>
+                      {s.name} · {s.sourceId}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ fontSize: 10, color: "var(--text-dim)", lineHeight: 1.5 }}>
+                  No sources — start the link-bridge and publish an output from another instrument.
+                </div>
+              )
+            )}
           </div>
         )}
 

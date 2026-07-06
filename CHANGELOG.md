@@ -2,6 +2,11 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] — 2026-07-06
+
+### Added
+- **mbus input.** Settings → Audio Input gains a Mic / mbus source toggle: selecting mbus subscribes to another m-suite tab's published output over the local link-bridge (WebRTC, peer-to-peer) and feeds it into the record path in place of the mic; a small picker lists advertised sources. The client (vendored verbatim from the sibling mbus project under `src/transport/mbus/`) is created lazily on first selection — no client, no socket, and zero behavior change while the mic input is in use or the bridge is absent. Nothing is persisted.
+
 ## [1.2.0] — 2026-06-09
 
 Correctness pass from a full engine review: loop-length conformance, overdub alignment, sync math, and lifecycle/resource fixes. Saved sessions gain an optional `layerVolumes` field; older sessions still load.

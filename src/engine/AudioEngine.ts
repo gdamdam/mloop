@@ -27,6 +27,15 @@ import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
 import { NUM_TRACKS } from "../types";
 import type { TimingMode, SyncMode } from "../types";
 import { projectBeat, nowMs, type LinkClock } from "../utils/linkBridge";
+import {
+  createMbusClient,
+  type MbusClient,
+  type SourceInfo,
+  type Subscription,
+} from "../transport/mbus";
+
+/** What feeds the record path: the mic (default) or an mbus peer tab. */
+export type InputSourceKind = "mic" | "mbus";
 
 /** How often to check if AudioContext got suspended (mobile browsers do this aggressively). */
 const RESUME_INTERVAL_MS = 5000;
@@ -49,6 +58,16 @@ export class AudioEngine {
   private linkClock: LinkClock | null = null;
   private inputStream: MediaStream | null = null;
   private inputSource: MediaStreamAudioSourceNode | null = null;
+  // mbus input: receive another tab's live audio over the link-bridge (see
+  // src/transport/mbus). The client is created lazily on first selection —
+  // while the mic is the input source there is no client and no socket. An
+  // absent bridge means an empty source list and a silent mbus input.
+  private mbus: MbusClient | null = null;
+  private mbusSub: Subscription | null = null;
+  private mbusSources: SourceInfo[] = [];
+  private mbusSourceId: string | null = null;
+  private mbusSourceSubs = new Set<(s: SourceInfo[]) => void>();
+  private inputKind: InputSourceKind = "mic";
   private inputGain: GainNode;
   private masterGain: GainNode;
   private hpf: BiquadFilterNode;
@@ -471,7 +490,9 @@ export class AudioEngine {
     }
 
     this.inputSource = this.ctx.createMediaStreamSource(this.inputStream);
-    this.inputSource.connect(this.inputGain);
+    // While mbus feeds the record path, keep the mic node detached — its
+    // stream stays alive so switching back to mic is instant.
+    if (this.inputKind === "mic") this.inputSource.connect(this.inputGain);
     this.inputGain.connect(this.monitorGain);
 
     // Measure input latency for recording compensation
@@ -516,7 +537,101 @@ export class AudioEngine {
     }
 
     this.inputSource = this.ctx.createMediaStreamSource(this.inputStream);
-    this.inputSource.connect(this.inputGain);
+    if (this.inputKind === "mic") this.inputSource.connect(this.inputGain);
+  }
+
+  // ── mbus input ─────────────────────────────────────────────────────────
+
+  /** Which live source feeds the record path: "mic" (default) or "mbus". */
+  get inputSourceKind(): InputSourceKind { return this.inputKind; }
+
+  /** Sources currently advertised on the bridge (for the mbus source picker). */
+  getMbusSources(): SourceInfo[] { return this.mbusSources; }
+
+  get mbusSelectedSourceId(): string | null { return this.mbusSourceId; }
+
+  /** Notify on source directory changes; returns an unsubscribe fn. */
+  subscribeMbusSources(cb: (s: SourceInfo[]) => void): () => void {
+    this.mbusSourceSubs.add(cb);
+    return () => this.mbusSourceSubs.delete(cb);
+  }
+
+  /**
+   * Lazily create + connect the mbus client (idempotent). Silent if the
+   * link-bridge is absent — the client retries in the background and simply
+   * reports no sources, so the mbus input is available but empty.
+   */
+  private initMbus(): void {
+    if (this.mbus) return;
+    const client = createMbusClient();
+    this.mbus = client;
+    client.onSources((sources) => {
+      this.mbusSources = sources;
+      if (this.inputKind === "mbus") {
+        // If the source we're recording from vanished from the directory,
+        // drop to silence rather than holding a dead peer connection.
+        if (this.mbusSourceId && !sources.some((s) => s.sourceId === this.mbusSourceId)) {
+          this.closeMbusSub();
+          this.mbusSourceId = null;
+        }
+        // First snapshot after the lazy connect (or after a vanished source
+        // reappears): attach to the selected/first advertised source.
+        if (!this.mbusSub) this.attachMbus();
+      }
+      for (const cb of this.mbusSourceSubs) cb(sources);
+    });
+    client.connect();
+  }
+
+  /** Close the WebRTC subscription (detaching its node from the record path);
+   *  the client itself stays connected for discovery. */
+  private closeMbusSub(): void {
+    if (!this.mbusSub) return;
+    try { this.mbusSub.node.disconnect(); } catch { /* already disconnected */ }
+    this.mbusSub.close();
+    this.mbusSub = null;
+  }
+
+  /** Subscribe to the chosen (or first advertised) source and feed it into
+   *  inputGain. With no bridge / no source the input is simply silent. */
+  private attachMbus(): void {
+    this.closeMbusSub();
+    const sourceId = this.mbusSourceId ?? this.mbusSources[0]?.sourceId ?? null;
+    if (!this.mbus || !sourceId) return;
+    this.mbusSourceId = sourceId;
+    this.mbusSub = this.mbus.subscribe(sourceId, this.ctx);
+    this.mbusSub.node.connect(this.inputGain);
+  }
+
+  /**
+   * Switch what feeds inputGain (and thus recording, metering and monitoring):
+   * the mic or an mbus peer. Selecting mbus lazily connects the client;
+   * selecting away closes the subscription. Nothing is persisted.
+   */
+  setInputSource(kind: InputSourceKind): void {
+    if (kind === this.inputKind) return;
+    this.inputKind = kind;
+    if (kind === "mbus") {
+      // Detach the mic node only — its stream stays alive for instant
+      // switch-back (and initMic may never have run; that's fine too).
+      if (this.inputSource) {
+        try { this.inputSource.disconnect(); } catch { /* already disconnected */ }
+      }
+      // Monitoring is normally wired in initMic; make sure the monitor path
+      // exists even if the mic was denied (duplicate connects are ignored).
+      this.inputGain.connect(this.monitorGain);
+      this.initMbus();
+      this.attachMbus();
+    } else {
+      this.closeMbusSub();
+      this.inputSource?.connect(this.inputGain);
+    }
+  }
+
+  /** Choose which mbus source feeds the input; re-subscribes live if active. */
+  setMbusSource(sourceId: string): void {
+    this.mbusSourceId = sourceId;
+    if (this.inputKind === "mbus") this.attachMbus();
   }
 
   // ── Master Recording ───────────────────────────────────────────────────
@@ -733,6 +848,11 @@ export class AudioEngine {
         track.stop();
       }
       this.inputStream = null;
+    }
+    this.closeMbusSub();
+    if (this.mbus) {
+      this.mbus.disconnect();
+      this.mbus = null;
     }
     try { this.ctx.close(); } catch { /* already closed */ }
   }
