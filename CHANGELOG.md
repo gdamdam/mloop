@@ -7,6 +7,13 @@ All notable changes to mloop. Format follows [Keep a Changelog](https://keepacha
 ### Added
 - **mbus input.** Settings → Audio Input gains a Mic / mbus source toggle: selecting mbus subscribes to another m-suite tab's published output over the local link-bridge (WebRTC, peer-to-peer) and feeds it into the record path in place of the mic; a small picker lists advertised sources. The client (vendored verbatim from the sibling mbus project under `src/transport/mbus/`) is created lazily on first selection — no client, no socket, and zero behavior change while the mic input is in use or the bridge is absent. Nothing is persisted.
 
+## [1.3.0] — 2026-07-01
+
+_Backfilled entry — this release shipped without a changelog note._
+
+### Added
+- **Shared-phase Link starts.** Link state is stamped in the audio clock domain with beat/phase projection: pad step 0 anchors to the next shared bar, existing loops start at the correct shared-phase offset, and joining an already-playing session waits for the next bar without re-sending Play. Remote start/stop is followed with an echo guard + voice flush; drift correction is forward-only skip (no catch-up).
+
 ## [1.2.0] — 2026-06-09
 
 Correctness pass from a full engine review: loop-length conformance, overdub alignment, sync math, and lifecycle/resource fixes. Saved sessions gain an optional `layerVolumes` field; older sessions still load.
