@@ -5,8 +5,12 @@
  * storage keys, and track count can be tuned from a single place.
  */
 
-/** App version — single source of truth. Keep in sync with package.json, public/version.json, and the README badge. */
-export const APP_VERSION = "1.3.1";
+declare const __APP_VERSION__: string;
+
+/** App version, injected from package.json at build time (vite.config.ts).
+ *  version.json is emitted from the same source; only the README badge and
+ *  CHANGELOG are still manual — guarded by src/__tests__/versionSync.test.ts. */
+export const APP_VERSION = __APP_VERSION__;
 
 /** Number of loop tracks in the app. */
 export const NUM_TRACKS = 3;
