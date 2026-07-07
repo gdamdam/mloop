@@ -2,6 +2,11 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] — 2026-07-07
+
+### Changed
+- **Maintenance release.** Documentation polish and version bump; no functional changes.
+
 ## [1.3.2] — 2026-07-07
 
 ### Fixed
