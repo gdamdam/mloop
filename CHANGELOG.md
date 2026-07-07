@@ -2,6 +2,11 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] — 2026-07-07
+
+### Fixed
+- **mbus subscription no longer shows a false 'live' badge.** The vendored mbus client (synced from upstream mbus-client 0.2.0) now reports a subscription 'live' only once the RTCPeerConnection reaches `connectionState` 'connected', instead of at ontrack/SDP time — ICE can still fail after the track arrives, and the premature badge hid exactly that failure.
+
 ## [1.3.3] — 2026-07-07
 
 ### Changed
