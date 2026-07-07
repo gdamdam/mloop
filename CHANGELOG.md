@@ -2,6 +2,14 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] — 2026-07-07
+
+### Fixed
+- **Version drift.** The in-app version (footer, About, update check) had been stuck at 1.2.0 and the README badge at 1.1.3 since those releases only bumped package.json.
+
+### Changed
+- **Version is now derived at build time.** `APP_VERSION` and `version.json` are injected/emitted from package.json by the Vite config, so they can no longer drift; a test guards the remaining manual points (README badge, this changelog).
+
 ## [1.3.1] — 2026-07-06
 
 ### Added
