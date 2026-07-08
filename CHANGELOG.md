@@ -2,6 +2,13 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-07-09
+
+### Added
+- **Warp engine (granular time-stretch + pitch-shift).** New opt-in per-pad `warp` mode decouples pitch from time via a granular windowed overlap-add core (`WarpCore`) running in a real-time `warp-worklet` (with a ScriptProcessorNode fallback). A pad can stretch its clip to the session tempo (`syncToTempo` + `nativeBeats`) with pitch held constant, or shift pitch without changing length. Off by default — existing sessions are byte-identical to before (the classic `playbackRate` path is untouched).
+- **Chromatic instrument mode.** Turn a pad into a polyphonic, playable multisample instrument across QWERTY + MIDI: per-key semitone offset from a selectable root, scale-lock (snap-to-nearest or mute out-of-scale), an 8-voice cap with oldest-voice stealing, and a **Keep Tempo** (warp) vs **Classic** (repitch) toggle.
+- **Vendored DSP.** Grain window, RNG, stereo circular buffer, grain filter, and the scale masks / snap-to-scale are vendored verbatim from the sibling project [mgrains](https://github.com/gdamdam/mgrains) (same author, AGPL-3.0-or-later) under `src/vendor/mgrains-dsp/`, with their upstream tests brought along.
+
 ## [1.3.5] — 2026-07-08
 
 ### Added

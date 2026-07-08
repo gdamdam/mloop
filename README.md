@@ -5,7 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-1.3.5-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-1.4.0-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/tests-309%20passing-brightgreen" alt="Tests"></a>
   <a href="https://mpump.live"><img src="https://img.shields.io/badge/companion-mpump-orange" alt="Companion to mpump"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-green" alt="License"></a>
   <br><br>
@@ -55,6 +56,8 @@ PAD and LOOPER share the same session — save, pin, and export both at once. MI
 - **Sample capture** — record live from mic, resample from looper output, or import a file
 - **Sample slicer** — auto-chop a loop into pads
 - **Chromatic mode** — play pads as a pitched instrument
+- **Warp** — opt-in per-pad granular time-stretch: pitch and length are independent, so a loop can track the session tempo without repitching (off by default; existing sessions are unaffected)
+- **Instrument mode** — turn a pad into a polyphonic, playable multisample instrument across QWERTY + MIDI, with scale-lock and a "keep tempo" (warp) vs "classic" (repitch) toggle
 - **Sound Browser** — audition and load single samples
 
 ## Master Mixer (MIXER mode)
@@ -131,6 +134,11 @@ Your music stays on your device. Always.
 ## License
 
 [AGPL-3.0-or-later](LICENSE).
+
+Portions of the warp engine and instrument mode (grain window, RNG, stereo
+circular buffer, grain filter, and the scale masks / snap-to-scale) are vendored
+from the sibling project **[mgrains](https://github.com/gdamdam/mgrains)** (same
+author, AGPL-3.0-or-later) under `src/vendor/mgrains-dsp/`.
 
 ## Trademark
 
