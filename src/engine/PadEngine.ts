@@ -10,6 +10,8 @@
 import { Recorder } from "./Recorder";
 import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
 import { secondsUntilNextBar, nowMs, type LinkClock } from "../utils/linkBridge";
+import { WarpNode } from "./warp/WarpNode";
+import { computeWarpStretchRatio } from "./warp/warpSync";
 
 /**
  * How far behind the audio clock a scheduled step may fall before it's dropped
@@ -63,6 +65,8 @@ export class PadEngine {
   // independently. stopSlot() stops every source for a slot; onended
   // removes them one-at-a-time as each sample finishes naturally.
   private activeSources: Map<number, Set<AudioBufferSourceNode>> = new Map();
+  /** Active warp voices per slot — parallel to activeSources for warp pads. */
+  private activeWarps: Map<number, Set<WarpNode>> = new Map();
 
   /** Callback to notify UI of state changes. */
   onStateChange: (() => void) | null = null;
@@ -334,6 +338,13 @@ export class PadEngine {
       this.stopSlot(slotId);
     }
 
+    // Warp path: route through the granular WarpNode (pitch/time independent).
+    // Opt-in per pad; leaves the classic playbackRate path below untouched.
+    if (slot.warp && slot.buffer && slot.buffer.length > 0) {
+      this.playWarp(slotId, slot, when, velocity);
+      return;
+    }
+
     const source = this.ctx.createBufferSource();
     source.buffer = slot.audioBuffer;
 
@@ -376,6 +387,64 @@ export class PadEngine {
     let set = this.activeSources.get(slotId);
     if (!set) { set = new Set(); this.activeSources.set(slotId, set); }
     set.add(source);
+  }
+
+  /**
+   * Warp playback path. Extracts the trimmed mono region, computes the
+   * stretch ratio (tempo-sync or 1×), and streams it through a WarpNode into
+   * the same gain (via WarpNode.output) → pan → master chain. Loop mode loops
+   * the granular stream; gain/pan/mute-group/onended cleanup mirror playAt.
+   */
+  private playWarp(slotId: number, slot: PadSlot, when: number, velocity: number): void {
+    const buf = slot.buffer!;
+    const len = buf.length;
+    const s0 = Math.max(0, Math.min(len - 1, Math.floor(slot.trimStart * len)));
+    const s1 = Math.max(s0 + 1, Math.min(len, Math.floor(slot.trimEnd * len)));
+    const segment = buf.slice(s0, s1);
+    const clipDurationSec = segment.length / this.ctx.sampleRate;
+
+    const stretchRatio = computeWarpStretchRatio({
+      syncToTempo: slot.syncToTempo,
+      nativeBeats: slot.nativeBeats,
+      bpm: this.seqBpm,
+      clipDurationSec,
+    });
+
+    const warp = new WarpNode(
+      this.ctx,
+      segment,
+      { stretchRatio, pitchSemitones: slot.pitch },
+      {},
+      slot.playMode === "loop",
+    );
+    // WarpNode.output is itself a GainNode — use it as the per-pad volume stage.
+    warp.output.gain.value = slot.volume * velocity;
+    const panner = this.ctx.createStereoPanner();
+    panner.pan.value = slot.pan;
+    warp.output.connect(panner).connect(this.masterNode);
+
+    let set = this.activeWarps.get(slotId);
+    if (!set) { set = new Set(); this.activeWarps.set(slotId, set); }
+    set.add(warp);
+
+    warp.onended = () => {
+      const s = this.activeWarps.get(slotId);
+      if (s) {
+        s.delete(warp);
+        if (s.size === 0) this.activeWarps.delete(slotId);
+      }
+      try { panner.disconnect(); } catch { /* already disconnected */ }
+    };
+
+    // The granular node can't schedule a sample-accurate future start, so honor
+    // `when` on the control thread (fine for pad hits; sequencer warp is
+    // near-sample-accurate, not exact — noted for QA).
+    const delaySec = when - this.ctx.currentTime;
+    if (delaySec > 0.005) {
+      window.setTimeout(() => { void warp.start(); }, delaySec * 1000);
+    } else {
+      void warp.start();
+    }
   }
 
   // ── Built-in sequencer (Web Audio scheduled) ──────────────────────────
@@ -505,16 +574,30 @@ export class PadEngine {
       }
     }
     this.activeSources.clear();
+    for (const [, set] of this.activeWarps) {
+      for (const warp of set) {
+        try { warp.stop(); } catch { /* ok */ }
+      }
+    }
+    this.activeWarps.clear();
   }
 
   /** Stop all currently-playing instances of a pad slot. */
   stopSlot(slotId: number): void {
     const set = this.activeSources.get(slotId);
-    if (!set) return;
-    for (const source of set) {
-      try { source.stop(); source.disconnect(); } catch { /* ok */ }
+    if (set) {
+      for (const source of set) {
+        try { source.stop(); source.disconnect(); } catch { /* ok */ }
+      }
+      this.activeSources.delete(slotId);
     }
-    this.activeSources.delete(slotId);
+    const warps = this.activeWarps.get(slotId);
+    if (warps) {
+      for (const warp of warps) {
+        try { warp.stop(); } catch { /* ok */ }
+      }
+      this.activeWarps.delete(slotId);
+    }
   }
 
   /** Clear a pad slot — stops playback and removes the sample. */

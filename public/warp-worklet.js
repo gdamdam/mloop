@@ -165,6 +165,7 @@ class WarpWorkletProcessor extends AudioWorkletProcessor {
     // test-only override so the kernel can be built off the audio thread.
     const sr = opts.sampleRate ?? (typeof sampleRate !== "undefined" ? sampleRate : 48000)
     this.kernel = new WarpKernel(sr, opts)
+    this.loop = opts.loop === true
     this.stretchRatio = 1
     this.pitchSemitones = 0
     this.playing = false
@@ -202,6 +203,12 @@ class WarpWorkletProcessor extends AudioWorkletProcessor {
     this.produced += ch0.length
 
     if (this.produced >= this.totalOut) {
+      if (this.loop) {
+        // Tempo-synced loop: replay the clip seamlessly.
+        this.kernel.reset()
+        this.produced = 0
+        return true
+      }
       this.port.postMessage({ type: "ended" })
       this.playing = false
       // Each trigger gets a fresh node; let this processor die so it doesn't

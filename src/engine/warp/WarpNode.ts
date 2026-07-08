@@ -40,6 +40,7 @@ export class WarpNode {
   private readonly ctx: AudioContext
   private readonly channel: Float32Array
   private readonly options: WarpOptions
+  private readonly loop: boolean
   private params: WarpNodeParams
 
   private worklet: AudioWorkletNode | null = null
@@ -54,11 +55,13 @@ export class WarpNode {
     channel: Float32Array,
     params: WarpNodeParams,
     options: WarpOptions = {},
+    loop = false,
   ) {
     this.ctx = ctx
     this.channel = channel
     this.params = { ...params }
     this.options = options
+    this.loop = loop
     this.output = ctx.createGain()
   }
 
@@ -78,14 +81,17 @@ export class WarpNode {
 
   /** Begin producing warped audio into `output`. */
   async start(): Promise<void> {
+    // A scheduled start may resolve after stop() cancelled us — bail out.
+    if (this.ended) return
     const canUseWorklet = await WarpNode.ensureWorklet(this.ctx)
+    if (this.ended) return
     if (canUseWorklet) {
       try {
         this.worklet = new AudioWorkletNode(this.ctx, "warp-worklet", {
           numberOfInputs: 0,
           numberOfOutputs: 1,
           outputChannelCount: [1],
-          processorOptions: { sampleRate: this.ctx.sampleRate, ...this.options },
+          processorOptions: { sampleRate: this.ctx.sampleRate, loop: this.loop, ...this.options },
         })
         this.worklet.port.onmessage = (e: MessageEvent) => {
           if (e.data?.type === "ended") this.finish()
@@ -116,7 +122,14 @@ export class WarpNode {
       const out = e.outputBuffer.getChannelData(0)
       this.core.render(out, this.params)
       this.produced += out.length
-      if (this.produced >= this.totalOut) this.finish()
+      if (this.produced >= this.totalOut) {
+        if (this.loop) {
+          this.core.reset()
+          this.produced = 0
+        } else {
+          this.finish()
+        }
+      }
     }
     this.script.connect(this.output)
   }
