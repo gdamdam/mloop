@@ -51,6 +51,10 @@ export interface PadSlotExport {
   trimEnd: number;
   loopBeats: number;
   muteGroup: number;
+  // Optional so pre-1.4 export files still load; readers default them.
+  warp?: boolean;
+  nativeBeats?: number;
+  syncToTempo?: boolean;
 }
 
 /** JSON shape for the full PAD workspace in the export file. */
@@ -97,6 +101,9 @@ export function padSnapshotToStored(snap: PadSnapshot): PadStateStored {
       trimEnd: s.trimEnd,
       loopBeats: s.loopBeats,
       muteGroup: s.muteGroup,
+      warp: s.warp,
+      nativeBeats: s.nativeBeats,
+      syncToTempo: s.syncToTempo,
     })),
     seqGrid: snap.seqGrid.map((row) => [...row]),
     seqNumSteps: snap.seqNumSteps,
@@ -119,6 +126,9 @@ export function padStoredToSnapshot(stored: PadStateStored): PadSnapshot {
       trimEnd: s.trimEnd ?? 1,
       loopBeats: s.loopBeats ?? 0,
       muteGroup: s.muteGroup ?? 0,
+      warp: s.warp ?? false,
+      nativeBeats: s.nativeBeats ?? 0,
+      syncToTempo: s.syncToTempo ?? false,
     })),
     seqGrid: Array.isArray(stored.seqGrid) ? stored.seqGrid.map((row) => [...row]) : [],
     seqNumSteps: stored.seqNumSteps ?? 16,
@@ -140,6 +150,9 @@ export function padSnapshotToExport(snap: PadSnapshot): PadStateExport {
       trimEnd: s.trimEnd,
       loopBeats: s.loopBeats,
       muteGroup: s.muteGroup,
+      warp: s.warp,
+      nativeBeats: s.nativeBeats,
+      syncToTempo: s.syncToTempo,
     })),
     seqGrid: snap.seqGrid.map((row) => [...row]),
     seqNumSteps: snap.seqNumSteps,
@@ -162,6 +175,9 @@ export function padExportToSnapshot(exp: PadStateExport): PadSnapshot {
       trimEnd: s.trimEnd ?? 1,
       loopBeats: s.loopBeats ?? 0,
       muteGroup: s.muteGroup ?? 0,
+      warp: s.warp ?? false,
+      nativeBeats: s.nativeBeats ?? 0,
+      syncToTempo: s.syncToTempo ?? false,
     })),
     seqGrid: Array.isArray(exp.seqGrid) ? exp.seqGrid.map((row) => [...row]) : [],
     seqNumSteps: exp.seqNumSteps ?? 16,

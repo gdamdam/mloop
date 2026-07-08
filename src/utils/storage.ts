@@ -23,6 +23,10 @@ export interface PadSlotStored {
   trimEnd: number;
   loopBeats: number;
   muteGroup: number;
+  // Optional so pre-1.4 IDB records still load; readers default them.
+  warp?: boolean;
+  nativeBeats?: number;
+  syncToTempo?: boolean;
 }
 
 /** Full PAD workspace as stored on disk. */

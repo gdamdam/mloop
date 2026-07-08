@@ -12,10 +12,11 @@ import {
   padExportToSnapshot,
   sessionHasContent,
   type SessionExport,
+  type PadSlotExport,
 } from "../hooks/loopEnginePersistence";
 import type { AudioEngine } from "../engine/AudioEngine";
 import { PadEngine, type PadPersistencePort, type PadSnapshot, type PadSlotSnapshot } from "../engine/PadEngine";
-import type { SessionData } from "../utils/storage";
+import type { SessionData, PadSlotStored } from "../utils/storage";
 import * as storage from "../utils/storage";
 
 // ── Minimal mocks ─────────────────────────────────────────────────────────
@@ -104,6 +105,9 @@ function emptyPadSlot(overrides: Partial<PadSlotSnapshot> = {}): PadSlotSnapshot
     trimEnd: 1,
     loopBeats: 0,
     muteGroup: 0,
+    warp: false,
+    nativeBeats: 0,
+    syncToTempo: false,
     ...overrides,
   };
 }
@@ -802,6 +806,38 @@ describe("pad snapshot converters", () => {
     const restored = padExportToSnapshot(viaJson);
     expect(restored.slots[0].name).toBe("B");
     expect(Array.from(restored.slots[0].buffer!)).toEqual([0.25, -0.25, 0.75]);
+  });
+
+  it("round-trips warp fields through both stored and export formats", () => {
+    const snap = makePadSnapshot({
+      slots: [
+        emptyPadSlot({ name: "W", warp: true, nativeBeats: 8, syncToTempo: true }),
+        ...Array.from({ length: 15 }, () => emptyPadSlot()),
+      ],
+    });
+    const viaStored = padStoredToSnapshot(padSnapshotToStored(snap)).slots[0];
+    expect(viaStored.warp).toBe(true);
+    expect(viaStored.nativeBeats).toBe(8);
+    expect(viaStored.syncToTempo).toBe(true);
+
+    const viaJson = padExportToSnapshot(JSON.parse(JSON.stringify(padSnapshotToExport(snap)))).slots[0];
+    expect(viaJson.warp).toBe(true);
+    expect(viaJson.nativeBeats).toBe(8);
+    expect(viaJson.syncToTempo).toBe(true);
+  });
+
+  it("defaults warp fields when absent (legacy sessions unaffected)", () => {
+    // A pre-1.4 record simply omits the (now optional) warp fields.
+    const legacyStored: PadSlotStored = { name: "old", buffer: null, volume: 1, pan: 0, pitch: 0, playMode: "one", trimStart: 0, trimEnd: 1, loopBeats: 0, muteGroup: 0 };
+    const restoredStored = padStoredToSnapshot({ slots: [legacyStored], seqGrid: [], seqNumSteps: 16, seqSwing: 0 }).slots[0];
+    expect(restoredStored.warp).toBe(false);
+    expect(restoredStored.nativeBeats).toBe(0);
+    expect(restoredStored.syncToTempo).toBe(false);
+
+    const legacyExport: PadSlotExport = { name: "old", buffer: null, volume: 1, pan: 0, pitch: 0, playMode: "one", trimStart: 0, trimEnd: 1, loopBeats: 0, muteGroup: 0 };
+    const restoredExport = padExportToSnapshot({ slots: [legacyExport], seqGrid: [], seqNumSteps: 16, seqSwing: 0 }).slots[0];
+    expect(restoredExport.warp).toBe(false);
+    expect(restoredExport.syncToTempo).toBe(false);
   });
 });
 

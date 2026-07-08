@@ -37,6 +37,10 @@ export interface PadSlot {
   trimEnd: number;    // 0–1 fraction of buffer
   loopBeats: number;  // 0 = free, >0 = musical length in beats
   muteGroup: number;  // 0 = none, 1-4 = group (playing one stops others in group)
+  // ── Warp (granular time-stretch/pitch-shift; v1.4). Opt-in per pad. ──
+  warp: boolean;        // false = classic playbackRate path (pitch couples time)
+  nativeBeats: number;  // 0 = unknown; the sample's musical length for tempo-sync
+  syncToTempo: boolean; // true = stretch clip to session tempo (needs nativeBeats)
 }
 
 /** Mute group presets for common drum kits. */
@@ -78,12 +82,13 @@ export class PadEngine {
       this.slots.push({
         id: i, name: "", buffer: null, audioBuffer: null, status: "empty",
         volume: 1, pan: 0, pitch: 0, playMode: "one", trimStart: 0, trimEnd: 1, loopBeats: 0, muteGroup: 0,
+        warp: false, nativeBeats: 0, syncToTempo: false,
       });
     }
   }
 
   // ── Undo (1 level) ──────────────────────────────────────────────────
-  private undoSlots: { name: string; buffer: Float32Array<ArrayBuffer> | null; status: string; volume: number; pan: number; pitch: number; playMode: string; trimStart: number; trimEnd: number; loopBeats: number; muteGroup: number }[] | null = null;
+  private undoSlots: { name: string; buffer: Float32Array<ArrayBuffer> | null; status: string; volume: number; pan: number; pitch: number; playMode: string; trimStart: number; trimEnd: number; loopBeats: number; muteGroup: number; warp: boolean; nativeBeats: number; syncToTempo: boolean }[] | null = null;
   private undoGrid: boolean[][] | null = null;
 
   /** Save current pad + grid state before a mutation. */
@@ -93,6 +98,7 @@ export class PadEngine {
       status: s.status, volume: s.volume, pan: s.pan, pitch: s.pitch,
       playMode: s.playMode, trimStart: s.trimStart, trimEnd: s.trimEnd,
       loopBeats: s.loopBeats, muteGroup: s.muteGroup,
+      warp: s.warp, nativeBeats: s.nativeBeats, syncToTempo: s.syncToTempo,
     }));
     this.undoGrid = this.seqGrid.map(row => [...row]);
   }
@@ -110,6 +116,7 @@ export class PadEngine {
       slot.playMode = snap.playMode as "one" | "gate" | "loop";
       slot.trimStart = snap.trimStart; slot.trimEnd = snap.trimEnd;
       slot.loopBeats = snap.loopBeats; slot.muteGroup = snap.muteGroup;
+      slot.warp = snap.warp; slot.nativeBeats = snap.nativeBeats; slot.syncToTempo = snap.syncToTempo;
       // Rebuild AudioBuffer from Float32Array
       if (snap.buffer) {
         const ab = this.ctx.createBuffer(1, snap.buffer.length, this.ctx.sampleRate);
@@ -528,6 +535,9 @@ export class PadEngine {
       slot.trimEnd = 1;
       slot.loopBeats = 0;
       slot.muteGroup = 0;
+      slot.warp = false;
+      slot.nativeBeats = 0;
+      slot.syncToTempo = false;
       this.onStateChange?.();
     }
   }
@@ -572,6 +582,9 @@ export class PadEngine {
     to.trimEnd = from.trimEnd;
     to.loopBeats = from.loopBeats;
     to.muteGroup = from.muteGroup;
+    to.warp = from.warp;
+    to.nativeBeats = from.nativeBeats;
+    to.syncToTempo = from.syncToTempo;
     this.onStateChange?.();
   }
 
@@ -581,7 +594,7 @@ export class PadEngine {
     const b = this.slots[bId];
     if (!a || !b) return;
     // Swap all fields except id
-    const keys: (keyof PadSlot)[] = ["name", "buffer", "audioBuffer", "status", "volume", "pan", "pitch", "playMode", "trimStart", "trimEnd", "loopBeats", "muteGroup"];
+    const keys: (keyof PadSlot)[] = ["name", "buffer", "audioBuffer", "status", "volume", "pan", "pitch", "playMode", "trimStart", "trimEnd", "loopBeats", "muteGroup", "warp", "nativeBeats", "syncToTempo"];
     for (const k of keys) {
       const tmp = a[k];
       (a as unknown as Record<string, unknown>)[k] = b[k];
@@ -710,6 +723,9 @@ export class PadEngine {
         trimEnd: s.trimEnd,
         loopBeats: s.loopBeats,
         muteGroup: s.muteGroup,
+        warp: s.warp,
+        nativeBeats: s.nativeBeats,
+        syncToTempo: s.syncToTempo,
       })),
       seqGrid: this.seqGrid.map((row) => [...row]),
       seqNumSteps: this.seqNumSteps,
@@ -749,6 +765,9 @@ export class PadEngine {
         s.trimEnd = snapSlot.trimEnd ?? 1;
         s.loopBeats = snapSlot.loopBeats ?? 0;
         s.muteGroup = snapSlot.muteGroup ?? 0;
+        s.warp = snapSlot.warp ?? false;
+        s.nativeBeats = snapSlot.nativeBeats ?? 0;
+        s.syncToTempo = snapSlot.syncToTempo ?? false;
 
         if (snapSlot.buffer && snapSlot.buffer.length > 0) {
           const data = new Float32Array(snapSlot.buffer);
@@ -773,6 +792,9 @@ export class PadEngine {
         s.trimEnd = 1;
         s.loopBeats = 0;
         s.muteGroup = 0;
+        s.warp = false;
+        s.nativeBeats = 0;
+        s.syncToTempo = false;
         s.buffer = null;
         s.audioBuffer = null;
         s.status = "empty";
@@ -811,6 +833,10 @@ export interface PadSlotSnapshot {
   trimEnd: number;
   loopBeats: number;
   muteGroup: number;
+  // Optional so pre-1.4 snapshots still satisfy the type; readers default them.
+  warp?: boolean;
+  nativeBeats?: number;
+  syncToTempo?: boolean;
 }
 
 /** Full PAD-mode snapshot for session save / restore. */
