@@ -51,8 +51,16 @@ export function actionToCommand(action: MidiAction, value: number): LoopCommand 
  * Hook that initializes Web MIDI and routes incoming messages to the command system.
  * Returns a ref to the controller for MIDI learn UI integration.
  */
-export function useMidiMapping(command: (cmd: LoopCommand) => void, enabled: boolean) {
+export function useMidiMapping(
+  command: (cmd: LoopCommand) => void,
+  enabled: boolean,
+  onNote?: (note: number, on: boolean, velocity: number) => void,
+) {
   const controllerRef = useRef<MidiController | null>(null);
+  // Keep the latest note handler in a ref so instrument-setting changes don't
+  // tear down and rebuild the controller (which would drop MIDI listeners).
+  const onNoteRef = useRef(onNote);
+  useEffect(() => { onNoteRef.current = onNote; });
 
   useEffect(() => {
     if (!enabled || !MidiController.isSupported()) return;
@@ -65,6 +73,7 @@ export function useMidiMapping(command: (cmd: LoopCommand) => void, enabled: boo
       const cmd = actionToCommand(action, value);
       if (cmd) command(cmd);
     };
+    ctrl.onNote = (note, on, velocity) => onNoteRef.current?.(note, on, velocity);
 
     ctrl.init();
 

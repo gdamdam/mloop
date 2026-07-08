@@ -24,6 +24,7 @@ import { NeedleMeter } from "./NeedleMeter";
 import { MixerView } from "./MixerView";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useMidiMapping } from "../hooks/useMidiMapping";
+import { DEFAULT_INSTRUMENT, keyIndexToNote, type InstrumentSettings } from "../engine/instrument/instrumentMapping";
 import { MidiController } from "../engine/MidiController";
 import { loadSession } from "../utils/storage";
 import { sessionHasContent } from "../hooks/loopEnginePersistence";
@@ -280,10 +281,36 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
     setFlashPad(padId);
     setTimeout(() => setFlashPad(null), 120);
   }, [padEngine]);
+  // Chromatic instrument mode. Owned here because the QWERTY/MIDI hooks live
+  // here; PadView renders the controls and reports which pad to play.
+  const [instrument, setInstrument] = useState<InstrumentSettings>(DEFAULT_INSTRUMENT);
+  const handleInstrumentNoteOn = useCallback((keyIndex: number) => {
+    if (!padEngine || !instrument.active) return;
+    padEngine.instrumentNoteOn(instrument.padId, keyIndexToNote(keyIndex), 1, {
+      root: instrument.root, scale: instrument.scale, snapMode: instrument.snapMode, keepTempo: instrument.keepTempo,
+    });
+  }, [padEngine, instrument]);
+  const handleInstrumentNoteOff = useCallback((keyIndex: number) => {
+    padEngine?.instrumentNoteOff(keyIndexToNote(keyIndex));
+  }, [padEngine]);
+  const handleMidiNote = useCallback((note: number, on: boolean, velocity: number) => {
+    if (!padEngine || !instrument.active) return;
+    if (on) {
+      padEngine.instrumentNoteOn(instrument.padId, note, Math.max(0.1, velocity / 127), {
+        root: instrument.root, scale: instrument.scale, snapMode: instrument.snapMode, keepTempo: instrument.keepTempo,
+      });
+    } else {
+      padEngine.instrumentNoteOff(note);
+    }
+  }, [padEngine, instrument]);
+  // Kill any held instrument voices when mode/pad changes so notes don't hang.
+  useEffect(() => { padEngine?.instrumentAllOff(); }, [instrument.active, instrument.padId, padEngine]);
+
   const { showOverlay, setShowOverlay } = useKeyboardShortcuts(
-    command, true, handleMainPlayStop, viewMode, handlePadTrigger, handleUndo
+    command, true, handleMainPlayStop, viewMode, handlePadTrigger, handleUndo,
+    handleInstrumentNoteOn, handleInstrumentNoteOff, instrument.active
   );
-  const midiRef = useMidiMapping(command, true);
+  const midiRef = useMidiMapping(command, true, handleMidiNote);
   const [linkEnabled, setLinkEnabled] = useState(false);
   const pushPlayingRef = useRef<((playing: boolean) => void) | null>(null);
   // Session's current playing state (false when disconnected) — read by the
@@ -588,7 +615,13 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
       ) : viewMode === "mixer" ? (
         <MixerView engine={engine} />
       ) : (
-        <PadView engine={engine} padEngine={padEngine} flashPad={flashPad} />
+        <PadView
+          engine={engine}
+          padEngine={padEngine}
+          flashPad={flashPad}
+          instrument={instrument}
+          onInstrumentChange={(patch) => setInstrument((prev) => ({ ...prev, ...patch }))}
+        />
       )}
 
       {/* ── Footer ────────────────────────────────────────────────────── */}

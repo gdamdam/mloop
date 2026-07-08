@@ -39,6 +39,13 @@ export class MidiController {
   /** Callback fired when a mapped MIDI message arrives. Value is 0–127. */
   onAction: ((action: MidiAction, value: number) => void) | null = null;
 
+  /**
+   * Raw note callback (instrument mode). Fires for every Note On/Off regardless
+   * of the mapping table: `on` is true for Note On with velocity > 0, false for
+   * Note Off (0x80) or Note On with velocity 0. Velocity is 0–127.
+   */
+  onNote: ((note: number, on: boolean, velocity: number) => void) | null = null;
+
   /** Check if the browser supports the Web MIDI API. */
   static isSupported(): boolean {
     return "requestMIDIAccess" in navigator;
@@ -78,6 +85,11 @@ export class MidiController {
     const channel = e.data[0] & 0x0F;  // channel (lower nibble)
     const number = e.data[1];
     const value = e.data.length > 2 ? e.data[2] : 0;
+
+    // Raw note stream for instrument mode (independent of the mapping table).
+    if (status === 0x90 || status === 0x80) {
+      this.onNote?.(number, status === 0x90 && value > 0, value);
+    }
 
     let type: "cc" | "note" | null = null;
     if (status === 0xB0) type = "cc";                    // Control Change
@@ -129,6 +141,7 @@ export class MidiController {
     }
     this.access = null;
     this.onAction = null;
+    this.onNote = null;
   }
 
   /** Cancel an in-progress MIDI learn. */

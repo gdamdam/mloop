@@ -18,6 +18,8 @@ import {
 import type { UserKit } from "../utils/kitManager";
 import { SoundBrowser } from "./SoundBrowser";
 import { PadDetail } from "./PadDetail";
+import { InstrumentMode } from "./InstrumentMode";
+import type { InstrumentSettings } from "../engine/instrument/instrumentMapping";
 import type { PlayMode } from "./PadDetail";
 import { SampleSlicer } from "./SampleSlicer";
 import { ScratchpadRecorder } from "./ScratchpadRecorder";
@@ -27,6 +29,8 @@ interface PadViewProps {
   engine: AudioEngine | null;
   padEngine: PadEngine | null;
   flashPad?: number | null;
+  instrument: InstrumentSettings;
+  onInstrumentChange: (patch: Partial<InstrumentSettings>) => void;
 }
 
 /**
@@ -194,7 +198,7 @@ function InputWaveform({ analyser, isRecording }: { analyser: AnalyserNode | nul
   );
 }
 
-export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
+export function PadView({ engine, padEngine, flashPad, instrument, onInstrumentChange }: PadViewProps) {
   const [slots, setSlots] = useState<PadSlot[]>([]);
   const [recordingSlot, setRecordingSlot] = useState<number | null>(null);
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
@@ -549,6 +553,21 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
               }} title={padEngine?.isResampling ? "Stop resampling" : "Resample: record output to pad"}>
                 {padEngine?.isResampling ? "■R" : "⏺R"}
               </button>
+              {/* Instrument mode — play the selected pad chromatically (QWERTY + MIDI) */}
+              <button onClick={() => {
+                if (instrument.active) {
+                  onInstrumentChange({ active: false });
+                } else {
+                  if (selectedPad === null || !padEngine?.slots[selectedPad]?.buffer) { alert("Select a loaded pad first"); return; }
+                  onInstrumentChange({ active: true, padId: selectedPad });
+                }
+              }} style={{
+                fontSize: 11, padding: "5px 10px", borderRadius: 6,
+                background: instrument.active ? "var(--preview)" : "var(--bg-cell)",
+                color: instrument.active ? "#000" : "var(--text-dim)",
+              }} title="Instrument mode: play selected pad chromatically via keyboard/MIDI">
+                🎹
+              </button>
               {/* Layout selector removed — drag pads to rearrange */}
             </div>
           </div>
@@ -777,6 +796,13 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
           </div>
         </div>
         <ScratchpadRecorder engine={engine} />
+        {instrument.active && (
+          <InstrumentMode
+            settings={instrument}
+            onChange={onInstrumentChange}
+            padName={padEngine?.slots[instrument.padId]?.name ?? ""}
+          />
+        )}
         <PadDetail
           slot={selectedPad !== null ? slots[selectedPad] ?? null : null}
           volume={selectedPad !== null ? (padEngine?.slots[selectedPad]?.volume ?? 1) : 1}

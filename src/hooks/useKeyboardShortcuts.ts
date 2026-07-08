@@ -100,6 +100,9 @@ export function useKeyboardShortcuts(
   viewMode: "tracks" | "pads" | "mixer" = "pads",
   onPadTrigger?: (padId: number) => void,
   onUndo?: () => void,
+  onInstrumentNoteOn?: (keyIndex: number) => void,
+  onInstrumentNoteOff?: (keyIndex: number) => void,
+  instrumentMode = false,
 ) {
   const [showOverlay, setShowOverlay] = useState(false);
 
@@ -108,9 +111,15 @@ export function useKeyboardShortcuts(
   // updated in an effect (not during render) to satisfy react-hooks/refs.
   const onSpaceBarRef = useRef(onSpaceBar);
   const onUndoRef = useRef(onUndo);
+  const onInstrumentNoteOnRef = useRef(onInstrumentNoteOn);
+  const onInstrumentNoteOffRef = useRef(onInstrumentNoteOff);
+  const instrumentModeRef = useRef(instrumentMode);
   useEffect(() => {
     onSpaceBarRef.current = onSpaceBar;
     onUndoRef.current = onUndo;
+    onInstrumentNoteOnRef.current = onInstrumentNoteOn;
+    onInstrumentNoteOffRef.current = onInstrumentNoteOff;
+    instrumentModeRef.current = instrumentMode;
   });
 
   useEffect(() => {
@@ -141,11 +150,17 @@ export function useKeyboardShortcuts(
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       // In PAD mode, check pad trigger keys first
-      if (viewMode === "pads" && onPadTrigger) {
+      if (viewMode === "pads") {
         const padId = PAD_KEY_MAP[key.toLowerCase()];
         if (padId !== undefined) {
           e.preventDefault();
-          onPadTrigger(padId);
+          // Instrument mode: same keys become chromatic note-on (key index =
+          // semitone key). Ignore auto-repeat so a held key doesn't restack.
+          if (instrumentModeRef.current) {
+            if (!e.repeat) onInstrumentNoteOnRef.current?.(padId);
+          } else {
+            onPadTrigger?.(padId);
+          }
           return;
         }
       }
@@ -173,10 +188,24 @@ export function useKeyboardShortcuts(
       command(cmd);
     };
 
+    // Instrument note-off on key release (chromatic pad). Shares this effect so
+    // it registers/cleans up with the keydown listener — NOT a second global
+    // listener lifecycle.
+    const upHandler = (e: KeyboardEvent) => {
+      if (!instrumentModeRef.current || viewMode !== "pads") return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const idx = PAD_KEY_MAP[e.key.toLowerCase()];
+      if (idx !== undefined) onInstrumentNoteOffRef.current?.(idx);
+    };
+
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-    // onSpaceBar/onUndo are read via refs (above) to avoid re-binding the
-    // listener every render while still calling the latest callback.
+    document.addEventListener("keyup", upHandler);
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.removeEventListener("keyup", upHandler);
+    };
+    // Callbacks + instrumentMode are read via refs (above) to avoid re-binding
+    // the listeners every render while still calling the latest values.
   }, [command, enabled, viewMode, onPadTrigger]);
 
   return { showOverlay, setShowOverlay };
