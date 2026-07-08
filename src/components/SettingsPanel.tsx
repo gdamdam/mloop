@@ -350,7 +350,9 @@ export function SettingsPanel({ palette, onPaletteChange, onClose, command, late
         <div className="settings-section">
           <div className="settings-label">Info</div>
           <div style={{ fontSize: 10, color: "var(--text-dim)", lineHeight: 1.8 }}>
-            Latency: <b style={{ color: "var(--text)" }}>{latencyMs.toFixed(1)} ms</b> ·
+            <span title="Browser round-trip floor: baseLatency + outputLatency. Typically ~10–30 ms; not reducible by the app.">
+              Latency: <b style={{ color: "var(--text)" }}>≈ {latencyMs.toFixed(1)} ms</b>
+            </span> ·
             Session: <b style={{ color: "var(--text)" }}>{sessionSizeMB.toFixed(1)} MB</b> ·
             Rate: <b style={{ color: "var(--text)" }}>44100 Hz</b>
           </div>

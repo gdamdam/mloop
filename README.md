@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-1.3.4-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mloop"><img src="https://img.shields.io/badge/version-1.3.5-blue" alt="Version"></a>
   <a href="https://mpump.live"><img src="https://img.shields.io/badge/companion-mpump-orange" alt="Companion to mpump"></a>
   <a href="https://github.com/gdamdam/mloop/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-green" alt="License"></a>
   <br><br>
@@ -95,8 +95,16 @@ Pro-style master bus chain applied globally to PAD hits, loops, and resamples al
 | Audio | Web Audio API — `AudioEngine`, `PadEngine`, `EffectsChain`, `DestructionEngine`, `TimingEngine` |
 | State | `useReducer` + optimistic dispatch (`loopEngineReducer`, `loopEngineCommands`) |
 | Persistence | IndexedDB (`SessionData`) + JSON export (`SessionExport`) — two independent surfaces |
-| Tests | Vitest + jsdom + `@testing-library/jest-dom` — ~180 cases across engine, hooks, and persistence |
+| Tests | Vitest + jsdom + `@testing-library/jest-dom` — ~275 cases across engine, hooks, and persistence |
 | Deploy | GitHub Pages via `gh-pages` |
+
+---
+
+## Latency & live use
+
+mloop is built to **play live** — but "live" means playing *into* the app, not hearing yourself through it with zero delay. Every browser adds a round-trip latency of roughly **~10–30 ms** (hardware buffer + `baseLatency` + `outputLatency`); it's a platform floor no web app can beat. Settings → Info shows the measured estimate for your setup (`≈ N ms`).
+
+Where mloop shines: line-in and loop building, resampling, production, and performing gestures/pads/effects into the app. For **true zero-latency monitoring of a live instrument or voice**, use your audio interface's direct/hardware monitoring for the dry signal, and let mloop add the wet (loops, effects, layers) on top. That's standard practice with any browser- or DAW-based looper.
 
 ---
 

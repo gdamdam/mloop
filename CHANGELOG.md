@@ -2,6 +2,11 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5] — 2026-07-08
+
+### Added
+- **Measured latency readout.** Settings → Info now shows an honest round-trip estimate (`≈ N ms`, `baseLatency + outputLatency`) read live from the AudioContext, with a tooltip noting it is the browser floor and not app-reducible. README gains a **Latency & live use** note.
+
 ## [1.3.4] — 2026-07-07
 
 ### Fixed

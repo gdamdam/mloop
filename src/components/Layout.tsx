@@ -617,7 +617,7 @@ export function Layout({ state, command, engine, padEngine }: LayoutProps) {
           onPaletteChange={handlePaletteChange}
           onClose={() => setShowSettings(false)}
           command={command}
-          latencyMs={engine ? (engine.inputLatencySamples / 44100) * 1000 : 0}
+          latencyMs={engine ? engine.measuredLatencyMs : 0}
           sessionSizeMB={engine ? engine.tracks.reduce((acc, t) => {
             const layers = t.getLayers();
             return acc + layers.reduce((s, l) => s + l.byteLength, 0);

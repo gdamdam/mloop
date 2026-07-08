@@ -27,6 +27,7 @@ import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
 import { NUM_TRACKS } from "../types";
 import type { TimingMode, SyncMode } from "../types";
 import { projectBeat, nowMs, type LinkClock } from "../utils/linkBridge";
+import { roundTripLatencyMs, type LatencySource } from "../utils/latency";
 import {
   createMbusClient,
   type MbusClient,
@@ -435,6 +436,14 @@ export class AudioEngine {
    */
   /** Whether mic has been successfully initialized. */
   get hasMic(): boolean { return this.inputSource !== null; }
+
+  /**
+   * Measured browser round-trip latency estimate (ms). Read live from the
+   * AudioContext, so it reflects a real figure even before the mic is opened.
+   */
+  get measuredLatencyMs(): number {
+    return roundTripLatencyMs(this.ctx as unknown as LatencySource);
+  }
 
   /**
    * Request mic access and wire up input. Must be called inside a user
