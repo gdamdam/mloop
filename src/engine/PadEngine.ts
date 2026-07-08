@@ -12,6 +12,23 @@ import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
 import { secondsUntilNextBar, nowMs, type LinkClock } from "../utils/linkBridge";
 import { WarpNode } from "./warp/WarpNode";
 import { computeWarpStretchRatio } from "./warp/warpSync";
+import { VoiceAllocator } from "./instrument/VoiceAllocator";
+import { noteToSemitones, type SnapMode } from "./instrument/instrumentMapping";
+import type { PitchScale } from "../vendor/mgrains-dsp/scale";
+
+/** Instrument-mode options resolved by the caller (root, scale, mode). */
+export interface InstrumentNoteOptions {
+  root: number;
+  scale: PitchScale;
+  snapMode: SnapMode;
+  /** true = warp (constant tempo, pitch-shift); false = classic repitch. */
+  keepTempo: boolean;
+}
+
+/** Polyphony cap for instrument mode (oldest-voice stealing beyond this). */
+const INSTRUMENT_VOICE_CAP = 8;
+
+interface InstrumentVoice { stop: () => void; }
 
 /**
  * How far behind the audio clock a scheduled step may fall before it's dropped
@@ -67,6 +84,11 @@ export class PadEngine {
   private activeSources: Map<number, Set<AudioBufferSourceNode>> = new Map();
   /** Active warp voices per slot — parallel to activeSources for warp pads. */
   private activeWarps: Map<number, Set<WarpNode>> = new Map();
+  /** Instrument-mode polyphony (chromatic pad). Keyed by note number. */
+  private instrumentVoices = new VoiceAllocator<InstrumentVoice>(
+    INSTRUMENT_VOICE_CAP,
+    (voice) => voice.stop(),
+  );
 
   /** Callback to notify UI of state changes. */
   onStateChange: (() => void) | null = null;
@@ -447,6 +469,74 @@ export class PadEngine {
     }
   }
 
+  // ── Instrument mode (chromatic polyphonic pad) ────────────────────────
+
+  /**
+   * Play a chromatic note on `padId` (instrument mode). The note's semitone
+   * offset from the root is resolved (scale-locked) and rendered either through
+   * the warp engine (keepTempo → constant tempo, decoupled pitch) or the
+   * classic playbackRate path. Polyphonic with oldest-voice stealing; held
+   * duration is governed by note-hold (instrumentNoteOff), not repitch.
+   */
+  instrumentNoteOn(padId: number, note: number, velocity: number, opts: InstrumentNoteOptions): void {
+    const slot = this.slots[padId];
+    if (!slot?.buffer || slot.buffer.length === 0) return;
+
+    const semitones = noteToSemitones(note, opts.root, opts.scale, opts.snapMode);
+    if (semitones === null) return; // out of scale + mute mode
+
+    const buf = slot.buffer;
+    const len = buf.length;
+    const s0 = Math.max(0, Math.min(len - 1, Math.floor(slot.trimStart * len)));
+    const s1 = Math.max(s0 + 1, Math.min(len, Math.floor(slot.trimEnd * len)));
+    const segment = buf.slice(s0, s1);
+
+    const panner = this.ctx.createStereoPanner();
+    panner.pan.value = slot.pan;
+    panner.connect(this.masterNode);
+
+    let voice: InstrumentVoice;
+    if (opts.keepTempo) {
+      // Warp: original tempo preserved, pitch shifted independently.
+      const warp = new WarpNode(this.ctx, segment, { stretchRatio: 1, pitchSemitones: semitones });
+      warp.output.gain.value = slot.volume * velocity;
+      warp.output.connect(panner);
+      void warp.start();
+      voice = { stop: () => {
+        try { warp.stop(); } catch { /* ok */ }
+        try { panner.disconnect(); } catch { /* ok */ }
+      } };
+    } else {
+      // Classic: repitch via playbackRate (pitch couples to duration).
+      const source = this.ctx.createBufferSource();
+      const ab = this.ctx.createBuffer(1, segment.length, this.ctx.sampleRate);
+      ab.copyToChannel(segment, 0);
+      source.buffer = ab;
+      source.playbackRate.value = Math.pow(2, semitones / 12);
+      const gain = this.ctx.createGain();
+      gain.gain.value = slot.volume * velocity;
+      source.connect(gain).connect(panner);
+      source.start();
+      voice = { stop: () => {
+        try { source.stop(); source.disconnect(); } catch { /* ok */ }
+        try { gain.disconnect(); } catch { /* ok */ }
+        try { panner.disconnect(); } catch { /* ok */ }
+      } };
+    }
+
+    this.instrumentVoices.add(note, voice);
+  }
+
+  /** Release a held instrument note (stops just that voice). */
+  instrumentNoteOff(note: number): void {
+    this.instrumentVoices.remove(note)?.stop();
+  }
+
+  /** Stop every held instrument voice. */
+  instrumentAllOff(): void {
+    for (const voice of this.instrumentVoices.clear()) voice.stop();
+  }
+
   // ── Built-in sequencer (Web Audio scheduled) ──────────────────────────
 
   private seqGrid: boolean[][] = [];
@@ -580,6 +670,7 @@ export class PadEngine {
       }
     }
     this.activeWarps.clear();
+    this.instrumentAllOff();
   }
 
   /** Stop all currently-playing instances of a pad slot. */
