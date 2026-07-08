@@ -40,7 +40,24 @@ interface PadDetailProps {
   onLoopBeatsChange: (beats: number) => void;
   muteGroup: number;
   onMuteGroupChange: (group: number) => void;
+  // Warp (granular time-stretch; v1.4) — opt-in per pad.
+  warp: boolean;
+  syncToTempo: boolean;
+  nativeBeats: number;
+  onWarpChange: (v: boolean) => void;
+  onSyncToTempoChange: (v: boolean) => void;
+  onNativeBeatsChange: (beats: number) => void;
 }
+
+/** Musical-length presets (in beats) for warp tempo-sync. 0 = unknown. */
+const NATIVE_BEATS = [
+  { label: "?", beats: 0 },
+  { label: "1", beats: 1 },
+  { label: "2", beats: 2 },
+  { label: "1 bar", beats: 4 },
+  { label: "2 bar", beats: 8 },
+  { label: "4 bar", beats: 16 },
+];
 
 export function PadDetail({
   slot, volume, pan, pitch, playMode,
@@ -48,6 +65,8 @@ export function PadDetail({
   onVolumeChange, onPanChange, onPitchChange,
   onPlayModeChange, onTrimChange, onLoopBeatsChange,
   muteGroup, onMuteGroupChange, onNameChange,
+  warp, syncToTempo, nativeBeats,
+  onWarpChange, onSyncToTempoChange, onNativeBeatsChange,
 }: PadDetailProps & { onNameChange?: (name: string) => void }) {
   if (!slot || slot.status !== "loaded" || !slot.buffer) {
     return (
@@ -160,6 +179,58 @@ export function PadDetail({
           </button>
         ))}
       </div>
+
+      {/* Warp (granular time-stretch). Collapsed to a single toggle when off. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6 }}>
+        <span style={{ fontSize: 8, color: "var(--text-dim)", width: 28, textAlign: "right" }}>Warp</span>
+        <button
+          onClick={() => onWarpChange(!warp)}
+          title="Granular time-stretch — pitch and length independent"
+          style={{
+            flex: 1, padding: "3px 0", borderRadius: 3, fontSize: 8, fontWeight: 700,
+            background: warp ? "var(--preview)" : "var(--bg-cell)",
+            color: warp ? "#000" : "var(--text-dim)", border: "none", cursor: "pointer",
+            textTransform: "uppercase", letterSpacing: 0.5,
+          }}
+        >
+          {warp ? "On" : "Off"}
+        </button>
+        {warp && (
+          <button
+            onClick={() => onSyncToTempoChange(!syncToTempo)}
+            title="Stretch the clip to the session tempo"
+            style={{
+              flex: 1, padding: "3px 0", borderRadius: 3, fontSize: 8, fontWeight: 700,
+              background: syncToTempo ? "var(--preview)" : "var(--bg-cell)",
+              color: syncToTempo ? "#000" : "var(--text-dim)", border: "none", cursor: "pointer",
+              textTransform: "uppercase", letterSpacing: 0.5,
+            }}
+          >
+            Sync
+          </button>
+        )}
+      </div>
+
+      {/* Native length (beats) — needed for tempo-sync. */}
+      {warp && syncToTempo && (
+        <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 4 }}>
+          <span style={{ fontSize: 8, color: "var(--text-dim)", width: 28, textAlign: "right" }}>Beats</span>
+          {NATIVE_BEATS.map(nb => (
+            <button
+              key={nb.label}
+              onClick={() => onNativeBeatsChange(nb.beats)}
+              style={{
+                flex: 1, padding: "2px 0", borderRadius: 3, fontSize: 8, fontWeight: 700,
+                background: nativeBeats === nb.beats ? "var(--preview)" : "var(--bg-cell)",
+                color: nativeBeats === nb.beats ? "#000" : "var(--text-dim)",
+                border: "none", cursor: "pointer",
+              }}
+            >
+              {nb.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

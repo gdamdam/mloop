@@ -796,6 +796,12 @@ export function PadView({ engine, padEngine, flashPad }: PadViewProps) {
           muteGroup={selectedPad !== null ? (padEngine?.slots[selectedPad]?.muteGroup ?? 0) : 0}
           onMuteGroupChange={(g) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].muteGroup = g; forceUpdate(n => n + 1); } }}
           onNameChange={(name) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].name = name; forceUpdate(n => n + 1); } }}
+          warp={selectedPad !== null ? (padEngine?.slots[selectedPad]?.warp ?? false) : false}
+          syncToTempo={selectedPad !== null ? (padEngine?.slots[selectedPad]?.syncToTempo ?? false) : false}
+          nativeBeats={selectedPad !== null ? (padEngine?.slots[selectedPad]?.nativeBeats ?? 0) : 0}
+          onWarpChange={(v) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].warp = v; forceUpdate(n => n + 1); } }}
+          onSyncToTempoChange={(v) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].syncToTempo = v; forceUpdate(n => n + 1); } }}
+          onNativeBeatsChange={(b) => { if (padEngine && selectedPad !== null) { padEngine.slots[selectedPad].nativeBeats = b; forceUpdate(n => n + 1); } }}
         />
         <PadSequencer slots={slots} bpm={bpm} onTrigger={handleSequencerTrigger} padEngine={padEngine} recordHitRef={seqRecordHitRef} />
       </div>
