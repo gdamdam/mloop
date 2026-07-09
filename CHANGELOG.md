@@ -2,6 +2,15 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] — 2026-07-09
+
+### Fixed
+- **First-loop length no longer includes a trailing silent gap.** Latency compensation trimmed the leading samples of the first recording but left `loopLengthSamples` at the raw length, so the master loop everyone conforms to ran ~20–40 ms long with a silent tail. The loop length now uses the compensated length.
+- **Undo after "load chromatic" reverts all 16 pads.** `loadChromatic` snapshotted undo on each of its 16 imports, so the saved state already had 15 pads overwritten and undo only restored the last. It now snapshots once before loading.
+- **Chromatic pad labels are root-relative.** The note name is now computed from the semitone offset (pad 7 = root), instead of the pad index, which mislabeled the root pad.
+- **Instrument voices disconnect on natural end.** Classic (repitch) instrument voices now release their gain/panner nodes when the one-shot finishes, not only on note-off, avoiding an accumulation of nodes wired to the master bus.
+- **Session listing survives a malformed record.** `listSessions` no longer throws (taking down the whole list) when a stored session is missing its `tracks`/`slots` arrays.
+
 ## [1.4.0] — 2026-07-09
 
 ### Added

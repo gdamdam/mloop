@@ -178,17 +178,21 @@ export class LoopTrack {
       return 0;
     }
 
-    // Determine loop length — either from master or from this first recording
-    if (masterLength > 0) {
-      this.loopLengthSamples = masterLength;
-    } else {
-      this.loopLengthSamples = raw.length;
-    }
-
     // Latency compensation: trim leading silence caused by audio pipeline delay,
     // then zero-pad to exact loop length for seamless looping
     const offset = Math.min(this.latencyTrimSamples, raw.length - 1);
     const compensated = offset > 0 ? raw.subarray(offset) : raw;
+
+    // Determine loop length — either from master or from this first recording.
+    // For the first recording, use the trimmed (compensated) length, not the
+    // raw length: otherwise the loop is `offset` samples too long and ends with
+    // a trailing silent gap that every later track then conforms to.
+    if (masterLength > 0) {
+      this.loopLengthSamples = masterLength;
+    } else {
+      this.loopLengthSamples = compensated.length;
+    }
+
     const trimmed = new Float32Array(this.loopLengthSamples);
     const copyLen = Math.min(compensated.length, this.loopLengthSamples);
     trimmed.set(compensated.subarray(0, copyLen));

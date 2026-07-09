@@ -137,8 +137,10 @@ export async function listSessions(): Promise<SessionMeta[]> {
           bpm: s.bpm ?? 120,
           syncMode: s.syncMode ?? "free",
           timingMode: s.timingMode ?? "free",
-          trackLayers: s.tracks.map((t) => t.layers.length),
-          padSlots: s.pad?.slots.filter((sl) => !!sl.buffer).length ?? 0,
+          // Guard against malformed/legacy records: a missing `tracks`/`slots`
+          // must not throw and take down the entire session listing.
+          trackLayers: (s.tracks ?? []).map((t) => t.layers?.length ?? 0),
+          padSlots: s.pad?.slots?.filter((sl) => !!sl.buffer).length ?? 0,
         }));
       sessions.sort((a, b) => b.savedAt - a.savedAt);
       resolve(sessions);

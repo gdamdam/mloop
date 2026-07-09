@@ -516,6 +516,13 @@ export class PadEngine {
       const gain = this.ctx.createGain();
       gain.gain.value = slot.volume * velocity;
       source.connect(gain).connect(panner);
+      // Disconnect on natural end too — without this a one-shot that finishes
+      // before note-off leaves its panner wired to the master node (leak).
+      source.onended = () => {
+        try { source.disconnect(); } catch { /* ok */ }
+        try { gain.disconnect(); } catch { /* ok */ }
+        try { panner.disconnect(); } catch { /* ok */ }
+      };
       source.start();
       voice = { stop: () => {
         try { source.stop(); source.disconnect(); } catch { /* ok */ }
@@ -729,6 +736,11 @@ export class PadEngine {
   /** Import raw audio data into a pad slot (e.g., from file or session restore). */
   importBuffer(slotId: number, data: Float32Array, name?: string): void {
     this.saveUndo();
+    this.importBufferNoUndo(slotId, data, name);
+  }
+
+  /** Import without snapshotting undo — for bulk loads that save undo once. */
+  private importBufferNoUndo(slotId: number, data: Float32Array, name?: string): void {
     const slot = this.slots[slotId];
     if (!slot) return;
     slot.name = name || `Pad ${slotId + 1}`;
@@ -869,9 +881,15 @@ export class PadEngine {
    */
   loadChromatic(buffer: Float32Array, rootName: string): void {
     const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    // Snapshot once — importBuffer would otherwise save undo 16 times, leaving
+    // the undo state pointing at 15-already-overwritten pads (undo of one pad).
+    this.saveUndo();
     for (let i = 0; i < 16; i++) {
       const semitones = i - 7; // pad 0 = -7st, pad 7 = 0 (root), pad 15 = +8st
-      this.importBuffer(i, new Float32Array(buffer), `${rootName} ${NOTE_NAMES[(7 + semitones + 120) % 12]}`);
+      // Label relative to the root pad (pad 7 = root = C), so intervals read
+      // correctly instead of being offset by the pad index.
+      const noteName = NOTE_NAMES[((semitones % 12) + 12) % 12];
+      this.importBufferNoUndo(i, new Float32Array(buffer), `${rootName} ${noteName}`);
       this.slots[i].pitch = semitones;
     }
   }
