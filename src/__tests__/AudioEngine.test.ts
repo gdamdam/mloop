@@ -6,12 +6,23 @@ import { AudioEngine } from "../engine/AudioEngine";
 // Augment the stub here (additive, scoped to this test file) so the engine
 // can be constructed without modifying the shared setup.
 const AC = window.AudioContext as unknown as {
-  prototype: { createBiquadFilter: () => Record<string, unknown> };
+  prototype: {
+    createBiquadFilter: () => Record<string, unknown>;
+    createGain: () => { gain: Record<string, unknown> };
+  };
 };
 const origCreateBiquad = AC.prototype.createBiquadFilter;
 AC.prototype.createBiquadFilter = function () {
   const node = origCreateBiquad.call(this) as Record<string, unknown>;
   if (!node.gain) node.gain = { value: 0, setTargetAtTime: () => {} };
+  return node;
+};
+// Same additive treatment for gain ramps — the metronome click uses
+// exponentialRampToValueAtTime, which the shared stub omits.
+const origCreateGain = AC.prototype.createGain;
+AC.prototype.createGain = function () {
+  const node = origCreateGain.call(this);
+  if (!node.gain.exponentialRampToValueAtTime) node.gain.exponentialRampToValueAtTime = () => {};
   return node;
 };
 
@@ -143,5 +154,87 @@ describe("master record container negotiation", () => {
     } finally {
       Object.defineProperty(window, "MediaRecorder", { value: orig, writable: true });
     }
+  });
+});
+
+describe("AudioEngine quantized record start (bar alignment)", () => {
+  type FakeSource = {
+    buffer: unknown; loop: boolean; onended: (() => void) | null;
+    connect: () => void; start: () => void; stop: ReturnType<typeof vi.fn>;
+  };
+
+  /** Replace createBufferSource so the test can fire onended at "boundary time". */
+  function captureSources(engine: AudioEngine): FakeSource[] {
+    const created: FakeSource[] = [];
+    (engine.ctx as unknown as { createBufferSource: () => FakeSource }).createBufferSource = () => {
+      const src: FakeSource = { buffer: null, loop: false, onended: null, connect: () => {}, start: () => {}, stop: vi.fn() };
+      created.push(src);
+      return src;
+    };
+    return created;
+  }
+
+  function makeEngine(mode: "free" | "quantized") {
+    const engine = new AudioEngine();
+    engine.timingMode = mode;
+    const startSpy = vi.spyOn(engine.tracks[0], "startRecording").mockResolvedValue(undefined);
+    return { engine, startSpy };
+  }
+
+  it("defers startRecording to the next bar boundary when the clock is already running", async () => {
+    const { engine, startSpy } = makeEngine("quantized");
+    engine.timing.metronomeOn = true;
+    engine.timing.start(); // clock already running from an earlier recording
+    const sources = captureSources(engine);
+    const boundary = engine.timing.getNextBarBoundary();
+
+    const pending = engine.recordTrack(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    // Recording must NOT start immediately — it waits for the bar boundary
+    expect(startSpy).not.toHaveBeenCalled();
+    // The wait is scheduled on the audio clock, ending exactly at the boundary
+    expect(sources.length).toBe(1);
+    expect(sources[0].stop).toHaveBeenCalledWith(boundary);
+
+    sources[0].onended?.(); // audio clock reaches the boundary
+    await pending;
+    expect(startSpy).toHaveBeenCalledTimes(1);
+    engine.timing.stop();
+    engine.shutdown();
+  });
+
+  it("starts immediately in free mode", async () => {
+    const { engine, startSpy } = makeEngine("free");
+    await engine.recordTrack(0);
+    expect(startSpy).toHaveBeenCalledTimes(1);
+    engine.shutdown();
+  });
+
+  it("starts immediately when the record tap itself starts the clock (grid origin is now)", async () => {
+    const { engine, startSpy } = makeEngine("quantized");
+    // Metronome off: this tap establishes the grid, so "now" is a bar boundary
+    await engine.recordTrack(0);
+    expect(startSpy).toHaveBeenCalledTimes(1);
+    engine.timing.stop();
+    engine.shutdown();
+  });
+
+  it("a stop tap during the count-in cancels the pending record", async () => {
+    const { engine, startSpy } = makeEngine("quantized");
+    engine.timing.metronomeOn = true;
+    engine.timing.start();
+    const sources = captureSources(engine);
+
+    const pending = engine.recordTrack(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    await engine.stopTrack(0); // user toggles off before the boundary
+
+    sources[0]?.onended?.();
+    await pending;
+    expect(startSpy).not.toHaveBeenCalled();
+    engine.timing.stop();
+    engine.shutdown();
   });
 });

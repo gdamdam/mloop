@@ -51,6 +51,30 @@ describe("Recorder.stop concurrent guard (worklet path)", () => {
     expect(firstResult[2]).toBeCloseTo(0.3);
   });
 
+  it("assembles streamed chunks with the final tail and recycles buffers back", async () => {
+    const ctx = makeCtx();
+    const rec = new Recorder(ctx, ctx.createGain());
+    const fake = makeFakeWorkletNode();
+    (rec as unknown as { workletNode: unknown }).workletNode = fake;
+
+    const stopped = rec.stop();
+    // Worklet streams a filled chunk, then the tail on stop
+    const chunk = new Float32Array([1, 2, 3]);
+    fake.port.onmessage?.({ data: { type: "chunk", buffer: chunk } } as MessageEvent);
+
+    // Main thread must send a same-size replacement so the worklet never
+    // allocates on the audio thread
+    const replaceCall = fake.port.postMessage.mock.calls.find(
+      (c) => (c[0] as { type: string }).type === "replace",
+    );
+    expect(replaceCall).toBeDefined();
+    expect((replaceCall![0] as { buffer: ArrayBuffer }).buffer.byteLength).toBe(chunk.byteLength);
+
+    fake.port.onmessage?.({ data: { type: "buffer", buffer: new Float32Array([4, 5]) } } as MessageEvent);
+    const result = await stopped;
+    expect(Array.from(result)).toEqual([1, 2, 3, 4, 5]);
+  });
+
   it("returns an empty buffer when nothing was recording", async () => {
     const ctx = makeCtx();
     const rec = new Recorder(ctx, ctx.createGain());

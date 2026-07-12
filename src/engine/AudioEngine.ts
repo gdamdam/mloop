@@ -228,15 +228,53 @@ export class AudioEngine {
     return this.timing.barLengthSamples * this.lockBars;
   }
 
+  /** Tracks with a record start pending on a bar boundary (quantized mode). */
+  private pendingQuantizedRecord = new Set<number>();
+
+  /**
+   * Resolve at the given AudioContext time. Uses a silent scheduled source
+   * (same idiom as LoopTrack's auto-stop) so the wait follows the audio
+   * clock rather than setTimeout's event-loop jitter.
+   */
+  private waitForAudioTime(when: number): Promise<void> {
+    return new Promise((resolve) => {
+      if (when <= this.ctx.currentTime) {
+        resolve();
+        return;
+      }
+      const silent = this.ctx.createBuffer(1, 2, this.ctx.sampleRate);
+      const src = this.ctx.createBufferSource();
+      src.buffer = silent;
+      src.loop = true; // keep the source alive until stop() fires
+      src.connect(this.ctx.destination); // must be connected to fire onended
+      src.onended = () => resolve();
+      src.start(this.ctx.currentTime);
+      src.stop(when);
+    });
+  }
+
   /** Begin recording on a track. In quantized mode, auto-starts metronome. */
   async recordTrack(trackId: number): Promise<void> {
     const track = this.tracks[trackId];
     if (!track) return;
+    // A second record tap while a quantized start is pending is a no-op
+    // (the matching stop tap cancels it — see stopTrack)
+    if (this.pendingQuantizedRecord.has(trackId)) return;
 
     // Quantized mode requires the metronome running for bar alignment
     if (this.timingMode === "quantized" && !this.timing.metronomeOn) {
       this.timing.metronomeOn = true;
       this.timing.start();
+      // This tap established the grid, so "now" IS a bar boundary —
+      // record immediately rather than waiting a full count-in bar.
+    } else if (this.timingMode === "quantized") {
+      // Defer the start to the next bar boundary so the recording START
+      // lands on the grid — stopTrack only snaps the LENGTH (quantizeToBar),
+      // which can't fix a start that was off the grid to begin with.
+      this.pendingQuantizedRecord.add(trackId);
+      await this.waitForAudioTime(this.timing.getNextBarBoundary());
+      // Absent from the set means stopTrack cancelled it while waiting
+      if (!this.pendingQuantizedRecord.delete(trackId)) return;
     }
 
     // In LOCK mode, always use the fixed time window
@@ -262,6 +300,9 @@ export class AudioEngine {
   async stopTrack(trackId: number): Promise<void> {
     const track = this.tracks[trackId];
     if (!track) return;
+
+    // A stop tap during a quantized count-in cancels the pending record
+    if (this.pendingQuantizedRecord.delete(trackId)) return;
 
     if (track.status === "recording") {
       const recLength = this.syncMode === "lock"

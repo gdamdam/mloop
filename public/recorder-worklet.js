@@ -1,7 +1,10 @@
 /**
  * RecorderWorkletProcessor — runs on the audio thread.
- * Accumulates incoming audio into a growing buffer and posts it
- * back to the main thread when stopped.
+ * Streams each filled chunk to the main thread (transferred) as it fills,
+ * then posts the remaining tail when stopped. The main thread accumulates
+ * chunks and sends a fresh buffer back for each one, so process() never
+ * allocates: allocating ~880KB inside process() every ~5s caused GC
+ * pressure on the audio thread (audible underrun click).
  */
 
 const CHUNK_SIZE = 44100 * 5;
@@ -9,32 +12,27 @@ const CHUNK_SIZE = 44100 * 5;
 class RecorderWorkletProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.chunks = [];
+    // Two pre-allocated buffers: fill one while the main thread's
+    // replacement for the transferred one is still in flight.
     this.current = new Float32Array(CHUNK_SIZE);
+    this.pool = [new Float32Array(CHUNK_SIZE)];
     this.writePos = 0;
     this.recording = false;
     this.stopped = false;
-    this.totalSamples = 0;
 
     this.port.onmessage = (e) => {
       if (e.data.type === "start") {
-        this.chunks = [];
-        this.current = new Float32Array(CHUNK_SIZE);
         this.writePos = 0;
-        this.totalSamples = 0;
         this.recording = true;
+      } else if (e.data.type === "replace") {
+        // Main thread returns a same-size buffer for each transferred chunk
+        this.pool.push(new Float32Array(e.data.buffer));
       } else if (e.data.type === "stop") {
         this.recording = false;
-        const result = new Float32Array(this.totalSamples);
-        let offset = 0;
-        for (const chunk of this.chunks) {
-          result.set(chunk, offset);
-          offset += chunk.length;
-        }
-        result.set(this.current.subarray(0, this.writePos), offset);
-        this.port.postMessage({ type: "buffer", buffer: result }, [result.buffer]);
-        this.chunks = [];
-        this.current = new Float32Array(CHUNK_SIZE);
+        // Only the unfilled tail — full chunks were already streamed out
+        const tail = new Float32Array(this.writePos);
+        tail.set(this.current.subarray(0, this.writePos));
+        this.port.postMessage({ type: "buffer", buffer: tail }, [tail.buffer]);
         this.writePos = 0;
         // Each recording gets a fresh node; let this processor die —
         // returning true forever would pin it on the audio thread.
@@ -61,11 +59,12 @@ class RecorderWorkletProcessor extends AudioWorkletProcessor {
       sample /= numChannels;
 
       this.current[this.writePos++] = sample;
-      this.totalSamples++;
 
       if (this.writePos >= CHUNK_SIZE) {
-        this.chunks.push(this.current);
-        this.current = new Float32Array(CHUNK_SIZE);
+        this.port.postMessage({ type: "chunk", buffer: this.current }, [this.current.buffer]);
+        // Replacement round-trips in ms while a chunk takes ~5s to fill, so
+        // the pool is never empty in practice; allocate only as a safety net.
+        this.current = this.pool.pop() || new Float32Array(CHUNK_SIZE);
         this.writePos = 0;
       }
     }

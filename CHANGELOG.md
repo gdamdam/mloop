@@ -2,6 +2,14 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] — 2026-07-13
+
+### Fixed
+- **Quantized mode now aligns recording START to the bar grid.** `recordTrack` started recording immediately and only the loop *length* was later snapped (`quantizeToBar`), so a loop begun mid-bar stayed offset from the grid forever. In quantized mode with the clock already running, the start is now deferred to `getNextBarBoundary()` (scheduled on the audio clock, same silent-source idiom as the auto-stop). When the record tap itself starts the metronome, "now" is the grid origin and recording begins immediately, as before. A stop tap during the count-in cancels the pending start.
+- **Recorder worklet no longer allocates on the audio thread while recording.** `process()` allocated a fresh ~880 KB `Float32Array` every ~5 s of recording (and retained all chunks until stop), causing GC pressure on the audio render thread (audible underrun click on long takes). Filled chunks are now transferred to the main thread as they fill, which sends a same-size buffer back for reuse — steady-state recording performs zero audio-thread allocations. Final assembly also moved off the audio thread.
+- **Vendored mbus client re-synced from canonical** (reconnect/ICE/stale-peer-connection/media-leak fixes): subscription intent survives connection drops as `connecting`; `failed` is terminal-only.
+- README version badge (stuck at 1.4.1) synced with `package.json`.
+
 ## [1.4.2] — 2026-07-12
 
 ### Fixed

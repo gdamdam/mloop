@@ -22,6 +22,7 @@ export class Recorder {
   private resolveBuffer: ((buf: Float32Array) => void) | null = null;
   /** Guards against a second concurrent stop() clobbering resolveBuffer / stacking timeouts. */
   private stopping = false;
+  private stopTimeout: ReturnType<typeof setTimeout> | null = null;
   private static workletReady = false;
   private static workletFailed = false;
   private chunks: Float32Array[] = [];
@@ -69,6 +70,9 @@ export class Recorder {
           channelCount: 1,
         });
         this.inputNode.connect(this.workletNode);
+        this.chunks = [];
+        this.totalSamples = 0;
+        this.workletNode.port.onmessage = this.onWorkletMessage;
         this.workletNode.port.postMessage({ type: "start" });
         this.mode = "worklet";
         return;
@@ -101,6 +105,42 @@ export class Recorder {
     this.mode = "fallback";
   }
 
+  /**
+   * Handles worklet port messages. The worklet transfers each filled ~5s
+   * chunk here as it fills (instead of retaining it on the audio thread) and
+   * we send a same-size buffer back, so the worklet never allocates inside
+   * process() — allocation there caused GC hitches / audible clicks.
+   * On "buffer" (stop) the worklet sends only the unfilled tail; the full
+   * recording is assembled here, off the audio thread.
+   */
+  private onWorkletMessage = (e: MessageEvent): void => {
+    const data = e.data as { type: string; buffer: Float32Array };
+    if (data.type === "chunk") {
+      this.chunks.push(data.buffer);
+      this.totalSamples += data.buffer.length;
+      const replacement = new ArrayBuffer(data.buffer.byteLength);
+      this.workletNode?.port.postMessage({ type: "replace", buffer: replacement }, [replacement]);
+    } else if (data.type === "buffer") {
+      if (this.stopTimeout !== null) {
+        clearTimeout(this.stopTimeout);
+        this.stopTimeout = null;
+      }
+      const tail = data.buffer;
+      const result = new Float32Array(this.totalSamples + tail.length);
+      let offset = 0;
+      for (const chunk of this.chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+      result.set(tail, offset);
+      this.chunks = [];
+      this.totalSamples = 0;
+      this.resolveBuffer?.(result);
+      this.resolveBuffer = null;
+      this.cleanup();
+    }
+  };
+
   /** Stop recording and return the captured buffer. */
   stop(): Promise<Float32Array> {
     return new Promise((resolve) => {
@@ -118,21 +158,20 @@ export class Recorder {
         this.resolveBuffer = resolve;
 
         // Safety timeout — if worklet doesn't respond in 3s, resolve with empty buffer
-        const timeout = setTimeout(() => {
+        this.stopTimeout = setTimeout(() => {
           console.warn("[mloop] AudioWorklet stop timed out");
+          this.stopTimeout = null;
           this.resolveBuffer = null;
+          this.chunks = [];
+          this.totalSamples = 0;
           this.cleanup();
           resolve(new Float32Array(0));
         }, 3000);
 
-        this.workletNode.port.onmessage = (e: MessageEvent) => {
-          if (e.data.type === "buffer") {
-            clearTimeout(timeout);
-            this.resolveBuffer?.(e.data.buffer as Float32Array);
-            this.resolveBuffer = null;
-            this.cleanup();
-          }
-        };
+        // Re-assign the shared handler (already set by start(); a chunk can
+        // still arrive between "stop" and the final "buffer", so stop() must
+        // not swap in a buffer-only handler that would drop it)
+        this.workletNode.port.onmessage = this.onWorkletMessage;
         this.workletNode.port.postMessage({ type: "stop" });
         return;
       }
