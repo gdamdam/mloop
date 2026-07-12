@@ -116,3 +116,32 @@ describe("master record destination reuse", () => {
     engine.shutdown();
   });
 });
+
+describe("master record container negotiation", () => {
+  it("requests only a container the browser supports (Safari has no webm)", () => {
+    const captured: (MediaRecorderOptions | undefined)[] = [];
+    class SafariLikeRecorder {
+      static isTypeSupported(t: string) { return t === "audio/mp4"; }
+      mimeType = "audio/mp4";
+      state = "recording";
+      ondataavailable: ((e: BlobEvent) => void) | null = null;
+      constructor(_stream: MediaStream, opts?: MediaRecorderOptions) { captured.push(opts); }
+      start() {}
+    }
+    const orig = window.MediaRecorder;
+    Object.defineProperty(window, "MediaRecorder", { value: SafariLikeRecorder, writable: true });
+    try {
+      const engine = new AudioEngine();
+      vi.spyOn(engine.ctx, "createMediaStreamDestination").mockImplementation(
+        () => ({ stream: {} } as unknown as MediaStreamAudioDestinationNode),
+      );
+      // Hardcoding { mimeType: "audio/webm" } throws NotSupportedError on
+      // Safari; the engine must negotiate via isTypeSupported instead.
+      expect(() => engine.startMasterRecord()).not.toThrow();
+      expect(captured[0]).toEqual({ mimeType: "audio/mp4" });
+      engine.shutdown();
+    } finally {
+      Object.defineProperty(window, "MediaRecorder", { value: orig, writable: true });
+    }
+  });
+});

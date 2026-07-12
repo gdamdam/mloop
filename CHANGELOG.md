@@ -2,6 +2,11 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] — 2026-07-12
+
+### Fixed
+- **Master recording no longer throws on Safari.** `startMasterRecord` hardcoded `mimeType: "audio/webm"`, which Safari's MediaRecorder rejects with `NotSupportedError`. The container is now negotiated via `MediaRecorder.isTypeSupported` (webm → mp4 → browser default), and the raw-blob fallback returned when WAV encoding fails is labelled with the container that was actually recorded instead of always `audio/webm`.
+
 ## [1.4.1] — 2026-07-09
 
 ### Fixed

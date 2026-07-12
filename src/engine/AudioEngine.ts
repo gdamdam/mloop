@@ -23,6 +23,7 @@
 import { LoopTrack } from "./LoopTrack";
 import { TimingEngine } from "./TimingEngine";
 import { encodeWavStereo } from "../utils/wav";
+import { pickRecorderMimeType } from "./recorderMime";
 import { loadLimits, maxRecordingSamples } from "../utils/recordingLimits";
 import { NUM_TRACKS } from "../types";
 import type { TimingMode, SyncMode } from "../types";
@@ -660,7 +661,10 @@ export class AudioEngine {
     }
     const dest = this.masterRecDest;
     this.masterChunks = [];
-    this.masterRecorder = new MediaRecorder(dest.stream, { mimeType: "audio/webm" });
+    // Safari throws NotSupportedError on an explicit webm request — negotiate
+    // the container instead of hardcoding it (undefined = browser default).
+    const mimeType = pickRecorderMimeType();
+    this.masterRecorder = new MediaRecorder(dest.stream, mimeType ? { mimeType } : undefined);
     this.masterRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) this.masterChunks.push(e.data);
     };
@@ -677,9 +681,12 @@ export class AudioEngine {
     return new Promise((resolve) => {
       this.masterRecorder!.onstop = async () => {
         this.masterRecording = false;
-        const webmBlob = new Blob(this.masterChunks, { type: "audio/webm" });
+        // Label the raw blob with what the recorder actually produced
+        // (mp4 on Safari), so the fallback download isn't mislabelled.
+        const rawType = this.masterRecorder!.mimeType || "audio/webm";
+        const rawBlob = new Blob(this.masterChunks, { type: rawType });
         // Decode to AudioBuffer then encode as WAV for universal compatibility
-        const arrayBuf = await webmBlob.arrayBuffer();
+        const arrayBuf = await rawBlob.arrayBuffer();
         try {
           const audioBuf = await this.ctx.decodeAudioData(arrayBuf);
           const channels = [];
@@ -691,8 +698,8 @@ export class AudioEngine {
           });
           resolve(new Blob([wav], { type: "audio/wav" }));
         } catch {
-          // Fallback: return webm if WAV encoding fails
-          resolve(webmBlob);
+          // Fallback: return the raw recording if WAV encoding fails
+          resolve(rawBlob);
         }
       };
       this.masterRecorder!.stop();
