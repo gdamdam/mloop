@@ -2,6 +2,11 @@
 
 All notable changes to mloop. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project tries to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] — 2026-07-22
+
+### Fixed
+- **Vendored mbus client re-synced from canonical** — the WebRTC receiver now pins its jitter buffer to the minimum (`jitterBufferTarget` / legacy `playoutDelayHint` → 0) on `ontrack`. The localhost/LAN path has ~no jitter to absorb, so the browser's default adaptive buffer was pure latency that made mixed-back audio lag the source. (Supersedes 1.4.4, which shipped the sync without the required CHANGELOG/README-badge bump and failed the version-sync check.)
+
 ## [1.4.3] — 2026-07-13
 
 ### Fixed
